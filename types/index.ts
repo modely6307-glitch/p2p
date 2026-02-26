@@ -15,6 +15,7 @@ export interface Order {
   item_name: string;
   target_price: number;
   reward_fee: number;
+  total_amount: number;
   status: OrderStatus;
   receipt_url?: string | null;
   photo_url?: string | null;
