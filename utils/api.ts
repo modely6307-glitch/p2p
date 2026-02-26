@@ -1,5 +1,5 @@
 import { supabase } from './supabase/client';
-import { Order, OrderStatus } from '@/types';
+import { Order, OrderStatus, Profile } from '@/types';
 
 export const fetchOrders = async (status?: OrderStatus) => {
   let query = supabase
@@ -47,13 +47,12 @@ export const fetchOrderById = async (id: string) => {
   return data as Order;
 };
 
-export const createOrder = async (order: Omit<Order, 'id' | 'status' | 'created_at' | 'total_amount'>) => {
+export const createOrder = async (order: Omit<Order, 'id' | 'status' | 'created_at'>) => {
   const { data, error } = await supabase
     .from('orders')
     .insert([
       {
         ...order,
-        total_amount: order.target_price + order.reward_fee,
         status: 'OPEN',
       },
     ])
@@ -92,7 +91,7 @@ export const assignTraveler = async (id: string, travelerId: string) => {
 };
 
 export const updateOrderDetails = async (id: string, updates: Partial<Order>) => {
-  const { data, error } = await supabase
+    const { data, error } = await supabase
     .from('orders')
     .update(updates)
     .eq('id', id)
@@ -112,4 +111,35 @@ export const uploadFile = async (file: File, bucket: string, path: string) => {
 
   const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(path);
   return publicUrl;
+};
+
+// --- Profile & Ratings ---
+
+export const fetchProfile = async (userId: string) => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .single();
+
+  if (error) throw error;
+  return data as Profile;
+};
+
+export const rateUser = async (userId: string, isPositive: boolean) => {
+  const { error } = await supabase.rpc('rate_user', {
+    user_id: userId,
+    is_positive: isPositive
+  });
+
+  if (error) throw error;
+};
+
+export const incrementOrderStats = async (userId: string, amount: number) => {
+  const { error } = await supabase.rpc('increment_order_stats', {
+    user_id: userId,
+    order_amount: amount
+  });
+
+  if (error) throw error;
 };

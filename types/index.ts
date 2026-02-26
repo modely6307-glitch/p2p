@@ -15,9 +15,17 @@ export interface Order {
   item_name: string;
   target_price: number;
   reward_fee: number;
-  total_amount: number;
   status: OrderStatus;
   receipt_url?: string | null;
   photo_url?: string | null;
   tracking_number?: string | null;
+}
+
+export interface Profile {
+  id: string;
+  display_name?: string | null;
+  completed_orders_count: number;
+  total_order_amount: number;
+  positive_rating_count: number;
+  total_rating_count: number;
 }

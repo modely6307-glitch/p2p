@@ -7,11 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ArrowLeft, Loader2 } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
 
 export default function CreateWish() {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     item_name: '',
@@ -21,12 +19,11 @@ export default function CreateWish() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
     setLoading(true);
 
     try {
       await createOrder({
-        buyer_id: user.id,
+        buyer_id: 'mock-buyer-123', // Mock user ID
         item_name: formData.item_name,
         target_price: parseFloat(formData.target_price),
         reward_fee: parseFloat(formData.reward_fee),
