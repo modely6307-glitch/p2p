@@ -61,7 +61,11 @@
         "fail": "Failed to post wish, please try again.",
         "shipping_address": "Shipping Address",
         "shipping_address_placeholder": "Enter shipping address (Revealed to traveler after payment)",
-        "address_privacy_hint": "Address will only be revealed to the traveler after the system confirms escrow payment."
+        "address_privacy_hint": "Address will only be revealed to the traveler after the system confirms escrow payment.",
+        "proof_requirements": "Proof Requirements (Traveler Must Upload)",
+        "proof_purchase_photo": "Product Photo (Mandatory)",
+        "proof_receipt": "Receipt/Invoice",
+        "proof_model": "Model/Serial Number"
     },
     "dashboard": {
         "title": "My Dashboard",
@@ -109,8 +113,12 @@
         "wait_escrow": "Waiting for Escrow",
         "buyer_pay_hint": "Buyer needs to fund the platform escrow account.",
         "admin_confirm_escrow": "[Admin] Confirm Funds Received",
-        "traveler_buy_hint": "Traveler: Please purchase the item and upload the receipt.",
+        "traveler_buy_hint": "Please purchase the item and upload purchase proof.",
         "shipping_info": "Shipping Information",
+        "proof_section_title": "Purchase Proof Upload",
+        "proof_guide_model": "Please enter model or serial number for verification",
+        "model_placeholder": "Enter model/serial...",
+        "upload_purchase_photo": "Upload Product Photo",
         "tracking_placeholder": "Enter Tracking Number",
         "ship_btn": "Notify Shipped",
         "shipped_msg": "Item Shipped",

@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ArrowLeft, Loader2, Camera, X } from 'lucide-react';
+import { ArrowLeft, Loader2, Camera, X, Check } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 import { useLanguage } from '@/context/LanguageContext';
@@ -26,6 +26,8 @@ export default function CreateWish() {
     reward_fee: '',
     description: '',
     shipping_address: '',
+    require_receipt: false,
+    require_model_number: false,
     country: 'Japan',
     currency: 'JPY',
     exchange_rate: '0.22',
@@ -130,6 +132,8 @@ export default function CreateWish() {
         exchange_rate: parseFloat(formData.exchange_rate),
         description: formData.description,
         shipping_address: formData.shipping_address,
+        require_receipt: formData.require_receipt as boolean,
+        require_model_number: formData.require_model_number as boolean,
         country: formData.country,
         currency: formData.currency,
         photo_url: photo_url,
@@ -295,6 +299,38 @@ export default function CreateWish() {
               className="min-h-[80px]"
             />
             <p className="text-[10px] text-muted-foreground italic px-1">{t('create.address_privacy_hint')}</p>
+          </div>
+
+          <div className="space-y-3 bg-secondary/10 p-4 rounded-2xl border border-border/50">
+            <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">{t('create.proof_requirements')}</label>
+            <div className="space-y-2">
+              <div className="flex items-center gap-3 p-2 rounded-xl bg-background/50 border border-border/30">
+                <div className="w-5 h-5 rounded flex items-center justify-center bg-primary text-primary-foreground">
+                  <Check className="w-3 h-3" />
+                </div>
+                <span className="text-sm font-medium">{t('create.proof_purchase_photo')}</span>
+              </div>
+
+              <label className="flex items-center gap-3 p-2 rounded-xl hover:bg-background/50 transition-colors cursor-pointer border border-transparent hover:border-border/30">
+                <input
+                  type="checkbox"
+                  checked={formData.require_receipt as boolean}
+                  onChange={(e) => setFormData(p => ({ ...p, require_receipt: e.target.checked }))}
+                  className="w-5 h-5 rounded border-input text-primary focus:ring-primary"
+                />
+                <span className="text-sm font-medium">{t('create.proof_receipt')}</span>
+              </label>
+
+              <label className="flex items-center gap-3 p-2 rounded-xl hover:bg-background/50 transition-colors cursor-pointer border border-transparent hover:border-border/30">
+                <input
+                  type="checkbox"
+                  checked={formData.require_model_number as boolean}
+                  onChange={(e) => setFormData(p => ({ ...p, require_model_number: e.target.checked }))}
+                  className="w-5 h-5 rounded border-input text-primary focus:ring-primary"
+                />
+                <span className="text-sm font-medium">{t('create.proof_model')}</span>
+              </label>
+            </div>
           </div>
 
           {/* Pricing Section */}

@@ -17,7 +17,7 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Loader2, Upload, Truck, CheckCircle, AlertTriangle, ShieldCheck, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Loader2, Upload, Truck, CheckCircle, AlertTriangle, ShieldCheck, ThumbsUp, ThumbsDown, Camera } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 const getCurrencySymbol = (currency: string) => {
@@ -52,6 +52,8 @@ export default function OrderDetails() {
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<'buyer' | 'traveler' | 'admin'>('buyer');
   const [uploading, setUploading] = useState(false);
+  const [purchasePhotoUploading, setPurchasePhotoUploading] = useState(false);
+  const [modelNumberInput, setModelNumberInput] = useState('');
   const [trackingNumber, setTrackingNumber] = useState('');
   const [ratingSubmitted, setRatingSubmitted] = useState(false);
   const [showFormula, setShowFormula] = useState(false);
@@ -135,6 +137,38 @@ export default function OrderDetails() {
       await loadOrder();
     } catch (error) {
       console.error('Error adding tracking:', error);
+    }
+  };
+
+  const handleUploadPurchasePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!order || !user || !e.target.files || e.target.files.length === 0) return;
+    setPurchasePhotoUploading(true);
+    try {
+      const file = e.target.files[0];
+      const path = `${order.id}/purchase-${Date.now()}`;
+      const url = await uploadFile(file, 'purchase_photos', path);
+
+      await updateOrderDetails(order.id, {
+        purchase_photo_url: url
+      });
+      await loadOrder();
+    } catch (error) {
+      console.error('Error uploading purchase photo:', error);
+      alert(t('error'));
+    } finally {
+      setPurchasePhotoUploading(false);
+    }
+  };
+
+  const handleUpdateModelNumber = async () => {
+    if (!order || !modelNumberInput) return;
+    try {
+      await updateOrderDetails(order.id, {
+        model_number: modelNumberInput
+      });
+      await loadOrder();
+    } catch (error) {
+      console.error('Error updating model number:', error);
     }
   };
 
@@ -368,18 +402,32 @@ export default function OrderDetails() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {order.tracking_number && (
-              <div className="flex justify-between items-center bg-background p-3 rounded-xl border border-border/50">
-                <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{t('order.tracking_no')}</span>
-                <span className="font-mono text-sm font-bold bg-muted px-2 py-1 rounded">{order.tracking_number}</span>
+            {order.purchase_photo_url && (
+              <div className="space-y-2">
+                <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{t('create.proof_purchase_photo')}</span>
+                <div className="rounded-xl overflow-hidden border border-border shadow-sm bg-background p-1">
+                  <img src={order.purchase_photo_url} alt="Purchase" className="w-full h-auto max-h-48 object-contain rounded-lg" />
+                </div>
               </div>
             )}
             {order.receipt_url && (
               <div className="space-y-2">
-                <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{t('order.receipt')}</span>
+                <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{t('create.proof_receipt')}</span>
                 <div className="rounded-xl overflow-hidden border border-border shadow-sm bg-background p-1">
                   <img src={order.receipt_url} alt="Receipt" className="w-full h-auto max-h-48 object-contain rounded-lg" />
                 </div>
+              </div>
+            )}
+            {order.model_number && (
+              <div className="flex justify-between items-center bg-background p-3 rounded-xl border border-border/50">
+                <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{t('create.proof_model')}</span>
+                <span className="font-mono text-sm font-bold bg-muted px-2 py-1 rounded">{order.model_number}</span>
+              </div>
+            )}
+            {order.tracking_number && (
+              <div className="flex justify-between items-center bg-background p-3 rounded-xl border border-border/50">
+                <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{t('order.tracking_no')}</span>
+                <span className="font-mono text-sm font-bold bg-muted px-2 py-1 rounded">{order.tracking_number}</span>
               </div>
             )}
           </CardContent>
@@ -420,27 +468,111 @@ export default function OrderDetails() {
           )}
 
           {order.status === 'ESCROWED' && (
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div className="bg-background/50 p-4 rounded-xl border border-border/50">
                 <p className="text-sm font-bold text-primary mb-1">{t('order.traveler_buy_hint')}</p>
                 <p className="text-xs text-muted-foreground leading-relaxed">{t('order.upload_guide')}</p>
               </div>
 
               {role === 'traveler' && (
-                <div className="space-y-3">
-                  <div className="relative group">
-                    <input
-                      type="file"
-                      onChange={handleUploadReceipt}
-                      disabled={uploading}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                    />
-                    <div className="h-24 border-2 border-dashed border-primary/30 rounded-xl flex flex-col items-center justify-center bg-primary/5 group-hover:bg-primary/10 transition-colors">
-                      <Upload className={`w-8 h-8 ${uploading ? 'animate-bounce' : ''} text-primary mb-2`} />
-                      <p className="text-xs font-bold text-primary uppercase tracking-wider">
-                        {uploading ? t('common.loading') : t('order.receipt_update')}
-                      </p>
+                <div className="space-y-6">
+                  {/* Mandatory Product Photo */}
+                  <div className="space-y-3">
+                    <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t('create.proof_purchase_photo')}</p>
+                    {order.purchase_photo_url ? (
+                      <div className="relative rounded-xl overflow-hidden border border-border group">
+                        <img src={order.purchase_photo_url} alt="Purchase" className="w-full h-auto max-h-48 object-cover" />
+                        <label className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
+                          <input type="file" onChange={handleUploadPurchasePhoto} className="hidden" />
+                          <span className="text-white text-xs font-bold">{t('order.receipt_update')}</span>
+                        </label>
+                      </div>
+                    ) : (
+                      <div className="relative group">
+                        <input
+                          type="file"
+                          onChange={handleUploadPurchasePhoto}
+                          disabled={purchasePhotoUploading}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                        />
+                        <div className="h-24 border-2 border-dashed border-primary/30 rounded-xl flex flex-col items-center justify-center bg-primary/5 group-hover:bg-primary/10 transition-colors">
+                          <Camera className={`w-8 h-8 ${purchasePhotoUploading ? 'animate-bounce' : ''} text-primary mb-2`} />
+                          <p className="text-xs font-bold text-primary uppercase tracking-wider">
+                            {purchasePhotoUploading ? t('common.loading') : t('order.upload_purchase_photo')}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Optional Receipt */}
+                  {order.require_receipt && (
+                    <div className="space-y-3">
+                      <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t('create.proof_receipt')}</p>
+                      {order.receipt_url ? (
+                        <div className="relative rounded-xl overflow-hidden border border-border group">
+                          <img src={order.receipt_url} alt="Receipt" className="w-full h-auto max-h-48 object-cover" />
+                          <label className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
+                            <input type="file" onChange={handleUploadReceipt} className="hidden" />
+                            <span className="text-white text-xs font-bold">{t('order.receipt_update')}</span>
+                          </label>
+                        </div>
+                      ) : (
+                        <div className="relative group">
+                          <input
+                            type="file"
+                            onChange={handleUploadReceipt}
+                            disabled={uploading}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                          />
+                          <div className="h-24 border-2 border-dashed border-border/30 rounded-xl flex flex-col items-center justify-center bg-secondary/10 group-hover:bg-secondary/20 transition-colors">
+                            <Upload className={`w-8 h-8 ${uploading ? 'animate-bounce' : ''} text-muted-foreground mb-2`} />
+                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                              {uploading ? t('common.loading') : t('order.receipt_update')}
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </div>
+                  )}
+
+                  {/* Optional Model Number */}
+                  {order.require_model_number && (
+                    <div className="space-y-3">
+                      <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t('create.proof_model')}</p>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder={t('order.model_placeholder')}
+                          value={modelNumberInput || order.model_number || ''}
+                          onChange={(e) => setModelNumberInput(e.target.value)}
+                        />
+                        <Button
+                          size="sm"
+                          onClick={handleUpdateModelNumber}
+                          disabled={!modelNumberInput || modelNumberInput === order.model_number}
+                        >
+                          {t('common.save')}
+                        </Button>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground italic">{t('order.proof_guide_model')}</p>
+                    </div>
+                  )}
+
+                  <div className="pt-4 border-t border-border/30">
+                    <Button
+                      fullWidth
+                      className="h-12 font-bold"
+                      disabled={!order.purchase_photo_url || (order.require_receipt && !order.receipt_url) || (order.require_model_number && !order.model_number)}
+                      onClick={async () => {
+                        await updateOrderStatus(order.id, 'BOUGHT');
+                        await loadOrder();
+                      }}
+                    >
+                      {t('admin.finish_purchase_btn')}
+                    </Button>
+                    {(!order.purchase_photo_url || (order.require_receipt && !order.receipt_url) || (order.require_model_number && !order.model_number)) && (
+                      <p className="text-[9px] text-red-500 mt-2 text-center font-bold animate-pulse">請先完成所有要求的證明上傳</p>
+                    )}
                   </div>
                 </div>
               )}
@@ -449,37 +581,18 @@ export default function OrderDetails() {
 
           {order.status === 'BOUGHT' && (
             <div className="space-y-4">
-              <div className="bg-background rounded-xl p-4 border border-border/50">
-                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3 text-[10px]">{t('order.receipt_current')}</p>
-                {order.receipt_url ? (
-                  <img src={order.receipt_url} alt="Receipt" className="max-h-64 mx-auto rounded-lg shadow-sm" />
-                ) : (
-                  <p className="text-sm text-center py-4 text-muted-foreground">{t('order.receipt_none')}</p>
-                )}
-
-                {role === 'traveler' && (
-                  <div className="mt-4 pt-4 border-t border-border/30">
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">{t('order.receipt_update')}</label>
-                    <Input type="file" onChange={handleUploadReceipt} disabled={uploading} className="h-10 text-xs" />
-                    {uploading && <p className="text-[10px] mt-1 animate-pulse text-primary italic">{t('order.receipt_uploading')}</p>}
-                  </div>
-                )}
-              </div>
-
-              {role === 'traveler' && (
-                <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 space-y-3">
-                  <p className="text-xs font-bold text-primary uppercase tracking-widest text-[10px]">{t('order.shipping_info')}</p>
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder={t('order.tracking_placeholder')}
-                      value={trackingNumber}
-                      onChange={(e) => setTrackingNumber(e.target.value)}
-                      className="bg-background"
-                    />
-                    <Button onClick={handleAddTracking} className="px-6 font-bold">{t('order.ship_btn')}</Button>
-                  </div>
+              <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 space-y-3">
+                <p className="text-xs font-bold text-primary uppercase tracking-widest text-[10px]">{t('order.shipping_info')}</p>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder={t('order.tracking_placeholder')}
+                    value={trackingNumber}
+                    onChange={(e) => setTrackingNumber(e.target.value)}
+                    className="bg-background"
+                  />
+                  <Button onClick={handleAddTracking} className="px-6 font-bold">{t('order.ship_btn')}</Button>
                 </div>
-              )}
+              </div>
             </div>
           )}
 

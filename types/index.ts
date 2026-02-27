@@ -26,6 +26,10 @@ export interface Order {
   description: string;
   shipping_address?: string | null;
   tracking_number?: string | null;
+  require_receipt: boolean;
+  require_model_number: boolean;
+  purchase_photo_url?: string | null;
+  model_number?: string | null;
   buyer_platform_fee: number;
   traveler_platform_fee: number;
   buyer?: Profile;

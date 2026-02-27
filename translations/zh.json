@@ -22,7 +22,7 @@
     "status": {
         "OPEN": "待接單",
         "MATCHED": "待付款",
-        "ESCROWED": "資金託管",
+        "ESCROWED": "買方已付款",
         "BOUGHT": "已採買",
         "SHIPPED": "已發貨",
         "COMPLETED": "已完成",
@@ -61,7 +61,11 @@
         "fail": "發布願望失敗。",
         "shipping_address": "收件地址",
         "shipping_address_placeholder": "請輸入收件地址 (僅在付款後揭露給代購)",
-        "address_privacy_hint": "地址僅會在系統確認收到您的代管資金 (Escrow) 後，才會揭露給代購玩家。"
+        "address_privacy_hint": "地址僅會在系統確認收到您的代管資金 (Escrow) 後，才會揭露給代購玩家。",
+        "proof_requirements": "採購證明要求 (代購需上傳)",
+        "proof_purchase_photo": "商品採購照 (必填)",
+        "proof_receipt": "購買收據/發票",
+        "proof_model": "型號/序號比對"
     },
     "dashboard": {
         "title": "個人控制台",
@@ -102,15 +106,19 @@
         "receipt_none": "尚未上傳購買證明",
         "receipt_update": "更新購買證明",
         "receipt_uploading": "正在上傳新證明...",
-        "next_steps": "下一步：當前任務",
+        "next_steps": "買方已付款, 請上傳購買證明",
         "upload_guide": "請在採購完成後上傳您的購買收據或發票，這將作為撥款的重要依據。",
         "wait_accept": "等待代購接下此願望。",
         "accept_btn": "接下此單",
-        "wait_escrow": "待資金託管",
+        "wait_escrow": "等待買方付款",
         "buyer_pay_hint": "買家需將款項支付予平台代收帳戶。",
         "admin_confirm_escrow": "[管理員] 確認款項已入帳",
-        "traveler_buy_hint": "代購玩家請前往採購並上傳購買證明。",
+        "traveler_buy_hint": "請前往採購並上傳購買證明。",
         "shipping_info": "發貨資訊",
+        "proof_section_title": "採購證明上傳",
+        "proof_guide_model": "請輸入商品型號或序號以供買家比對",
+        "model_placeholder": "輸入型號/序號...",
+        "upload_purchase_photo": "上傳商品實拍照",
         "tracking_placeholder": "請輸入物流單號",
         "ship_btn": "通知已發貨",
         "shipped_msg": "商品已發貨",
@@ -158,10 +166,11 @@
         "no_email": "無信箱",
         "btn_unverify": "取消認證",
         "btn_verify": "通過認證",
-        "confirm_payment_alert": "確認已收到此訂單的款項？這將會把訂單狀態改為「資金託管」並通知旅客採買。",
+        "confirm_payment_alert": "確認已收到此訂單的款項？這將會把訂單狀態改為「買方已付款」並通知旅客採買。",
         "release_funds_alert": "確認撥款給旅客？此動作不可逆，訂單將標記為完成。",
         "confirm_payment_btn": "確認收款",
-        "release_funds_btn": "釋放資金"
+        "release_funds_btn": "釋放資金",
+        "finish_purchase_btn": "確認已完成採購"
     },
     "countries": {
         "Japan": "日本",
