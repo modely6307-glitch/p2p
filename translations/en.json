@@ -53,6 +53,8 @@
         "formula_title": "Budget Formula",
         "formula_help": "Total = (Item Price × Ex. Rate) + Reward + Platform Fee",
         "platform_fee": "Platform Fee",
+        "buyer_fee": "Wisher Fee",
+        "traveler_fee": "Traveler Fee",
         "reward_twd": "Reward is fixed in TWD",
         "limit_alert": "Standard user limit is 5000 TWD. Your current total is {total} TWD. Please verify identity to increase limit.",
         "success": "Wish posted successfully!",

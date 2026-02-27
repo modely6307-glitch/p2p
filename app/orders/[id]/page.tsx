@@ -289,17 +289,15 @@ export default function OrderDetails() {
           </div>
           {order.buyer_platform_fee > 0 && (
             <div className="flex justify-between py-2 border-b border-border/50">
-              <span className="text-muted-foreground">{t('create.platform_fee')}</span>
-              <span className="font-medium text-xs">NT${order.buyer_platform_fee.toLocaleString()}</span>
+              <span className="text-muted-foreground">{t('create.buyer_fee')}</span>
+              <span className="font-medium text-xs text-muted-foreground">NT${order.buyer_platform_fee.toLocaleString()}</span>
             </div>
           )}
           <div className="flex justify-between py-4 items-center">
             <span className="font-black text-foreground">{t('order.total_budget')}</span>
             <div className="text-right">
               <div className="text-2xl font-black text-primary">NT${order.total_amount_twd?.toLocaleString()}</div>
-              <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">
-                {currencySymbol}{order.target_price} + NT${order.reward_fee} + NT${order.buyer_platform_fee}
-              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">({t('order.buyer_paid_total')})</p>
             </div>
           </div>
         </CardContent>
@@ -321,7 +319,7 @@ export default function OrderDetails() {
               </p>
             </div>
             <div className="text-right">
-              <p className="text-[9px] text-muted-foreground uppercase font-bold">{t('create.platform_fee')}</p>
+              <p className="text-[9px] text-muted-foreground uppercase font-bold">{t('create.traveler_fee')}</p>
               <p className="text-xs font-bold text-red-500">-NT${order.traveler_platform_fee}</p>
             </div>
           </div>
@@ -339,7 +337,7 @@ export default function OrderDetails() {
                   <span>NT$ {order.reward_fee}</span>
                 </div>
                 <div className="flex justify-between text-red-500/70">
-                  <span>- {t('create.platform_fee')}</span>
+                  <span>- {t('create.traveler_fee')}</span>
                   <span>NT$ {order.traveler_platform_fee}</span>
                 </div>
                 <div className="pt-1 border-t border-border/30 flex justify-between font-bold text-foreground">
