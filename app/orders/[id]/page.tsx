@@ -287,17 +287,26 @@ export default function OrderDetails() {
             <span className="text-muted-foreground">{t('order.reward_fee')}</span>
             <span className="font-bold text-green-600">NT${order.reward_fee.toLocaleString()}</span>
           </div>
-          {order.buyer_platform_fee > 0 && (
+          {role !== 'traveler' && order.buyer_platform_fee > 0 && (
             <div className="flex justify-between py-2 border-b border-border/50">
               <span className="text-muted-foreground">{t('create.buyer_fee')}</span>
               <span className="font-medium text-xs text-muted-foreground">NT${order.buyer_platform_fee.toLocaleString()}</span>
             </div>
           )}
           <div className="flex justify-between py-4 items-center">
-            <span className="font-black text-foreground">{t('order.total_budget')}</span>
+            <span className="font-black text-foreground">
+              {role === 'traveler' ? t('order.budget_info') : t('order.total_budget')}
+            </span>
             <div className="text-right">
-              <div className="text-2xl font-black text-primary">NT${order.total_amount_twd?.toLocaleString()}</div>
-              <p className="text-[10px] text-muted-foreground mt-1">({t('order.buyer_paid_total')})</p>
+              <div className="text-2xl font-black text-primary">
+                NT${(role === 'traveler'
+                  ? Math.round((order.target_price * (order.exchange_rate || 1)) + order.reward_fee)
+                  : order.total_amount_twd || 0
+                ).toLocaleString()}
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                {role === 'traveler' ? t('order.traveler_gross_total') : `(${t('order.buyer_paid_total')})`}
+              </p>
             </div>
           </div>
         </CardContent>

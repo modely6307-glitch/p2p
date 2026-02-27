@@ -94,6 +94,7 @@
         "reward_fee": "Reward Fee",
         "total_budget": "Total Budget",
         "buyer_paid_total": "Wisher Paid Total",
+        "traveler_gross_total": "Order Gross (incl. Reward)",
         "delivery_info": "Delivery Information",
         "tracking_no": "Tracking Number",
         "receipt": "Receipt / Proof of Purchase",

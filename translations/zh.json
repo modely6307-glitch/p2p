@@ -94,6 +94,7 @@
         "reward_fee": "給予補貼/報酬",
         "total_budget": "總計預算",
         "buyer_paid_total": "買家支付總額",
+        "traveler_gross_total": "訂單總額 (含報酬)",
         "delivery_info": "物流資訊",
         "tracking_no": "物流單號",
         "receipt": "購買證明 / 收據",
