@@ -50,6 +50,9 @@
         "reward": "Reward Fee",
         "total_est": "Estimated Total (TWD)",
         "submit": "Post Wish",
+        "formula_title": "Budget Formula",
+        "formula_help": "Total = (Item Price × Ex. Rate) + Reward",
+        "reward_twd": "Reward is fixed in TWD",
         "limit_alert": "Standard user limit is 5000 TWD. Your current total is {total} TWD. Please verify identity to increase limit.",
         "success": "Wish posted successfully!",
         "fail": "Failed to post wish."

@@ -17,16 +17,19 @@ export default function CreateWish() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [showFormula, setShowFormula] = useState(false);
   const { t } = useLanguage();
+
   const [formData, setFormData] = useState({
     item_name: '',
     target_price: '',
     reward_fee: '',
     description: '',
     country: 'Japan',
-    currency: 'TWD',
-    exchange_rate: '1.0',
+    currency: 'JPY',
+    exchange_rate: '0.22',
   });
+
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<Profile | null>(null);
@@ -38,12 +41,12 @@ export default function CreateWish() {
   }, [user]);
 
   const countries = [
-    { name: 'Japan', flag: '🇯🇵', defaultRate: 0.22 },
-    { name: 'USA', flag: '🇺🇸', defaultRate: 32.5 },
-    { name: 'Korea', flag: '🇰🇷', defaultRate: 0.024 },
-    { name: 'Taiwan', flag: '🇹🇼', defaultRate: 1.0 },
-    { name: 'Thailand', flag: '🇹🇭', defaultRate: 0.92 },
-    { name: 'France', flag: '🇫🇷', defaultRate: 35.2 },
+    { name: 'Japan', flag: '🇯🇵', currency: 'JPY', defaultRate: 0.22 },
+    { name: 'USA', flag: '🇺🇸', currency: 'USD', defaultRate: 32.5 },
+    { name: 'Korea', flag: '🇰🇷', currency: 'KRW', defaultRate: 0.024 },
+    { name: 'Taiwan', flag: '🇹🇼', currency: 'TWD', defaultRate: 1.0 },
+    { name: 'Thailand', flag: '🇹🇭', currency: 'THB', defaultRate: 0.92 },
+    { name: 'France', flag: '🇫🇷', currency: 'EUR', defaultRate: 35.2 },
   ];
 
   const currencies = [
@@ -52,6 +55,7 @@ export default function CreateWish() {
     { code: 'JPY', symbol: '¥' },
     { code: 'KRW', symbol: '₩' },
     { code: 'EUR', symbol: '€' },
+    { code: 'THB', symbol: '฿' },
   ];
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -67,14 +71,18 @@ export default function CreateWish() {
     setPhotoPreview(null);
   };
 
+  const calculateTotal = () => {
+    const price = parseFloat(formData.target_price || '0');
+    const rate = parseFloat(formData.exchange_rate || '1');
+    const reward = parseFloat(formData.reward_fee || '0');
+    return (price * rate) + reward;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !userProfile) return;
 
-    const rate = parseFloat(formData.exchange_rate);
-    const target = parseFloat(formData.target_price);
-    const fee = parseFloat(formData.reward_fee);
-    const totalTwd = (target + fee) * rate;
+    const totalTwd = calculateTotal();
 
     // Enforcement: Standard users limit 5000 TWD
     if (userProfile.level === 'STANDARD' && totalTwd > 5000) {
@@ -94,9 +102,9 @@ export default function CreateWish() {
       await createOrder({
         buyer_id: user.id,
         item_name: formData.item_name,
-        target_price: target,
-        reward_fee: fee,
-        exchange_rate: rate,
+        target_price: parseFloat(formData.target_price),
+        reward_fee: parseFloat(formData.reward_fee),
+        exchange_rate: parseFloat(formData.exchange_rate),
         description: formData.description,
         country: formData.country,
         currency: formData.currency,
@@ -105,7 +113,7 @@ export default function CreateWish() {
       router.push('/dashboard');
     } catch (error) {
       console.error('Error creating wish:', error);
-      alert(t('create.fail') + ' (Firebase Storage Error)');
+      alert(t('create.fail'));
     } finally {
       setLoading(false);
     }
@@ -114,22 +122,29 @@ export default function CreateWish() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
 
-    // Auto-update exchange rate when country changes for better UX
     if (name === 'country') {
-      const country = countries.find(c => c.name === value);
-      if (country) {
+      const countryConfig = countries.find(c => c.name === value);
+      if (countryConfig) {
         setFormData(prev => ({
           ...prev,
           country: value,
-          exchange_rate: country.defaultRate.toString(),
-          currency: value === 'Taiwan' ? 'TWD' : prev.currency // Small logic for Taiwan
+          currency: countryConfig.currency,
+          exchange_rate: countryConfig.defaultRate.toString()
         }));
-        return;
       }
+      return;
     }
 
-    setFormData({ ...formData, [name]: value });
+    if (name === 'currency') {
+      const selectedCurrency = currencies.find(c => c.code === value);
+      // If manually changing currency, we can also reset rate to a known default if available
+      // but keeping it simple for now as country change is the main trigger.
+    }
+
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
+
+  const currentCurrencySymbol = currencies.find(c => c.code === formData.currency)?.symbol || '$';
 
   return (
     <div className="p-4 space-y-6">
@@ -142,6 +157,7 @@ export default function CreateWish() {
 
       <Card className="p-6">
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Photo Section */}
           <div className="space-y-4">
             <label className="block text-sm font-medium text-muted-foreground">{t('create.photo')}</label>
             <div className="flex items-center gap-4">
@@ -170,6 +186,7 @@ export default function CreateWish() {
             </div>
           </div>
 
+          {/* Country & Rate Section */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="block text-sm font-medium text-muted-foreground">{t('create.country')}</label>
@@ -235,38 +252,60 @@ export default function CreateWish() {
             required
           />
 
+          {/* Pricing Section */}
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <Input
-                label={`${t('create.price')} (${currencies.find(c => c.code === formData.currency)?.symbol || '$'})`}
+                label={`${t('create.price')} (${currentCurrencySymbol})`}
                 name="target_price"
                 type="number"
-                placeholder="999"
+                placeholder="0"
                 value={formData.target_price}
                 onChange={handleChange}
                 required
                 min="0"
                 step="0.01"
               />
-              <Input
-                label={`${t('create.reward')} (${currencies.find(c => c.code === formData.currency)?.symbol || '$'})`}
-                name="reward_fee"
-                type="number"
-                placeholder="50"
-                value={formData.reward_fee}
-                onChange={handleChange}
-                required
-                min="0"
-                step="0.01"
-              />
+              <div className="space-y-1.5">
+                <Input
+                  label={`${t('create.reward')} (NT$)`}
+                  name="reward_fee"
+                  type="number"
+                  placeholder="0"
+                  value={formData.reward_fee}
+                  onChange={handleChange}
+                  required
+                  min="0"
+                  step="1"
+                />
+                <p className="text-[10px] text-muted-foreground italic px-1">{t('create.reward_twd')}</p>
+              </div>
             </div>
 
             {(formData.target_price || formData.reward_fee) && (
-              <div className="bg-primary/5 rounded-xl p-3 flex justify-between items-center border border-primary/10">
-                <div className="text-xs text-muted-foreground font-medium">{t('create.total_est')}</div>
-                <div className="text-lg font-black text-primary">
-                  NT$ {((parseFloat(formData.target_price || '0') + parseFloat(formData.reward_fee || '0')) * parseFloat(formData.exchange_rate || '1')).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+              <div className="space-y-2">
+                <div
+                  className="bg-primary/5 rounded-xl p-3 flex justify-between items-center border border-primary/10 cursor-pointer hover:bg-primary/10 transition-colors"
+                  onClick={() => setShowFormula(!showFormula)}
+                >
+                  <div className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+                    {t('create.total_est')}
+                    <span className="text-[10px] opacity-50 underline decoration-dotted">{showFormula ? '▲' : '▼'}</span>
+                  </div>
+                  <div className="text-lg font-black text-primary">
+                    NT$ {calculateTotal().toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  </div>
                 </div>
+
+                {showFormula && (
+                  <div className="px-3 py-2 bg-secondary/20 rounded-lg border border-border/50 animate-in fade-in slide-in-from-top-1">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">{t('create.formula_title')}</p>
+                    <p className="text-xs font-mono text-muted-foreground">
+                      ({formData.target_price || 0} {formData.currency} × {formData.exchange_rate}) + {formData.reward_fee || 0}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-1 opacity-70 italic">{t('create.formula_help')}</p>
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -50,6 +50,9 @@
         "reward": "給予補貼/報酬",
         "total_est": "預計總支付額 (TWD)",
         "submit": "發布願望",
+        "formula_title": "預算計算公式",
+        "formula_help": "總預算 = (物品原價 × 匯率) + 補貼報酬",
+        "reward_twd": "報酬以台幣計價",
         "limit_alert": "一般用戶限額為 5000 TWD。您目前的總額為 {total} TWD。請完成身份認證以提高限額。",
         "success": "願望已成功發布！",
         "fail": "發布願望失敗。"
