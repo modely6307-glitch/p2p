@@ -445,9 +445,13 @@ export default function OrderDetails() {
         <CardContent>
           {order.status === 'OPEN' && (
             <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">{t('order.wait_accept')}</p>
+              {role !== 'traveler' && (
+                <p className="text-sm text-muted-foreground">{t('order.wait_accept')}</p>
+              )}
               {role === 'traveler' && (
-                <Button onClick={handleAcceptOrder} fullWidth>{t('order.accept_btn')}</Button>
+                <Button onClick={handleAcceptOrder} fullWidth className="h-12 font-bold text-base shadow-xl shadow-primary/20">
+                  {t('order.accept_btn')}
+                </Button>
               )}
             </div>
           )}

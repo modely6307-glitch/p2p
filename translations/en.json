@@ -51,7 +51,7 @@
         "total_est": "Estimated Total (TWD)",
         "submit": "Post Wish",
         "formula_title": "Budget Formula",
-        "formula_help": "Total = (Item Price × Ex. Rate) + Reward + Platform Fee",
+        "formula_help": "Total = (Item Price [FX] × Ex. Rate [TWD]) + Reward [TWD] + Platform Fee [TWD]",
         "platform_fee": "Platform Fee",
         "buyer_fee": "Wisher Fee",
         "traveler_fee": "Platform Fee",

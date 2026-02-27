@@ -51,7 +51,7 @@
         "total_est": "預計總支付額 (TWD)",
         "submit": "發布願望",
         "formula_title": "預算計算公式",
-        "formula_help": "總支出 = (物品原價 × 匯率) + 補貼報酬 + 平台服務費",
+        "formula_help": "總支出 = (物品原價 [外幣] × 匯率 [TWD]) + 補貼報酬 [TWD] + 平台服務費 [TWD]",
         "platform_fee": "平台服務費",
         "buyer_fee": "買家服務費",
         "traveler_fee": "平台服務費",
