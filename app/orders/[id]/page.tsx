@@ -389,7 +389,10 @@ export default function OrderDetails() {
       {/* Action Area */}
       <Card className="bg-secondary/20 border-primary/20">
         <CardHeader>
-          <CardTitle className="text-base">{t('order.actions')}</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+            {t('order.next_steps')}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {order.status === 'OPEN' && (
@@ -417,12 +420,28 @@ export default function OrderDetails() {
           )}
 
           {order.status === 'ESCROWED' && (
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">{t('order.traveler_buy_hint')}</p>
+            <div className="space-y-4">
+              <div className="bg-background/50 p-4 rounded-xl border border-border/50">
+                <p className="text-sm font-bold text-primary mb-1">📦 {t('order.traveler_buy_hint')}</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">{t('order.upload_guide')}</p>
+              </div>
+
               {role === 'traveler' && (
-                <div className="space-y-2">
-                  <Input type="file" onChange={handleUploadReceipt} disabled={uploading} />
-                  {uploading && <p className="text-xs text-muted-foreground">{t('common.loading')}</p>}
+                <div className="space-y-3">
+                  <div className="relative group">
+                    <input
+                      type="file"
+                      onChange={handleUploadReceipt}
+                      disabled={uploading}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    />
+                    <div className="h-24 border-2 border-dashed border-primary/30 rounded-xl flex flex-col items-center justify-center bg-primary/5 group-hover:bg-primary/10 transition-colors">
+                      <Upload className={`w-8 h-8 ${uploading ? 'animate-bounce' : ''} text-primary mb-2`} />
+                      <p className="text-xs font-bold text-primary uppercase tracking-wider">
+                        {uploading ? t('common.loading') : t('order.receipt_update')}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
