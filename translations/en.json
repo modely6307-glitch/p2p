@@ -93,6 +93,7 @@
         "target_price": "Target Price",
         "reward_fee": "Reward Fee",
         "total_budget": "Total Budget",
+        "buyer_paid_total": "Wisher Paid Total",
         "delivery_info": "Delivery Information",
         "tracking_no": "Tracking Number",
         "receipt": "Receipt / Proof of Purchase",
