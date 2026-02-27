@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Order } from '@/types';
-import { Gift } from 'lucide-react';
+import { Gift, ShieldCheck } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
 interface WishCardProps {
@@ -71,7 +71,7 @@ export const WishCard = ({ order }: WishCardProps) => {
                   </span>
                 )}
                 {order.buyer?.is_verified && (
-                  <span className="text-[9px] bg-blue-500/10 text-blue-500 px-1 rounded">V</span>
+                  <ShieldCheck className="w-3.5 h-3.5 text-blue-500 fill-blue-500/10" />
                 )}
               </div>
 
