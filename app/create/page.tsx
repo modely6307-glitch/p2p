@@ -20,9 +20,28 @@ export default function CreateWish() {
     target_price: '',
     reward_fee: '',
     description: '',
+    country: 'Japan',
+    currency: 'USD',
   });
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+
+  const countries = [
+    { name: 'Japan', flag: '🇯🇵' },
+    { name: 'USA', flag: '🇺🇸' },
+    { name: 'Korea', flag: '🇰🇷' },
+    { name: 'Taiwan', flag: '🇹🇼' },
+    { name: 'Thailand', flag: '🇹🇭' },
+    { name: 'France', flag: '🇫🇷' },
+  ];
+
+  const currencies = [
+    { code: 'USD', symbol: '$' },
+    { code: 'TWD', symbol: 'NT$' },
+    { code: 'JPY', symbol: '¥' },
+    { code: 'KRW', symbol: '₩' },
+    { code: 'EUR', symbol: '€' },
+  ];
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -55,6 +74,8 @@ export default function CreateWish() {
         target_price: parseFloat(formData.target_price),
         reward_fee: parseFloat(formData.reward_fee),
         description: formData.description,
+        country: formData.country,
+        currency: formData.currency,
         photo_url: photo_url,
       });
       router.push('/dashboard');
@@ -66,7 +87,7 @@ export default function CreateWish() {
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
@@ -109,6 +130,39 @@ export default function CreateWish() {
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-muted-foreground">Country to Buy From</label>
+              <select
+                name="country"
+                value={formData.country}
+                onChange={handleChange}
+                className="flex h-12 w-full rounded-xl border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                {countries.map((c) => (
+                  <option key={c.name} value={c.name}>
+                    {c.flag} {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-muted-foreground">Currency</label>
+              <select
+                name="currency"
+                value={formData.currency}
+                onChange={handleChange}
+                className="flex h-12 w-full rounded-xl border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                {currencies.map((curr) => (
+                  <option key={curr.code} value={curr.code}>
+                    {curr.code} ({curr.symbol})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           <Input
             label="Item Name"
             name="item_name"
@@ -129,7 +183,7 @@ export default function CreateWish() {
 
           <div className="grid grid-cols-2 gap-4">
             <Input
-              label="Target Price ($)"
+              label={`Target Price (${currencies.find(c => c.code === formData.currency)?.symbol || '$'})`}
               name="target_price"
               type="number"
               placeholder="999"
@@ -140,7 +194,7 @@ export default function CreateWish() {
               step="0.01"
             />
             <Input
-              label="Reward Fee ($)"
+              label={`Reward Fee (${currencies.find(c => c.code === formData.currency)?.symbol || '$'})`}
               name="reward_fee"
               type="number"
               placeholder="50"

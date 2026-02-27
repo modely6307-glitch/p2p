@@ -20,6 +20,29 @@ import { Input } from '@/components/ui/input';
 import { Loader2, Upload, Truck, CheckCircle, AlertTriangle, ShieldCheck, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
+const getCurrencySymbol = (currency: string) => {
+  const symbols: Record<string, string> = {
+    'USD': '$',
+    'TWD': 'NT$',
+    'JPY': '¥',
+    'KRW': '₩',
+    'EUR': '€',
+  };
+  return symbols[currency] || '$';
+};
+
+const getCountryFlag = (country: string) => {
+  const flags: Record<string, string> = {
+    'Japan': '🇯🇵',
+    'USA': '🇺🇸',
+    'Korea': '🇰🇷',
+    'Taiwan': '🇹🇼',
+    'Thailand': '🇹🇭',
+    'France': '🇫🇷',
+  };
+  return flags[country] || '📍';
+};
+
 export default function OrderDetails() {
   const params = useParams();
   const router = useRouter();
@@ -156,6 +179,9 @@ export default function OrderDetails() {
     return <div className="p-4 text-center">Order not found</div>;
   }
 
+  const currencySymbol = getCurrencySymbol(order.currency);
+  const countryFlag = getCountryFlag(order.country);
+
   return (
     <div className="p-4 space-y-6 pb-24">
       {/* Role Switcher for Demo */}
@@ -173,11 +199,16 @@ export default function OrderDetails() {
 
       <header>
         <div className="flex justify-between items-start mb-4">
-          <div>
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold px-2 py-0.5 rounded bg-secondary text-secondary-foreground flex items-center gap-1">
+                {countryFlag} {order.country}
+              </span>
+              <StatusBadge status={order.status} />
+            </div>
             <h1 className="text-2xl font-bold">{order.item_name}</h1>
-            <p className="text-muted-foreground text-sm">Order #{order.id.slice(0, 8)}</p>
+            <p className="text-muted-foreground text-xs">Order #{order.id.slice(0, 8)}</p>
           </div>
-          <StatusBadge status={order.status} />
         </div>
 
         {order.photo_url && (
@@ -198,15 +229,15 @@ export default function OrderDetails() {
         <CardContent className="pt-6 space-y-4">
           <div className="flex justify-between py-2 border-b border-border/50">
             <span className="text-muted-foreground">Target Price</span>
-            <span className="font-medium">${order.target_price}</span>
+            <span className="font-medium">{currencySymbol}{order.target_price}</span>
           </div>
           <div className="flex justify-between py-2 border-b border-border/50">
             <span className="text-muted-foreground">Reward Fee</span>
-            <span className="font-medium text-green-500">+${order.reward_fee}</span>
+            <span className="font-medium text-green-500">+{currencySymbol}{order.reward_fee}</span>
           </div>
           <div className="flex justify-between py-2 font-bold text-lg">
             <span>Total</span>
-            <span>${order.target_price + order.reward_fee}</span>
+            <span>{currencySymbol}{order.target_price + order.reward_fee}</span>
           </div>
         </CardContent>
       </Card>

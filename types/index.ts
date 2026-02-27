@@ -20,6 +20,8 @@ export interface Order {
   receipt_url?: string | null;
   photo_url?: string | null;
   description: string;
+  country: string;
+  currency: string;
   tracking_number?: string | null;
 }
 

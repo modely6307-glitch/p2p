@@ -9,7 +9,33 @@ interface WishCardProps {
   order: Order;
 }
 
+const getCurrencySymbol = (currency: string) => {
+  const symbols: Record<string, string> = {
+    'USD': '$',
+    'TWD': 'NT$',
+    'JPY': '¥',
+    'KRW': '₩',
+    'EUR': '€',
+  };
+  return symbols[currency] || '$';
+};
+
+const getCountryFlag = (country: string) => {
+  const flags: Record<string, string> = {
+    'Japan': '🇯🇵',
+    'USA': '🇺🇸',
+    'Korea': '🇰🇷',
+    'Taiwan': '🇹🇼',
+    'Thailand': '🇹🇭',
+    'France': '🇫🇷',
+  };
+  return flags[country] || '📍';
+};
+
 export const WishCard = ({ order }: WishCardProps) => {
+  const currencySymbol = getCurrencySymbol(order.currency);
+  const countryFlag = getCountryFlag(order.country);
+
   return (
     <Card className="overflow-hidden hover:shadow-xl transition-all duration-300 border-border/40 bg-card/40 backdrop-blur-md group">
       <Link href={`/orders/${order.id}`}>
@@ -28,12 +54,12 @@ export const WishCard = ({ order }: WishCardProps) => {
               <div className="flex justify-between items-start mb-1">
                 <h3 className="text-base font-bold truncate leading-tight">{order.item_name}</h3>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-500/10 text-green-500">
-                  +${order.reward_fee} Reward
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground flex items-center gap-1">
+                  {countryFlag} {order.country}
                 </span>
-                <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">
-                  OPEN
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-500/10 text-green-500">
+                  +{currencySymbol}{order.reward_fee} Reward
                 </span>
               </div>
             </div>
@@ -43,11 +69,11 @@ export const WishCard = ({ order }: WishCardProps) => {
           <div className="flex items-center justify-between mt-2 py-2 border-t border-border/30">
             <div className="flex flex-col">
               <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Budget</span>
-              <span className="text-sm font-bold">${order.target_price}</span>
+              <span className="text-sm font-bold">{currencySymbol}{order.target_price}</span>
             </div>
             <div className="flex flex-col text-right">
               <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Total</span>
-              <span className="text-sm font-black text-primary">${order.target_price + order.reward_fee}</span>
+              <span className="text-sm font-black text-primary">{currencySymbol}{order.target_price + order.reward_fee}</span>
             </div>
           </div>
         </CardContent>
