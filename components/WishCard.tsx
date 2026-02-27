@@ -24,10 +24,22 @@ const getCurrencySymbol = (currency: string) => {
 
 import { getCountryFlag } from '@/utils/countries';
 
+const maskEmail = (email: string | undefined) => {
+  if (!email) return 'User';
+  const prefix = email.split('@')[0];
+  const displayPrefix = prefix.slice(0, 3);
+  return (displayPrefix + '***').slice(0, 6).padEnd(6, '*');
+};
+
 export const WishCard = ({ order }: WishCardProps) => {
   const { t } = useLanguage();
   const currencySymbol = getCurrencySymbol(order.currency);
   const countryConfig = getCountryFlag(order.country);
+
+  const displayName = order.buyer?.display_name || maskEmail(order.buyer?.email || undefined);
+  const successRate = order.buyer?.total_rating_count && order.buyer.total_rating_count > 0
+    ? Math.round((order.buyer.positive_rating_count / order.buyer.total_rating_count) * 100)
+    : null;
 
   return (
     <Card className="overflow-hidden hover:shadow-xl transition-all duration-300 border-border/40 bg-card/40 backdrop-blur-md group">
@@ -47,6 +59,22 @@ export const WishCard = ({ order }: WishCardProps) => {
               <div className="flex justify-between items-start mb-1">
                 <h3 className="text-base font-bold truncate leading-tight">{order.item_name}</h3>
               </div>
+
+              <div className="flex items-center gap-1.5 mb-2">
+                <div className="w-4 h-4 rounded-full bg-secondary flex items-center justify-center">
+                  <span className="text-[10px] text-muted-foreground italic font-black">👤</span>
+                </div>
+                <span className="text-[10px] font-bold text-muted-foreground truncate max-w-[80px]">{displayName}</span>
+                {successRate !== null && (
+                  <span className="text-[9px] bg-yellow-500/10 text-yellow-600 px-1 rounded flex items-center gap-0.5">
+                    ⭐ {successRate}%
+                  </span>
+                )}
+                {order.buyer?.is_verified && (
+                  <span className="text-[9px] bg-blue-500/10 text-blue-500 px-1 rounded">V</span>
+                )}
+              </div>
+
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground flex items-center gap-1">
                   {countryConfig.flag} {t(`countries.${order.country}`)}

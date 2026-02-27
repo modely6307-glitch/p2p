@@ -4,7 +4,7 @@ import { Order, OrderStatus, Profile } from '@/types';
 export const fetchOrders = async (status?: OrderStatus) => {
   let query = supabase
     .from('orders')
-    .select('*')
+    .select('*, buyer:profiles!buyer_id(*), traveler:profiles!traveler_id(*)')
     .order('created_at', { ascending: false });
 
   if (status) {
@@ -19,7 +19,7 @@ export const fetchOrders = async (status?: OrderStatus) => {
 export const fetchMyWishes = async (userId: string) => {
   const { data, error } = await supabase
     .from('orders')
-    .select('*')
+    .select('*, buyer:profiles!buyer_id(*), traveler:profiles!traveler_id(*)')
     .eq('buyer_id', userId)
     .order('created_at', { ascending: false });
   if (error) throw error;
@@ -29,7 +29,7 @@ export const fetchMyWishes = async (userId: string) => {
 export const fetchMyTasks = async (userId: string) => {
   const { data, error } = await supabase
     .from('orders')
-    .select('*')
+    .select('*, buyer:profiles!buyer_id(*), traveler:profiles!traveler_id(*)')
     .eq('traveler_id', userId)
     .order('created_at', { ascending: false });
   if (error) throw error;
@@ -39,7 +39,7 @@ export const fetchMyTasks = async (userId: string) => {
 export const fetchOrderById = async (id: string) => {
   const { data, error } = await supabase
     .from('orders')
-    .select('*')
+    .select('*, buyer:profiles!buyer_id(*), traveler:profiles!traveler_id(*)')
     .eq('id', id)
     .single();
 

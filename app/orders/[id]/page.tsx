@@ -31,19 +31,15 @@ const getCurrencySymbol = (currency: string) => {
   return symbols[currency] || '$';
 };
 
-const getCountryFlag = (country: string) => {
-  const flags: Record<string, { flag: string, name: string }> = {
-    'Japan': { flag: '🇯🇵', name: '日本' },
-    'USA': { flag: '🇺🇸', name: '美國' },
-    'Korea': { flag: '🇰🇷', name: '韓國' },
-    'Taiwan': { flag: '🇹🇼', name: '台灣' },
-    'Thailand': { flag: '🇹🇭', name: '泰國' },
-    'France': { flag: '🇫🇷', name: '法國' },
-  };
-  return flags[country] || { flag: '📍', name: country };
-};
-
+import { getCountryFlag } from '@/utils/countries';
 import { useLanguage } from '@/context/LanguageContext';
+
+const maskEmail = (email: string | undefined) => {
+  if (!email) return 'User';
+  const prefix = email.split('@')[0];
+  const displayPrefix = prefix.slice(0, 3);
+  return (displayPrefix + '***').slice(0, 6).padEnd(6, '*');
+};
 
 export default function OrderDetails() {
   const params = useParams();
@@ -77,7 +73,6 @@ export default function OrderDetails() {
         } else if (data.traveler_id === user.id) {
           setRole('traveler');
         } else {
-          // Default to traveler role for those who can accept
           setRole('traveler');
         }
       }
@@ -146,7 +141,6 @@ export default function OrderDetails() {
     if (!order || !order.traveler_id) return;
     try {
       await updateOrderStatus(order.id, 'COMPLETED');
-      // Update stats for traveler
       await incrementOrderStats(order.traveler_id, order.target_price + order.reward_fee);
       await loadOrder();
     } catch (error) {
@@ -156,12 +150,8 @@ export default function OrderDetails() {
 
   const handleRateUser = async (isPositive: boolean) => {
     if (!order) return;
-
-    // Determine who is being rated
     const targetUserId = role === 'buyer' ? order.traveler_id : order.buyer_id;
-
     if (!targetUserId) return;
-
     try {
       await rateUser(targetUserId, isPositive);
       setRatingSubmitted(true);
@@ -184,6 +174,13 @@ export default function OrderDetails() {
 
   const currencySymbol = getCurrencySymbol(order.currency);
   const countryConfig = getCountryFlag(order.country);
+
+  const partnerProfile = role === 'buyer' ? order.traveler : order.buyer;
+  const partnerRoleName = role === 'buyer' ? t('order.traveler') : t('order.buyer');
+  const partnerDisplayName = partnerProfile?.display_name || maskEmail(partnerProfile?.email || undefined);
+  const partnerRating = partnerProfile?.total_rating_count && partnerProfile.total_rating_count > 0
+    ? Math.round((partnerProfile.positive_rating_count / partnerProfile.total_rating_count) * 100)
+    : null;
 
   return (
     <div className="p-4 space-y-6 pb-24">
@@ -213,6 +210,30 @@ export default function OrderDetails() {
             <p className="text-muted-foreground text-xs">{t('order.order_no')} #{order.id.slice(0, 8)}</p>
           </div>
         </div>
+
+        {/* Partner Profile Display */}
+        {partnerProfile && (
+          <div className="bg-primary/5 rounded-2xl p-4 border border-primary/10 mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
+                <span className="text-lg">👤</span>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-primary uppercase tracking-widest">{partnerRoleName}</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-bold text-sm">{partnerDisplayName}</p>
+                  {partnerProfile.is_verified && <ShieldCheck className="w-4 h-4 text-blue-500 fill-blue-500/10" />}
+                </div>
+              </div>
+            </div>
+            {partnerRating !== null && (
+              <div className="text-right">
+                <p className="text-[10px] text-muted-foreground uppercase font-bold">{t('profile.reputation')}</p>
+                <p className="text-sm font-black text-yellow-600">⭐ {partnerRating}%</p>
+              </div>
+            )}
+          </div>
+        )}
 
         {order.photo_url && (
           <div className="mb-4 rounded-2xl overflow-hidden border border-border shadow-sm">

@@ -25,6 +25,8 @@ export interface Order {
   photo_url?: string | null;
   description: string;
   tracking_number?: string | null;
+  buyer?: Profile;
+  traveler?: Profile;
 }
 
 export interface Profile {
