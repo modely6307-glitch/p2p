@@ -279,7 +279,7 @@ export default function OrderDetails() {
           </div>
           <div className="flex justify-between py-2 border-b border-border/50">
             <span className="text-muted-foreground">{t('order.reward_fee')}</span>
-            <span className="font-medium text-green-500">+{currencySymbol}{order.reward_fee}</span>
+            <span className="font-medium text-green-500">+NT${order.reward_fee}</span>
           </div>
           {order.buyer_platform_fee > 0 && (
             <div className="flex justify-between py-2 border-b border-border/50">
