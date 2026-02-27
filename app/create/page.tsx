@@ -136,9 +136,15 @@ export default function CreateWish() {
     }
 
     if (name === 'currency') {
-      const selectedCurrency = currencies.find(c => c.code === value);
-      // If manually changing currency, we can also reset rate to a known default if available
-      // but keeping it simple for now as country change is the main trigger.
+      const countryConfig = countries.find(c => c.currency === value);
+      if (countryConfig) {
+        setFormData(prev => ({
+          ...prev,
+          currency: value,
+          exchange_rate: countryConfig.defaultRate.toString()
+        }));
+        return;
+      }
     }
 
     setFormData(prev => ({ ...prev, [name]: value }));
