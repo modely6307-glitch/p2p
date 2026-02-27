@@ -1,11 +1,16 @@
+'use client';
+
 import React from 'react';
 import { OrderStatus } from '@/types';
+import { useLanguage } from '@/context/LanguageContext';
 
 interface StatusBadgeProps {
   status: OrderStatus;
 }
 
 export const StatusBadge = ({ status }: StatusBadgeProps) => {
+  const { t } = useLanguage();
+
   const statusColors = {
     OPEN: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
     MATCHED: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
@@ -18,9 +23,9 @@ export const StatusBadge = ({ status }: StatusBadgeProps) => {
 
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${statusColors[status]}`}
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wider ${statusColors[status]}`}
     >
-      {status}
+      {t(`status.${status}`)}
     </span>
   );
 };

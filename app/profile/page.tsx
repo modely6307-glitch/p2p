@@ -10,6 +10,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 
+import { useLanguage } from '@/context/LanguageContext';
+
 export default function ProfilePage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -17,6 +19,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [newNickname, setNewNickname] = useState('');
+  const { language, setLanguage, t } = useLanguage();
 
   const maskEmail = (email: string | undefined) => {
     if (!email) return 'User';
@@ -53,7 +56,7 @@ export default function ProfilePage() {
       setProfile(prev => prev ? { ...prev, display_name: newNickname } : null);
       setIsEditing(false);
     } catch (error) {
-      alert('Failed to update nickname');
+      alert(t('error'));
     }
   };
 
@@ -70,7 +73,7 @@ export default function ProfilePage() {
     );
   }
 
-  if (!profile) return <div>Profile not found</div>;
+  if (!profile) return <div>{t('profile.not_found')}</div>;
 
   const successRate = profile.total_rating_count > 0
     ? Math.round((profile.positive_rating_count / profile.total_rating_count) * 100)
@@ -95,8 +98,8 @@ export default function ProfilePage() {
                     onChange={(e) => setNewNickname(e.target.value)}
                     autoFocus
                   />
-                  <Button size="sm" className="h-8 px-2" onClick={handleSaveNickname}>Save</Button>
-                  <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => setIsEditing(false)}>Cancel</Button>
+                  <Button size="sm" className="h-8 px-2" onClick={handleSaveNickname}>{t('common.save')}</Button>
+                  <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => setIsEditing(false)}>{t('common.cancel')}</Button>
                 </div>
               ) : (
                 <>
@@ -108,14 +111,26 @@ export default function ProfilePage() {
                 </>
               )}
             </div>
-            <p className="text-sm text-muted-foreground uppercase tracking-wider font-bold text-[10px]">{profile?.level || 'STANDARD'} USER</p>
+            <p className="text-sm text-muted-foreground uppercase tracking-wider font-bold text-[10px]">
+              {profile.level === 'ADMIN' ? t('profile.admin') : profile.level === 'VERIFIED' ? t('profile.verified_user') : t('profile.standard_user')}
+            </p>
           </div>
         </div>
-        {!isEditing && (
-          <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground">
-            <LogOut className="w-5 h-5" />
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setLanguage(language === 'zh' ? 'en' : 'zh')}
+            className="text-[10px] font-bold h-8 border border-border bg-secondary/20"
+          >
+            {language === 'zh' ? 'EN' : '繁中'}
           </Button>
-        )}
+          {!isEditing && (
+            <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground p-2">
+              <LogOut className="w-5 h-5" />
+            </Button>
+          )}
+        </div>
       </header>
 
       <div className="grid grid-cols-2 gap-4">
@@ -123,7 +138,7 @@ export default function ProfilePage() {
           <CardContent className="p-4 flex flex-col items-center justify-center text-center">
             <Trophy className="w-6 h-6 text-yellow-500 mb-2" />
             <span className="text-2xl font-bold">{profile.completed_orders_count}</span>
-            <span className="text-xs text-muted-foreground">Orders Completed</span>
+            <span className="text-xs text-muted-foreground">{t('profile.orders_completed')}</span>
           </CardContent>
         </Card>
 
@@ -131,7 +146,7 @@ export default function ProfilePage() {
           <CardContent className="p-4 flex flex-col items-center justify-center text-center">
             <DollarSign className="w-6 h-6 text-green-500 mb-2" />
             <span className="text-2xl font-bold">${profile.total_order_amount.toLocaleString()}</span>
-            <span className="text-xs text-muted-foreground">Total Volume</span>
+            <span className="text-xs text-muted-foreground">{t('profile.total_volume')}</span>
           </CardContent>
         </Card>
       </div>
@@ -140,23 +155,23 @@ export default function ProfilePage() {
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Star className="w-5 h-5 text-primary" />
-            Reputation
+            {t('profile.reputation')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           {profile.total_rating_count === 0 ? (
             <div className="text-center py-4 text-muted-foreground">
-              No ratings yet
+              {t('profile.no_ratings')}
             </div>
           ) : (
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-3xl font-bold text-primary">{successRate}%</div>
-                <div className="text-xs text-muted-foreground">Positive Rating</div>
+                <div className="text-xs text-muted-foreground">{t('profile.positive_rate')}</div>
               </div>
               <div className="text-right">
                 <div className="font-medium">{profile.total_rating_count}</div>
-                <div className="text-xs text-muted-foreground">Total Reviews</div>
+                <div className="text-xs text-muted-foreground">{t('profile.total_reviews')}</div>
               </div>
             </div>
           )}
@@ -171,7 +186,7 @@ export default function ProfilePage() {
           className="border-red-500/50 text-red-500 hover:bg-red-500/10 hover:text-red-600 transition-all rounded-xl h-12 font-semibold"
         >
           <LogOut className="w-4 h-4 mr-2" />
-          Log Out
+          {t('profile.logout_btn')}
         </Button>
       </div>
     </div>

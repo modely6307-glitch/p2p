@@ -4,15 +4,17 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, PlusSquare, LayoutDashboard, User } from 'lucide-react';
+import { useLanguage } from '@/context/LanguageContext';
 
 export const BottomNav = () => {
   const pathname = usePathname();
+  const { t } = useLanguage();
 
   const links = [
-    { href: '/', label: 'Market', icon: Home },
-    { href: '/create', label: 'Wish', icon: PlusSquare },
-    { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { href: '/profile', label: 'Profile', icon: User },
+    { href: '/', label: t('nav.market'), icon: Home },
+    { href: '/create', label: t('nav.create'), icon: PlusSquare },
+    { href: '/dashboard', label: t('nav.dashboard'), icon: LayoutDashboard },
+    { href: '/profile', label: t('nav.profile'), icon: User },
   ];
 
   return (
@@ -24,9 +26,8 @@ export const BottomNav = () => {
             <Link
               key={href}
               href={href}
-              className={`flex flex-col items-center justify-center space-y-1 w-full h-full transition-colors ${
-                isActive ? 'text-primary' : 'text-muted-foreground hover:text-primary'
-              }`}
+              className={`flex flex-col items-center justify-center space-y-1 w-full h-full transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground hover:text-primary'
+                }`}
             >
               <Icon className={`w-6 h-6 ${isActive ? 'stroke-2' : 'stroke-1'}`} />
               <span className="text-[10px] font-medium">{label}</span>

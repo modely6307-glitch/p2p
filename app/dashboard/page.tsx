@@ -8,11 +8,15 @@ import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
+import { useLanguage } from '@/context/LanguageContext';
+
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<'wishes' | 'tasks'>('wishes');
+  const [statusFilter, setStatusFilter] = useState<'active' | 'completed'>('active');
   const [orders, setOrders] = useState<Order[]>([]);
   const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
+  const { t } = useLanguage();
 
   useEffect(() => {
     const loadOrders = async () => {
@@ -38,21 +42,26 @@ export default function Dashboard() {
     }
   }, [activeTab, user, authLoading]);
 
+  const filteredOrders = orders.filter(order => {
+    if (statusFilter === 'completed') return order.status === 'COMPLETED';
+    return order.status !== 'COMPLETED';
+  });
+
   return (
     <div className="p-4 space-y-6">
       <header className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{t('dashboard.title')}</h1>
       </header>
 
       <div className="flex space-x-1 border-b border-border">
         <button
           onClick={() => setActiveTab('wishes')}
           className={`flex-1 pb-2 text-sm font-medium transition-colors relative ${activeTab === 'wishes'
-              ? 'text-primary'
-              : 'text-muted-foreground hover:text-foreground'
+            ? 'text-primary'
+            : 'text-muted-foreground hover:text-foreground'
             }`}
         >
-          My Wishes
+          {t('dashboard.tab_wishes')}
           {activeTab === 'wishes' && (
             <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full" />
           )}
@@ -60,14 +69,29 @@ export default function Dashboard() {
         <button
           onClick={() => setActiveTab('tasks')}
           className={`flex-1 pb-2 text-sm font-medium transition-colors relative ${activeTab === 'tasks'
-              ? 'text-primary'
-              : 'text-muted-foreground hover:text-foreground'
+            ? 'text-primary'
+            : 'text-muted-foreground hover:text-foreground'
             }`}
         >
-          My Tasks (Traveler)
+          {t('dashboard.tab_tasks')}
           {activeTab === 'tasks' && (
             <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full" />
           )}
+        </button>
+      </div>
+
+      <div className="flex gap-2">
+        <button
+          onClick={() => setStatusFilter('active')}
+          className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${statusFilter === 'active' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground'}`}
+        >
+          {t('dashboard.filter_processing')}
+        </button>
+        <button
+          onClick={() => setStatusFilter('completed')}
+          className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${statusFilter === 'completed' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground'}`}
+        >
+          {t('dashboard.filter_completed')}
         </button>
       </div>
 
@@ -75,18 +99,18 @@ export default function Dashboard() {
         <div className="flex justify-center items-center py-20">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
-      ) : orders.length > 0 ? (
+      ) : filteredOrders.length > 0 ? (
         <div className="grid gap-4">
-          {orders.map((order) => (
+          {filteredOrders.map((order) => (
             <WishCard key={order.id} order={order} />
           ))}
         </div>
       ) : (
-        <div className="text-center py-20 text-muted-foreground">
-          <p>No {activeTab === 'wishes' ? 'wishes' : 'tasks'} found.</p>
-          {activeTab === 'wishes' && (
+        <div className="text-center py-20 text-muted-foreground border-2 border-dashed border-border/50 rounded-3xl">
+          <p>{activeTab === 'wishes' ? t('dashboard.empty_wishes') : t('dashboard.empty_tasks')}</p>
+          {activeTab === 'wishes' && statusFilter === 'active' && (
             <Button variant="primary" className="mt-4" onClick={() => window.location.href = '/create'}>
-              Create Wish
+              {t('nav.create')}
             </Button>
           )}
         </div>

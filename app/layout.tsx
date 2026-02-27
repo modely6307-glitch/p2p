@@ -18,20 +18,24 @@ export const metadata: Metadata = {
   description: "P2P Wishlist/Escrow Platform",
 };
 
+import { LanguageProvider } from "@/context/LanguageContext";
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="zh" className="dark">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground min-h-screen pb-20`}
       >
-        <main className="max-w-md mx-auto min-h-screen relative bg-background border-x border-border shadow-2xl">
-          {children}
-          <BottomNav />
-        </main>
+        <LanguageProvider>
+          <main className="max-w-md mx-auto min-h-screen relative bg-background border-x border-border shadow-2xl">
+            {children}
+            <BottomNav />
+          </main>
+        </LanguageProvider>
       </body>
     </html>
   );

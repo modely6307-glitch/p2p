@@ -32,22 +32,25 @@ const getCurrencySymbol = (currency: string) => {
 };
 
 const getCountryFlag = (country: string) => {
-  const flags: Record<string, string> = {
-    'Japan': '🇯🇵',
-    'USA': '🇺🇸',
-    'Korea': '🇰🇷',
-    'Taiwan': '🇹🇼',
-    'Thailand': '🇹🇭',
-    'France': '🇫🇷',
+  const flags: Record<string, { flag: string, name: string }> = {
+    'Japan': { flag: '🇯🇵', name: '日本' },
+    'USA': { flag: '🇺🇸', name: '美國' },
+    'Korea': { flag: '🇰🇷', name: '韓國' },
+    'Taiwan': { flag: '🇹🇼', name: '台灣' },
+    'Thailand': { flag: '🇹🇭', name: '泰國' },
+    'France': { flag: '🇫🇷', name: '法國' },
   };
-  return flags[country] || '📍';
+  return flags[country] || { flag: '📍', name: country };
 };
+
+import { useLanguage } from '@/context/LanguageContext';
 
 export default function OrderDetails() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
   const { user, loading: authLoading } = useAuth();
+  const { t } = useLanguage();
 
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
@@ -120,7 +123,7 @@ export default function OrderDetails() {
       await loadOrder();
     } catch (error) {
       console.error('Error uploading receipt:', error);
-      alert('Failed to upload receipt. Please ensure "receipts" bucket is created.');
+      alert(t('error') + ': Firebase Storage');
     } finally {
       setUploading(false);
     }
@@ -176,11 +179,11 @@ export default function OrderDetails() {
   }
 
   if (!order) {
-    return <div className="p-4 text-center">Order not found</div>;
+    return <div className="p-4 text-center">{t('common.no_data')}</div>;
   }
 
   const currencySymbol = getCurrencySymbol(order.currency);
-  const countryFlag = getCountryFlag(order.country);
+  const countryConfig = getCountryFlag(order.country);
 
   return (
     <div className="p-4 space-y-6 pb-24">
@@ -191,9 +194,9 @@ export default function OrderDetails() {
           onChange={(e) => setRole(e.target.value as any)}
           className="bg-secondary text-secondary-foreground text-xs rounded p-1"
         >
-          <option value="buyer">View as Buyer</option>
-          <option value="traveler">View as Traveler</option>
-          <option value="admin">View as Admin</option>
+          <option value="buyer">{t('order.buyer')}</option>
+          <option value="traveler">{t('order.traveler')}</option>
+          <option value="admin">{t('profile.admin')}</option>
         </select>
       </div>
 
@@ -202,12 +205,12 @@ export default function OrderDetails() {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold px-2 py-0.5 rounded bg-secondary text-secondary-foreground flex items-center gap-1">
-                {countryFlag} {order.country}
+                {countryConfig.flag} {t(`countries.${order.country}`)}
               </span>
               <StatusBadge status={order.status} />
             </div>
             <h1 className="text-2xl font-bold">{order.item_name}</h1>
-            <p className="text-muted-foreground text-xs">Order #{order.id.slice(0, 8)}</p>
+            <p className="text-muted-foreground text-xs">{t('order.order_no')} #{order.id.slice(0, 8)}</p>
           </div>
         </div>
 
@@ -218,7 +221,7 @@ export default function OrderDetails() {
         )}
 
         <div className="bg-secondary/10 p-4 rounded-2xl border border-border/50 mb-4">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2 text-[10px]">Wish Notes</h3>
+          <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2 text-[10px]">{t('order.wish_notes')}</h3>
           <p className="text-sm leading-relaxed">{order.description}</p>
         </div>
       </header>
@@ -228,15 +231,15 @@ export default function OrderDetails() {
       <Card>
         <CardContent className="pt-6 space-y-4">
           <div className="flex justify-between py-2 border-b border-border/50">
-            <span className="text-muted-foreground">Target Price</span>
+            <span className="text-muted-foreground">{t('order.target_price')}</span>
             <span className="font-medium">{currencySymbol}{order.target_price}</span>
           </div>
           <div className="flex justify-between py-2 border-b border-border/50">
-            <span className="text-muted-foreground">Reward Fee</span>
+            <span className="text-muted-foreground">{t('order.reward_fee')}</span>
             <span className="font-medium text-green-500">+{currencySymbol}{order.reward_fee}</span>
           </div>
           <div className="flex justify-between py-2 font-bold text-lg">
-            <span>Total</span>
+            <span>{t('order.total_budget')}</span>
             <span>{currencySymbol}{order.target_price + order.reward_fee}</span>
           </div>
         </CardContent>
@@ -247,19 +250,19 @@ export default function OrderDetails() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold flex items-center gap-2">
               <Truck className="w-4 h-4 text-primary" />
-              Delivery Information
+              {t('order.delivery_info')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {order.tracking_number && (
               <div className="flex justify-between items-center bg-background p-3 rounded-xl border border-border/50">
-                <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Tracking Number</span>
+                <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{t('order.tracking_no')}</span>
                 <span className="font-mono text-sm font-bold bg-muted px-2 py-1 rounded">{order.tracking_number}</span>
               </div>
             )}
             {order.receipt_url && (
               <div className="space-y-2">
-                <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Purchase Receipt</span>
+                <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{t('order.receipt')}</span>
                 <div className="rounded-xl overflow-hidden border border-border shadow-sm bg-background p-1">
                   <img src={order.receipt_url} alt="Receipt" className="w-full h-auto max-h-48 object-contain rounded-lg" />
                 </div>
@@ -272,14 +275,14 @@ export default function OrderDetails() {
       {/* Action Area */}
       <Card className="bg-secondary/20 border-primary/20">
         <CardHeader>
-          <CardTitle className="text-base">Actions</CardTitle>
+          <CardTitle className="text-base">{t('order.actions')}</CardTitle>
         </CardHeader>
         <CardContent>
           {order.status === 'OPEN' && (
             <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Wait for a traveler to accept this wish.</p>
+              <p className="text-sm text-muted-foreground">{t('order.wait_accept')}</p>
               {role === 'traveler' && (
-                <Button onClick={handleAcceptOrder} fullWidth>Accept Order</Button>
+                <Button onClick={handleAcceptOrder} fullWidth>{t('order.accept_btn')}</Button>
               )}
             </div>
           )}
@@ -288,12 +291,12 @@ export default function OrderDetails() {
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-yellow-500 mb-2">
                 <ShieldCheck className="w-5 h-5" />
-                <span className="text-sm font-medium">Awaiting Escrow</span>
+                <span className="text-sm font-medium">{t('order.wait_escrow')}</span>
               </div>
-              <p className="text-sm text-muted-foreground">Buyer must fund the escrow account.</p>
+              <p className="text-sm text-muted-foreground">{t('order.buyer_pay_hint')}</p>
               {role === 'admin' && (
                 <Button onClick={handleConfirmEscrow} fullWidth variant="outline">
-                  [Admin] Confirm Funds Received
+                  {t('order.admin_confirm_escrow')}
                 </Button>
               )}
             </div>
@@ -301,11 +304,11 @@ export default function OrderDetails() {
 
           {order.status === 'ESCROWED' && (
             <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Traveler needs to buy the item and upload receipt.</p>
+              <p className="text-sm text-muted-foreground">{t('order.traveler_buy_hint')}</p>
               {role === 'traveler' && (
                 <div className="space-y-2">
                   <Input type="file" onChange={handleUploadReceipt} disabled={uploading} />
-                  {uploading && <p className="text-xs text-muted-foreground">Uploading...</p>}
+                  {uploading && <p className="text-xs text-muted-foreground">{t('common.loading')}</p>}
                 </div>
               )}
             </div>
@@ -314,33 +317,33 @@ export default function OrderDetails() {
           {order.status === 'BOUGHT' && (
             <div className="space-y-4">
               <div className="bg-background rounded-xl p-4 border border-border/50">
-                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3 text-[10px]">Current Receipt</p>
+                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3 text-[10px]">{t('order.receipt_current')}</p>
                 {order.receipt_url ? (
                   <img src={order.receipt_url} alt="Receipt" className="max-h-64 mx-auto rounded-lg shadow-sm" />
                 ) : (
-                  <p className="text-sm text-center py-4 text-muted-foreground">No receipt uploaded</p>
+                  <p className="text-sm text-center py-4 text-muted-foreground">{t('order.receipt_none')}</p>
                 )}
 
                 {role === 'traveler' && (
                   <div className="mt-4 pt-4 border-t border-border/30">
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Update Receipt</label>
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">{t('order.receipt_update')}</label>
                     <Input type="file" onChange={handleUploadReceipt} disabled={uploading} className="h-10 text-xs" />
-                    {uploading && <p className="text-[10px] mt-1 animate-pulse text-primary italic">Uploading new receipt...</p>}
+                    {uploading && <p className="text-[10px] mt-1 animate-pulse text-primary italic">{t('order.receipt_uploading')}</p>}
                   </div>
                 )}
               </div>
 
               {role === 'traveler' && (
                 <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 space-y-3">
-                  <p className="text-xs font-bold text-primary uppercase tracking-widest text-[10px]">Shipping Information</p>
+                  <p className="text-xs font-bold text-primary uppercase tracking-widest text-[10px]">{t('order.shipping_info')}</p>
                   <div className="flex gap-2">
                     <Input
-                      placeholder="Enter Tracking Number"
+                      placeholder={t('order.tracking_placeholder')}
                       value={trackingNumber}
                       onChange={(e) => setTrackingNumber(e.target.value)}
                       className="bg-background"
                     />
-                    <Button onClick={handleAddTracking} className="px-6 font-bold">Ship</Button>
+                    <Button onClick={handleAddTracking} className="px-6 font-bold">{t('order.ship_btn')}</Button>
                   </div>
                 </div>
               )}
@@ -351,12 +354,12 @@ export default function OrderDetails() {
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-blue-500 mb-2">
                 <Truck className="w-5 h-5" />
-                <span className="text-sm font-medium">Item Shipped</span>
+                <span className="text-sm font-medium">{t('order.shipped_msg')}</span>
               </div>
-              <p className="text-sm">Tracking: <span className="font-mono bg-muted px-1 rounded">{order.tracking_number}</span></p>
+              <p className="text-sm">{t('order.tracking_no')}：<span className="font-mono bg-muted px-1 rounded">{order.tracking_number}</span></p>
               {role === 'buyer' && (
                 <Button onClick={handleConfirmReceipt} fullWidth className="bg-green-600 hover:bg-green-700 font-bold h-12 rounded-xl">
-                  Item Received
+                  {t('order.received_btn')}
                 </Button>
               )}
             </div>
@@ -368,14 +371,14 @@ export default function OrderDetails() {
                 <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-green-500/20 text-green-500 mb-2">
                   <CheckCircle className="w-6 h-6" />
                 </div>
-                <h3 className="font-bold text-green-500">Order Completed</h3>
-                <p className="text-sm text-muted-foreground">Funds have been released.</p>
+                <h3 className="font-bold text-green-500">{t('order.completed_msg')}</h3>
+                <p className="text-sm text-muted-foreground">{t('order.release_hint')}</p>
               </div>
 
               {!ratingSubmitted ? (
                 <div className="bg-background p-4 rounded-xl border border-border shadow-sm">
                   <p className="text-sm font-bold text-center mb-3">
-                    Rate the {role === 'buyer' ? 'Traveler' : 'Buyer'}
+                    {t('order.rate_user_prompt', { role: role === 'buyer' ? t('order.traveler') : t('order.buyer') })}
                   </p>
                   <div className="flex gap-3">
                     <Button
@@ -383,20 +386,20 @@ export default function OrderDetails() {
                       className="flex-1 h-12 border-green-500/30 text-green-600 hover:bg-green-500/10 hover:border-green-500"
                       onClick={() => handleRateUser(true)}
                     >
-                      <ThumbsUp className="w-4 h-4 mr-2" /> Good
+                      <ThumbsUp className="w-4 h-4 mr-2" /> {t('order.positive')}
                     </Button>
                     <Button
                       variant="outline"
                       className="flex-1 h-12 border-red-500/30 text-red-600 hover:bg-red-500/10 hover:border-red-500"
                       onClick={() => handleRateUser(false)}
                     >
-                      <ThumbsDown className="w-4 h-4 mr-2" /> Bad
+                      <ThumbsDown className="w-4 h-4 mr-2" /> {t('order.negative')}
                     </Button>
                   </div>
                 </div>
               ) : (
                 <div className="text-center text-sm text-muted-foreground bg-background p-3 rounded-xl">
-                  Thanks for your feedback!
+                  {t('order.rate_thanks')}
                 </div>
               )}
             </div>

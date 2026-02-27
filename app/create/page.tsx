@@ -11,10 +11,13 @@ import { Card } from '@/components/ui/card';
 import { ArrowLeft, Loader2, Camera, X } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
+import { useLanguage } from '@/context/LanguageContext';
+
 export default function CreateWish() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
+  const { t } = useLanguage();
   const [formData, setFormData] = useState({
     item_name: '',
     target_price: '',
@@ -75,7 +78,7 @@ export default function CreateWish() {
 
     // Enforcement: Standard users limit 5000 TWD
     if (userProfile.level === 'STANDARD' && totalTwd > 5000) {
-      alert(`Standard user limit is 5000 TWD. Your total is ${totalTwd.toFixed(0)} TWD. Please verify your account to increase limit.`);
+      alert(t('create.limit_alert', { total: totalTwd.toFixed(0) }));
       return;
     }
 
@@ -102,7 +105,7 @@ export default function CreateWish() {
       router.push('/dashboard');
     } catch (error) {
       console.error('Error creating wish:', error);
-      alert('Failed to create wish. Please check if the "wishes" storage bucket exists.');
+      alert(t('create.fail') + ' (Firebase Storage Error)');
     } finally {
       setLoading(false);
     }
@@ -134,13 +137,13 @@ export default function CreateWish() {
         <Button variant="ghost" size="sm" onClick={() => router.back()} className="p-0 hover:bg-transparent">
           <ArrowLeft className="w-6 h-6" />
         </Button>
-        <h1 className="text-2xl font-bold">Create Wish</h1>
+        <h1 className="text-2xl font-bold">{t('create.title')}</h1>
       </header>
 
       <Card className="p-6">
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-4">
-            <label className="block text-sm font-medium text-muted-foreground">Item Image (Optional)</label>
+            <label className="block text-sm font-medium text-muted-foreground">{t('create.photo')}</label>
             <div className="flex items-center gap-4">
               {photoPreview ? (
                 <div className="relative w-32 h-32 rounded-xl overflow-hidden border border-border">
@@ -156,20 +159,20 @@ export default function CreateWish() {
               ) : (
                 <label className="flex flex-col items-center justify-center w-32 h-32 rounded-xl border-2 border-dashed border-border hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer group">
                   <Camera className="w-8 h-8 text-muted-foreground group-hover:text-primary transition-colors" />
-                  <span className="text-[10px] mt-2 text-muted-foreground font-medium uppercase tracking-wider">Upload</span>
+                  <span className="text-[10px] mt-2 text-muted-foreground font-medium uppercase tracking-wider">{t('create.upload')}</span>
                   <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
                 </label>
               )}
               <div className="flex-1 text-xs text-muted-foreground">
-                <p className="font-medium text-foreground mb-1">Upload a clear photo</p>
-                <p>Helps travelers find the exact item you want. JPG, PNG supported.</p>
+                <p className="font-medium text-foreground mb-1">{t('create.upload')}</p>
+                <p>{t('create.upload_hint')}</p>
               </div>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-muted-foreground">Country to Buy From</label>
+              <label className="block text-sm font-medium text-muted-foreground">{t('create.country')}</label>
               <select
                 name="country"
                 value={formData.country}
@@ -178,14 +181,14 @@ export default function CreateWish() {
               >
                 {countries.map((c) => (
                   <option key={c.name} value={c.name}>
-                    {c.flag} {c.name}
+                    {c.flag} {t(`countries.${c.name}`)}
                   </option>
                 ))}
               </select>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-muted-foreground text-[10px] uppercase truncate">Currency</label>
+                <label className="block text-sm font-medium text-muted-foreground text-[10px] uppercase truncate">{t('create.currency')}</label>
                 <select
                   name="currency"
                   value={formData.currency}
@@ -200,7 +203,7 @@ export default function CreateWish() {
                 </select>
               </div>
               <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-muted-foreground text-[10px] uppercase truncate">Ex. Rate</label>
+                <label className="block text-sm font-medium text-muted-foreground text-[10px] uppercase truncate">{t('create.ex_rate')}</label>
                 <Input
                   name="exchange_rate"
                   type="number"
@@ -215,18 +218,18 @@ export default function CreateWish() {
           </div>
 
           <Input
-            label="Item Name"
+            label={t('create.item_name')}
             name="item_name"
-            placeholder="e.g. iPhone 15 Pro Max"
+            placeholder={t('create.item_name_placeholder')}
             value={formData.item_name}
             onChange={handleChange}
             required
           />
 
           <Textarea
-            label="Description / Notes"
+            label={t('create.description')}
             name="description"
-            placeholder="Specify color, size, model, and anything else important..."
+            placeholder={t('create.description_placeholder')}
             value={formData.description}
             onChange={handleChange}
             required
@@ -235,7 +238,7 @@ export default function CreateWish() {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <Input
-                label={`Target Price (${currencies.find(c => c.code === formData.currency)?.symbol || '$'})`}
+                label={`${t('create.price')} (${currencies.find(c => c.code === formData.currency)?.symbol || '$'})`}
                 name="target_price"
                 type="number"
                 placeholder="999"
@@ -246,7 +249,7 @@ export default function CreateWish() {
                 step="0.01"
               />
               <Input
-                label={`Reward Fee (${currencies.find(c => c.code === formData.currency)?.symbol || '$'})`}
+                label={`${t('create.reward')} (${currencies.find(c => c.code === formData.currency)?.symbol || '$'})`}
                 name="reward_fee"
                 type="number"
                 placeholder="50"
@@ -260,7 +263,7 @@ export default function CreateWish() {
 
             {(formData.target_price || formData.reward_fee) && (
               <div className="bg-primary/5 rounded-xl p-3 flex justify-between items-center border border-primary/10">
-                <div className="text-xs text-muted-foreground font-medium">Estimated Total (TWD)</div>
+                <div className="text-xs text-muted-foreground font-medium">{t('create.total_est')}</div>
                 <div className="text-lg font-black text-primary">
                   NT$ {((parseFloat(formData.target_price || '0') + parseFloat(formData.reward_fee || '0')) * parseFloat(formData.exchange_rate || '1')).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                 </div>
@@ -275,7 +278,7 @@ export default function CreateWish() {
               disabled={loading}
               className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold h-12 rounded-xl"
             >
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Post Wish'}
+              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : t('create.submit')}
             </Button>
           </div>
         </form>

@@ -7,10 +7,13 @@ import { WishCard } from '@/components/WishCard';
 import { Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
+import { useLanguage } from '@/context/LanguageContext';
+
 export default function Home() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const { t } = useLanguage();
 
   useEffect(() => {
     const loadOrders = async () => {
@@ -34,13 +37,13 @@ export default function Home() {
   return (
     <div className="p-4 space-y-6">
       <header>
-        <h1 className="text-3xl font-bold tracking-tight mb-1">Marketplace</h1>
-        <p className="text-muted-foreground text-sm">Find wishes to fulfill and earn rewards.</p>
+        <h1 className="text-3xl font-bold tracking-tight mb-1">{t('home.title')}</h1>
+        <p className="text-muted-foreground text-sm">{t('home.subtitle')}</p>
       </header>
 
       <div className="relative">
         <Input
-          placeholder="Search items..."
+          placeholder={t('home.search_placeholder')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="pl-4"
@@ -59,7 +62,7 @@ export default function Home() {
         </div>
       ) : (
         <div className="text-center py-20 text-muted-foreground">
-          <p>No active wishes found.</p>
+          <p>{t('home.no_wishes')}</p>
         </div>
       )}
     </div>
