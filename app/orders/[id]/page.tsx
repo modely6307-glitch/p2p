@@ -422,7 +422,7 @@ export default function OrderDetails() {
           {order.status === 'ESCROWED' && (
             <div className="space-y-4">
               <div className="bg-background/50 p-4 rounded-xl border border-border/50">
-                <p className="text-sm font-bold text-primary mb-1">📦 {t('order.traveler_buy_hint')}</p>
+                <p className="text-sm font-bold text-primary mb-1">{t('order.traveler_buy_hint')}</p>
                 <p className="text-xs text-muted-foreground leading-relaxed">{t('order.upload_guide')}</p>
               </div>
 
