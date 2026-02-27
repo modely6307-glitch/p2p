@@ -345,8 +345,10 @@ export default function CreateWish() {
                 {showFormula && (
                   <div className="px-3 py-2 bg-secondary/20 rounded-lg border border-border/50 animate-in fade-in slide-in-from-top-1">
                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">{t('create.formula_title')}</p>
-                    <p className="text-xs font-mono text-muted-foreground">
-                      ({formData.target_price || 0} {formData.currency} × {formData.exchange_rate}) + {formData.reward_fee || 0} + NT$ {calculateFee(calculateSubtotal())}
+                    <p className="text-xs font-mono text-muted-foreground leading-relaxed">
+                      ({formData.target_price || 0} {formData.currency} × {formData.exchange_rate} <span className="text-[10px] text-primary/60 italic">{t('create.ex_rate')}</span>)
+                      <br />+ {formData.reward_fee || 0} <span className="text-[10px] text-green-600/60 italic">{t('order.reward_fee')}</span>
+                      <br />+ NT$ {calculateFee(calculateSubtotal())} <span className="text-[10px] text-red-500/60 italic">{t('create.platform_fee')}</span>
                     </p>
                     <div className="mt-2 pt-2 border-t border-border/30">
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">{t('create.platform_fee')}</p>

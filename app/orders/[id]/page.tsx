@@ -275,23 +275,31 @@ export default function OrderDetails() {
         <CardContent className="pt-6 space-y-4">
           <div className="flex justify-between py-2 border-b border-border/50">
             <span className="text-muted-foreground">{t('order.target_price')}</span>
-            <span className="font-medium">{currencySymbol}{order.target_price}</span>
+            <div className="text-right">
+              <div className="font-medium text-sm">
+                {currencySymbol}{order.target_price}
+                <span className="text-[10px] text-muted-foreground ml-1 font-normal">(@ {order.exchange_rate})</span>
+              </div>
+              <div className="text-[10px] text-muted-foreground">≈ NT${Math.round(order.target_price * (order.exchange_rate || 1)).toLocaleString()}</div>
+            </div>
           </div>
           <div className="flex justify-between py-2 border-b border-border/50">
             <span className="text-muted-foreground">{t('order.reward_fee')}</span>
-            <span className="font-medium text-green-500">+NT${order.reward_fee}</span>
+            <span className="font-bold text-green-600">NT${order.reward_fee.toLocaleString()}</span>
           </div>
           {order.buyer_platform_fee > 0 && (
             <div className="flex justify-between py-2 border-b border-border/50">
               <span className="text-muted-foreground">{t('create.platform_fee')}</span>
-              <span className="font-medium">NT${order.buyer_platform_fee}</span>
+              <span className="font-medium text-xs">NT${order.buyer_platform_fee.toLocaleString()}</span>
             </div>
           )}
-          <div className="flex justify-between py-2 font-bold text-lg">
-            <span>{t('order.total_budget')}</span>
+          <div className="flex justify-between py-4 items-center">
+            <span className="font-black text-foreground">{t('order.total_budget')}</span>
             <div className="text-right">
-              <div>{currencySymbol}{order.target_price + order.reward_fee}</div>
-              <div className="text-[10px] text-muted-foreground font-normal">≈ NT${order.total_amount_twd?.toLocaleString()}</div>
+              <div className="text-2xl font-black text-primary">NT${order.total_amount_twd?.toLocaleString()}</div>
+              <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">
+                {currencySymbol}{order.target_price} + NT${order.reward_fee} + NT${order.buyer_platform_fee}
+              </div>
             </div>
           </div>
         </CardContent>
