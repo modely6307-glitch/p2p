@@ -83,23 +83,21 @@ export default function OrderDetails() {
   };
 
   const handleUploadReceipt = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!order || !e.target.files || e.target.files.length === 0) return;
+    if (!order || !user || !e.target.files || e.target.files.length === 0) return;
     setUploading(true);
     try {
-      // Mock upload or real if bucket exists.
-      // For prototype without configured storage, we'll just mock the URL update
-      // const url = await uploadFile(e.target.files[0], 'receipts', `${order.id}/receipt`);
-
-      // Simulating successful upload since storage might not be set up in this env
-      const mockUrl = 'https://via.placeholder.com/300?text=Receipt';
+      const file = e.target.files[0];
+      const path = `${order.id}/receipt-${Date.now()}`;
+      const url = await uploadFile(file, 'receipts', path);
 
       await updateOrderDetails(order.id, {
-        receipt_url: mockUrl,
+        receipt_url: url,
         status: 'BOUGHT'
       });
       await loadOrder();
     } catch (error) {
       console.error('Error uploading receipt:', error);
+      alert('Failed to upload receipt. Please ensure "receipts" bucket is created.');
     } finally {
       setUploading(false);
     }
@@ -213,6 +211,33 @@ export default function OrderDetails() {
         </CardContent>
       </Card>
 
+      {(order.receipt_url || order.tracking_number) && (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-bold flex items-center gap-2">
+              <Truck className="w-4 h-4 text-primary" />
+              Delivery Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {order.tracking_number && (
+              <div className="flex justify-between items-center bg-background p-3 rounded-xl border border-border/50">
+                <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Tracking Number</span>
+                <span className="font-mono text-sm font-bold bg-muted px-2 py-1 rounded">{order.tracking_number}</span>
+              </div>
+            )}
+            {order.receipt_url && (
+              <div className="space-y-2">
+                <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Purchase Receipt</span>
+                <div className="rounded-xl overflow-hidden border border-border shadow-sm bg-background p-1">
+                  <img src={order.receipt_url} alt="Receipt" className="w-full h-auto max-h-48 object-contain rounded-lg" />
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Action Area */}
       <Card className="bg-secondary/20 border-primary/20">
         <CardHeader>
@@ -257,22 +282,35 @@ export default function OrderDetails() {
 
           {order.status === 'BOUGHT' && (
             <div className="space-y-4">
-              <div className="bg-background rounded p-2 text-center">
-                <p className="text-xs text-muted-foreground mb-1">Receipt</p>
+              <div className="bg-background rounded-xl p-4 border border-border/50">
+                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3 text-[10px]">Current Receipt</p>
                 {order.receipt_url ? (
-                  <img src={order.receipt_url} alt="Receipt" className="max-h-40 mx-auto rounded" />
+                  <img src={order.receipt_url} alt="Receipt" className="max-h-64 mx-auto rounded-lg shadow-sm" />
                 ) : (
-                  <span className="text-xs">No receipt image</span>
+                  <p className="text-sm text-center py-4 text-muted-foreground">No receipt uploaded</p>
+                )}
+
+                {role === 'traveler' && (
+                  <div className="mt-4 pt-4 border-t border-border/30">
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Update Receipt</label>
+                    <Input type="file" onChange={handleUploadReceipt} disabled={uploading} className="h-10 text-xs" />
+                    {uploading && <p className="text-[10px] mt-1 animate-pulse text-primary italic">Uploading new receipt...</p>}
+                  </div>
                 )}
               </div>
+
               {role === 'traveler' && (
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Tracking Number"
-                    value={trackingNumber}
-                    onChange={(e) => setTrackingNumber(e.target.value)}
-                  />
-                  <Button onClick={handleAddTracking}>Ship</Button>
+                <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 space-y-3">
+                  <p className="text-xs font-bold text-primary uppercase tracking-widest text-[10px]">Shipping Information</p>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Enter Tracking Number"
+                      value={trackingNumber}
+                      onChange={(e) => setTrackingNumber(e.target.value)}
+                      className="bg-background"
+                    />
+                    <Button onClick={handleAddTracking} className="px-6 font-bold">Ship</Button>
+                  </div>
                 </div>
               )}
             </div>
