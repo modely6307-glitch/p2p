@@ -18,11 +18,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Loader2, Upload, Truck, CheckCircle, AlertTriangle, ShieldCheck, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function OrderDetails() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
+  const { user, loading: authLoading } = useAuth();
 
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
@@ -31,18 +33,28 @@ export default function OrderDetails() {
   const [trackingNumber, setTrackingNumber] = useState('');
   const [ratingSubmitted, setRatingSubmitted] = useState(false);
 
-  // Mock IDs
-  const buyerId = 'mock-buyer-123';
-  const travelerId = 'mock-traveler-456';
-
   useEffect(() => {
-    loadOrder();
-  }, [id]);
+    if (user) {
+      loadOrder();
+    }
+  }, [id, user]);
 
   const loadOrder = async () => {
     try {
       const data = await fetchOrderById(id);
       setOrder(data);
+
+      // Auto-set role based on current user
+      if (user) {
+        if (data.buyer_id === user.id) {
+          setRole('buyer');
+        } else if (data.traveler_id === user.id) {
+          setRole('traveler');
+        } else {
+          // Default to traveler role for those who can accept
+          setRole('traveler');
+        }
+      }
     } catch (error) {
       console.error('Error fetching order:', error);
     } finally {
@@ -51,11 +63,10 @@ export default function OrderDetails() {
   };
 
   const handleAcceptOrder = async () => {
-    if (!order) return;
+    if (!order || !user) return;
     try {
-      await assignTraveler(order.id, travelerId); // Assign mock traveler
+      await assignTraveler(order.id, user.id);
       await loadOrder();
-      setRole('traveler');
     } catch (error) {
       console.error('Error accepting order:', error);
     }
@@ -164,11 +175,11 @@ export default function OrderDetails() {
 
       <header>
         <div className="flex justify-between items-start">
-           <div>
-              <h1 className="text-2xl font-bold">{order.item_name}</h1>
-              <p className="text-muted-foreground text-sm">Order #{order.id.slice(0, 8)}</p>
-           </div>
-           <StatusBadge status={order.status} />
+          <div>
+            <h1 className="text-2xl font-bold">{order.item_name}</h1>
+            <p className="text-muted-foreground text-sm">Order #{order.id.slice(0, 8)}</p>
+          </div>
+          <StatusBadge status={order.status} />
         </div>
       </header>
 
@@ -215,7 +226,7 @@ export default function OrderDetails() {
               <p className="text-sm text-muted-foreground">Buyer must fund the escrow account.</p>
               {role === 'admin' && (
                 <Button onClick={handleConfirmEscrow} fullWidth variant="outline">
-                   [Admin] Confirm Funds Received
+                  [Admin] Confirm Funds Received
                 </Button>
               )}
             </div>
@@ -236,12 +247,12 @@ export default function OrderDetails() {
           {order.status === 'BOUGHT' && (
             <div className="space-y-4">
               <div className="bg-background rounded p-2 text-center">
-                 <p className="text-xs text-muted-foreground mb-1">Receipt</p>
-                 {order.receipt_url ? (
-                    <img src={order.receipt_url} alt="Receipt" className="max-h-40 mx-auto rounded" />
-                 ) : (
-                    <span className="text-xs">No receipt image</span>
-                 )}
+                <p className="text-xs text-muted-foreground mb-1">Receipt</p>
+                {order.receipt_url ? (
+                  <img src={order.receipt_url} alt="Receipt" className="max-h-40 mx-auto rounded" />
+                ) : (
+                  <span className="text-xs">No receipt image</span>
+                )}
               </div>
               {role === 'traveler' && (
                 <div className="flex gap-2">
@@ -258,14 +269,14 @@ export default function OrderDetails() {
 
           {order.status === 'SHIPPED' && (
             <div className="space-y-2">
-               <div className="flex items-center gap-2 text-blue-500 mb-2">
+              <div className="flex items-center gap-2 text-blue-500 mb-2">
                 <Truck className="w-5 h-5" />
                 <span className="text-sm font-medium">Item Shipped</span>
               </div>
               <p className="text-sm">Tracking: <span className="font-mono bg-muted px-1 rounded">{order.tracking_number}</span></p>
               {role === 'buyer' && (
                 <Button onClick={handleConfirmReceipt} fullWidth className="bg-green-600 hover:bg-green-700">
-                   Confirm Receipt
+                  Confirm Receipt
                 </Button>
               )}
             </div>
@@ -273,39 +284,39 @@ export default function OrderDetails() {
 
           {order.status === 'COMPLETED' && (
             <div className="space-y-4">
-               <div className="text-center">
-                   <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-green-500/20 text-green-500 mb-2">
-                      <CheckCircle className="w-6 h-6" />
-                   </div>
-                   <h3 className="font-bold text-green-500">Order Completed</h3>
-                   <p className="text-sm text-muted-foreground">Funds have been released.</p>
-               </div>
+              <div className="text-center">
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-green-500/20 text-green-500 mb-2">
+                  <CheckCircle className="w-6 h-6" />
+                </div>
+                <h3 className="font-bold text-green-500">Order Completed</h3>
+                <p className="text-sm text-muted-foreground">Funds have been released.</p>
+              </div>
 
-               {!ratingSubmitted ? (
-                   <div className="bg-background p-4 rounded-xl border border-border">
-                       <p className="text-sm font-medium text-center mb-3">Rate your experience</p>
-                       <div className="flex gap-3">
-                           <Button
-                              variant="outline"
-                              className="flex-1 hover:bg-green-500/10 hover:text-green-500 hover:border-green-500/50"
-                              onClick={() => handleRateUser(true)}
-                           >
-                               <ThumbsUp className="w-4 h-4 mr-2" /> Good
-                           </Button>
-                           <Button
-                              variant="outline"
-                              className="flex-1 hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/50"
-                              onClick={() => handleRateUser(false)}
-                           >
-                               <ThumbsDown className="w-4 h-4 mr-2" /> Bad
-                           </Button>
-                       </div>
-                   </div>
-               ) : (
-                   <div className="text-center text-sm text-muted-foreground bg-background p-3 rounded-xl">
-                       Thanks for your feedback!
-                   </div>
-               )}
+              {!ratingSubmitted ? (
+                <div className="bg-background p-4 rounded-xl border border-border">
+                  <p className="text-sm font-medium text-center mb-3">Rate your experience</p>
+                  <div className="flex gap-3">
+                    <Button
+                      variant="outline"
+                      className="flex-1 hover:bg-green-500/10 hover:text-green-500 hover:border-green-500/50"
+                      onClick={() => handleRateUser(true)}
+                    >
+                      <ThumbsUp className="w-4 h-4 mr-2" /> Good
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="flex-1 hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/50"
+                      onClick={() => handleRateUser(false)}
+                    >
+                      <ThumbsDown className="w-4 h-4 mr-2" /> Bad
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center text-sm text-muted-foreground bg-background p-3 rounded-xl">
+                  Thanks for your feedback!
+                </div>
+              )}
             </div>
           )}
         </CardContent>
