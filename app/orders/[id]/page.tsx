@@ -324,8 +324,8 @@ export default function OrderDetails() {
               </div>
               <p className="text-sm">Tracking: <span className="font-mono bg-muted px-1 rounded">{order.tracking_number}</span></p>
               {role === 'buyer' && (
-                <Button onClick={handleConfirmReceipt} fullWidth className="bg-green-600 hover:bg-green-700">
-                  Confirm Receipt
+                <Button onClick={handleConfirmReceipt} fullWidth className="bg-green-600 hover:bg-green-700 font-bold h-12 rounded-xl">
+                  Item Received
                 </Button>
               )}
             </div>
@@ -342,19 +342,21 @@ export default function OrderDetails() {
               </div>
 
               {!ratingSubmitted ? (
-                <div className="bg-background p-4 rounded-xl border border-border">
-                  <p className="text-sm font-medium text-center mb-3">Rate your experience</p>
+                <div className="bg-background p-4 rounded-xl border border-border shadow-sm">
+                  <p className="text-sm font-bold text-center mb-3">
+                    Rate the {role === 'buyer' ? 'Traveler' : 'Buyer'}
+                  </p>
                   <div className="flex gap-3">
                     <Button
                       variant="outline"
-                      className="flex-1 hover:bg-green-500/10 hover:text-green-500 hover:border-green-500/50"
+                      className="flex-1 h-12 border-green-500/30 text-green-600 hover:bg-green-500/10 hover:border-green-500"
                       onClick={() => handleRateUser(true)}
                     >
                       <ThumbsUp className="w-4 h-4 mr-2" /> Good
                     </Button>
                     <Button
                       variant="outline"
-                      className="flex-1 hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/50"
+                      className="flex-1 h-12 border-red-500/30 text-red-600 hover:bg-red-500/10 hover:border-red-500"
                       onClick={() => handleRateUser(false)}
                     >
                       <ThumbsDown className="w-4 h-4 mr-2" /> Bad
