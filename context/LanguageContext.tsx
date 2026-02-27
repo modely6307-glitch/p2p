@@ -24,6 +24,9 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
         const savedLang = localStorage.getItem('language') as Language;
         if (savedLang && (savedLang === 'en' || savedLang === 'zh')) {
             setLanguageState(savedLang);
+            document.documentElement.lang = savedLang;
+        } else {
+            document.documentElement.lang = 'zh';
         }
     }, []);
 

@@ -10,7 +10,8 @@
         "no_data": "No data available",
         "view_more": "View More",
         "details": "Details",
-        "back": "Back"
+        "back": "Back",
+        "anonymous": "Anonymous"
     },
     "nav": {
         "market": "Market",
@@ -128,13 +129,14 @@
         "confirm_escrow": "Confirm Receipt",
         "release_funds": "Release Funds",
         "view_btn": "Details",
-        "no_orders": "No orders found in this category",
-        "anonymous": "Anonymous User",
+        "empty_orders": "No orders found in this category",
         "no_email": "No Email",
-        "unverify": "Unverify",
-        "verify": "Verify",
-        "confirm_pay_prompt": "Confirm you have received funds for this order? This will update status to 'Escrowed'.",
-        "confirm_release_prompt": "Confirm release funds to traveler? This is irreversible and will mark order as completed."
+        "btn_unverify": "Unverify",
+        "btn_verify": "Verify",
+        "confirm_payment_alert": "Confirm you have received funds for this order? This will update status to 'Escrowed'.",
+        "release_funds_alert": "Confirm release funds to traveler? This is irreversible and will mark order as completed.",
+        "confirm_payment_btn": "Confirm Payment",
+        "release_funds_btn": "Release Funds"
     },
     "countries": {
         "Japan": "Japan",

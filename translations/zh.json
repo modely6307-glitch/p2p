@@ -10,7 +10,8 @@
         "no_data": "尚無資料",
         "view_more": "查看更多",
         "details": "詳情",
-        "back": "返回"
+        "back": "返回",
+        "anonymous": "匿名用戶"
     },
     "nav": {
         "market": "廣場",
@@ -128,13 +129,14 @@
         "confirm_escrow": "確認收款",
         "release_funds": "釋放資金",
         "view_btn": "詳情",
-        "no_orders": "此類別目前沒有訂單",
-        "anonymous": "匿名用戶",
+        "empty_orders": "此類別目前沒有訂單",
         "no_email": "無信箱",
-        "unverify": "取消認證",
-        "verify": "通過認證",
-        "confirm_pay_prompt": "確認已收到此訂單的款項？這將會把訂單狀態改為「資金託管」並通知旅客採買。",
-        "confirm_release_prompt": "確認撥款給旅客？此動作不可逆，訂單將標記為完成。"
+        "btn_unverify": "取消認證",
+        "btn_verify": "通過認證",
+        "confirm_payment_alert": "確認已收到此訂單的款項？這將會把訂單狀態改為「資金託管」並通知旅客採買。",
+        "release_funds_alert": "確認撥款給旅客？此動作不可逆，訂單將標記為完成。",
+        "confirm_payment_btn": "確認收款",
+        "release_funds_btn": "釋放資金"
     },
     "countries": {
         "Japan": "日本",
