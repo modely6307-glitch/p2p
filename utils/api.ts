@@ -47,12 +47,13 @@ export const fetchOrderById = async (id: string) => {
   return data as Order;
 };
 
-export const createOrder = async (order: Omit<Order, 'id' | 'status' | 'created_at'>) => {
+export const createOrder = async (order: Omit<Order, 'id' | 'status' | 'created_at' | 'total_amount'>) => {
   const { data, error } = await supabase
     .from('orders')
     .insert([
       {
         ...order,
+        total_amount: order.target_price + order.reward_fee,
         status: 'OPEN',
       },
     ])
@@ -91,7 +92,7 @@ export const assignTraveler = async (id: string, travelerId: string) => {
 };
 
 export const updateOrderDetails = async (id: string, updates: Partial<Order>) => {
-    const { data, error } = await supabase
+  const { data, error } = await supabase
     .from('orders')
     .update(updates)
     .eq('id', id)

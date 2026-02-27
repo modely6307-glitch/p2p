@@ -116,6 +116,18 @@ export default function ProfilePage() {
           )}
         </CardContent>
       </Card>
+
+      <div className="pt-4">
+        <Button
+          variant="outline"
+          fullWidth
+          onClick={handleLogout}
+          className="border-red-500/50 text-red-500 hover:bg-red-500/10 hover:text-red-600 transition-all rounded-xl h-12 font-semibold"
+        >
+          <LogOut className="w-4 h-4 mr-2" />
+          Log Out
+        </Button>
+      </div>
     </div>
   );
 }

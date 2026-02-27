@@ -4,10 +4,12 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createOrder } from '@/utils/api';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Camera, X } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { uploadFile } from '@/utils/api';
 
 export default function CreateWish() {
   const router = useRouter();
@@ -17,7 +19,23 @@ export default function CreateWish() {
     item_name: '',
     target_price: '',
     reward_fee: '',
+    description: '',
   });
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setPhoto(file);
+      setPhotoPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const removePhoto = () => {
+    setPhoto(null);
+    setPhotoPreview(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,22 +43,30 @@ export default function CreateWish() {
     setLoading(true);
 
     try {
+      let photo_url = null;
+      if (photo) {
+        const path = `${user.id}/${Date.now()}-${photo.name}`;
+        photo_url = await uploadFile(photo, 'wishes', path);
+      }
+
       await createOrder({
         buyer_id: user.id,
         item_name: formData.item_name,
         target_price: parseFloat(formData.target_price),
         reward_fee: parseFloat(formData.reward_fee),
+        description: formData.description,
+        photo_url: photo_url,
       });
       router.push('/dashboard');
     } catch (error) {
       console.error('Error creating wish:', error);
-      alert('Failed to create wish. Please try again.');
+      alert('Failed to create wish. Please check if the "wishes" storage bucket exists.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
@@ -55,11 +81,48 @@ export default function CreateWish() {
 
       <Card className="p-6">
         <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-4">
+            <label className="block text-sm font-medium text-muted-foreground">Item Image (Optional)</label>
+            <div className="flex items-center gap-4">
+              {photoPreview ? (
+                <div className="relative w-32 h-32 rounded-xl overflow-hidden border border-border">
+                  <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={removePhoto}
+                    className="absolute top-1 right-1 p-1 bg-background/80 backdrop-blur-sm rounded-full text-foreground hover:text-red-500 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center w-32 h-32 rounded-xl border-2 border-dashed border-border hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer group">
+                  <Camera className="w-8 h-8 text-muted-foreground group-hover:text-primary transition-colors" />
+                  <span className="text-[10px] mt-2 text-muted-foreground font-medium uppercase tracking-wider">Upload</span>
+                  <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
+                </label>
+              )}
+              <div className="flex-1 text-xs text-muted-foreground">
+                <p className="font-medium text-foreground mb-1">Upload a clear photo</p>
+                <p>Helps travelers find the exact item you want. JPG, PNG supported.</p>
+              </div>
+            </div>
+          </div>
+
           <Input
             label="Item Name"
             name="item_name"
             placeholder="e.g. iPhone 15 Pro Max"
             value={formData.item_name}
+            onChange={handleChange}
+            required
+          />
+
+          <Textarea
+            label="Description / Notes"
+            name="description"
+            placeholder="Specify color, size, model, and anything else important..."
+            value={formData.description}
             onChange={handleChange}
             required
           />

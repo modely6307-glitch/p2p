@@ -174,12 +174,23 @@ export default function OrderDetails() {
       </div>
 
       <header>
-        <div className="flex justify-between items-start">
+        <div className="flex justify-between items-start mb-4">
           <div>
             <h1 className="text-2xl font-bold">{order.item_name}</h1>
             <p className="text-muted-foreground text-sm">Order #{order.id.slice(0, 8)}</p>
           </div>
           <StatusBadge status={order.status} />
+        </div>
+
+        {order.photo_url && (
+          <div className="mb-4 rounded-2xl overflow-hidden border border-border shadow-sm">
+            <img src={order.photo_url} alt={order.item_name} className="w-full h-auto max-h-64 object-cover" />
+          </div>
+        )}
+
+        <div className="bg-secondary/10 p-4 rounded-2xl border border-border/50 mb-4">
+          <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2 text-[10px]">Wish Notes</h3>
+          <p className="text-sm leading-relaxed">{order.description}</p>
         </div>
       </header>
 
