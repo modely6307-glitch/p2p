@@ -1,5 +1,5 @@
 import { supabase } from './supabase/client';
-import { Order, OrderStatus, Profile } from '@/types';
+import { Order, OrderStatus, Profile, SystemSettings } from '@/types';
 
 export const fetchOrders = async (status?: OrderStatus) => {
   let query = supabase
@@ -48,8 +48,9 @@ export const fetchOrderById = async (id: string) => {
 };
 
 export const createOrder = async (order: Omit<Order, 'id' | 'status' | 'created_at' | 'total_amount' | 'total_amount_twd'>) => {
+  const base_amount_twd = (order.target_price * order.exchange_rate) + order.reward_fee;
   const total_amount = order.target_price + order.reward_fee;
-  const total_amount_twd = total_amount * order.exchange_rate;
+  const total_amount_twd = base_amount_twd + (order.buyer_platform_fee || 0);
 
   const { data, error } = await supabase
     .from('orders')
@@ -68,7 +69,41 @@ export const createOrder = async (order: Omit<Order, 'id' | 'status' | 'created_
   return data as Order;
 };
 
-// --- Admin APIs ---
+// --- Admin & Settings APIs ---
+
+export const fetchSystemSettings = async () => {
+  const { data, error } = await supabase
+    .from('settings')
+    .select('*')
+    .eq('id', 'global')
+    .single();
+
+  if (error && error.code !== 'PGRST116') throw error;
+
+  // Default fallback if no settings record yet
+  if (!data) {
+    return {
+      id: 'global',
+      buyer_fee_threshold: 1000,
+      buyer_fee_fixed_amount: 20,
+      buyer_fee_percentage: 2,
+      traveler_fee_threshold: 1000,
+      traveler_fee_fixed_amount: 20,
+      traveler_fee_percentage: 2
+    };
+  }
+  return data as SystemSettings;
+};
+
+export const updateSystemSettings = async (settings: Partial<SystemSettings>) => {
+  const { data, error } = await supabase
+    .from('settings')
+    .upsert({ id: 'global', ...settings })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as SystemSettings;
+};
 
 export const fetchAllOrders = async () => {
   const { data, error } = await supabase

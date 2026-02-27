@@ -51,11 +51,15 @@
         "total_est": "Estimated Total (TWD)",
         "submit": "Post Wish",
         "formula_title": "Budget Formula",
-        "formula_help": "Total = (Item Price × Ex. Rate) + Reward",
+        "formula_help": "Total = (Item Price × Ex. Rate) + Reward + Platform Fee",
+        "platform_fee": "Platform Fee",
         "reward_twd": "Reward is fixed in TWD",
         "limit_alert": "Standard user limit is 5000 TWD. Your current total is {total} TWD. Please verify identity to increase limit.",
         "success": "Wish posted successfully!",
-        "fail": "Failed to post wish."
+        "fail": "Failed to post wish, please try again.",
+        "shipping_address": "Shipping Address",
+        "shipping_address_placeholder": "Enter shipping address (Revealed to traveler after payment)",
+        "address_privacy_hint": "Address will only be revealed to the traveler after the system confirms escrow payment."
     },
     "dashboard": {
         "title": "My Dashboard",
@@ -113,7 +117,11 @@
         "buyer": "Buyer",
         "positive": "Positive",
         "negative": "Negative",
-        "rate_thanks": "Thanks for your feedback!"
+        "rate_thanks": "Thanks for your rating!",
+        "traveler_net": "Net Earnings (Est.)",
+        "traveler_fee_hint": "* Platform fee NT${fee} deducted",
+        "address_locked": "Address revealed after payment confirmation",
+        "shipping_info_title": "Shipping Info"
     },
     "admin": {
         "title": "Backend Management",
@@ -132,7 +140,16 @@
         "confirm_escrow": "Confirm Receipt",
         "release_funds": "Release Funds",
         "view_btn": "Details",
+        "tab_settings": "Settings",
         "empty_orders": "No orders found in this category",
+        "buyer_fee_threshold": "Buyer Fee Threshold (TWD)",
+        "buyer_fee_fixed": "Buyer Fixed Fee (TWD)",
+        "buyer_fee_percent": "Buyer Percentage Fee (%)",
+        "traveler_fee_threshold": "Traveler Fee Threshold (TWD)",
+        "traveler_fee_fixed": "Traveler Fixed Fee (TWD)",
+        "traveler_fee_percent": "Traveler Percentage Fee (%)",
+        "update_settings_btn": "Update System Settings",
+        "settings_success": "System settings updated successfully!",
         "no_email": "No Email",
         "btn_unverify": "Unverify",
         "btn_verify": "Verify",

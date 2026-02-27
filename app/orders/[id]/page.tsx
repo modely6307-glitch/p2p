@@ -54,6 +54,7 @@ export default function OrderDetails() {
   const [uploading, setUploading] = useState(false);
   const [trackingNumber, setTrackingNumber] = useState('');
   const [ratingSubmitted, setRatingSubmitted] = useState(false);
+  const [showFormula, setShowFormula] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -245,6 +246,27 @@ export default function OrderDetails() {
           <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2 text-[10px]">{t('order.wish_notes')}</h3>
           <p className="text-sm leading-relaxed">{order.description}</p>
         </div>
+
+        {order.shipping_address && (
+          <div className="bg-primary/5 p-4 rounded-2xl border border-primary/20 mb-4">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-primary mb-2 text-[10px] flex items-center gap-2">
+              <ShieldCheck className="w-3 h-3" />
+              {t('order.shipping_info_title')}
+            </h3>
+            {(() => {
+              const isRevealed = role === 'buyer' || role === 'admin' || ['ESCROWED', 'BOUGHT', 'SHIPPED', 'COMPLETED'].includes(order.status);
+              if (isRevealed) {
+                return <p className="text-sm font-medium">{order.shipping_address}</p>;
+              } else {
+                return (
+                  <div className="flex items-center gap-2 text-muted-foreground italic">
+                    <span className="text-sm">🔒 {t('order.address_locked')}</span>
+                  </div>
+                );
+              }
+            })()}
+          </div>
+        )}
       </header>
 
       <StepProgressBar currentStatus={order.status} />
@@ -259,12 +281,68 @@ export default function OrderDetails() {
             <span className="text-muted-foreground">{t('order.reward_fee')}</span>
             <span className="font-medium text-green-500">+{currencySymbol}{order.reward_fee}</span>
           </div>
+          {order.buyer_platform_fee > 0 && (
+            <div className="flex justify-between py-2 border-b border-border/50">
+              <span className="text-muted-foreground">{t('create.platform_fee')}</span>
+              <span className="font-medium">NT${order.buyer_platform_fee}</span>
+            </div>
+          )}
           <div className="flex justify-between py-2 font-bold text-lg">
             <span>{t('order.total_budget')}</span>
-            <span>{currencySymbol}{order.target_price + order.reward_fee}</span>
+            <div className="text-right">
+              <div>{currencySymbol}{order.target_price + order.reward_fee}</div>
+              <div className="text-[10px] text-muted-foreground font-normal">≈ NT${order.total_amount_twd?.toLocaleString()}</div>
+            </div>
           </div>
         </CardContent>
       </Card>
+
+      {role === 'traveler' && order.traveler_platform_fee > 0 && (
+        <div className="space-y-2">
+          <div
+            className="bg-green-500/5 rounded-2xl p-4 border border-green-500/20 cursor-pointer hover:bg-green-500/10 transition-colors flex justify-between items-center"
+            onClick={() => setShowFormula(!showFormula)}
+          >
+            <div>
+              <p className="text-[10px] font-bold text-green-600 uppercase tracking-widest mb-1">
+                {t('order.traveler_net')}
+                <span className="ml-1 opacity-50 underline decoration-dotted">{showFormula ? '▲' : '▼'}</span>
+              </p>
+              <p className="font-black text-xl text-green-600">
+                NT$ {((order.target_price * (order.exchange_rate || 1)) + order.reward_fee - (order.traveler_platform_fee || 0)).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-[9px] text-muted-foreground uppercase font-bold">{t('create.platform_fee')}</p>
+              <p className="text-xs font-bold text-red-500">-NT${order.traveler_platform_fee}</p>
+            </div>
+          </div>
+
+          {showFormula && (
+            <div className="px-4 py-3 bg-secondary/20 rounded-xl border border-border/50 animate-in fade-in slide-in-from-top-1">
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">{t('create.formula_title')}</p>
+              <div className="space-y-1 text-xs font-mono text-muted-foreground">
+                <div className="flex justify-between">
+                  <span>({order.target_price} {order.currency} × {order.exchange_rate})</span>
+                  <span>NT$ {Math.round(order.target_price * (order.exchange_rate || 1))}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>+ {t('order.reward_fee')}</span>
+                  <span>NT$ {order.reward_fee}</span>
+                </div>
+                <div className="flex justify-between text-red-500/70">
+                  <span>- {t('create.platform_fee')}</span>
+                  <span>NT$ {order.traveler_platform_fee}</span>
+                </div>
+                <div className="pt-1 border-t border-border/30 flex justify-between font-bold text-foreground">
+                  <span>{t('order.traveler_net')}</span>
+                  <span>NT$ {Math.round((order.target_price * (order.exchange_rate || 1)) + order.reward_fee - (order.traveler_platform_fee || 0))}</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {(order.receipt_url || order.tracking_number) && (
         <Card className="border-primary/20 bg-primary/5">

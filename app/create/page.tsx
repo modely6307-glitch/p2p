@@ -25,6 +25,7 @@ export default function CreateWish() {
     target_price: '',
     reward_fee: '',
     description: '',
+    shipping_address: '',
     country: 'Japan',
     currency: 'JPY',
     exchange_rate: '0.22',
@@ -33,11 +34,14 @@ export default function CreateWish() {
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<Profile | null>(null);
+  const [settings, setSettings] = useState<import('@/types').SystemSettings | null>(null);
 
   useEffect(() => {
     if (user) {
       fetchProfile(user.id).then(setUserProfile);
     }
+    const { fetchSystemSettings } = require('@/utils/api');
+    fetchSystemSettings().then(setSettings);
   }, [user]);
 
   const countries = [
@@ -71,22 +75,41 @@ export default function CreateWish() {
     setPhotoPreview(null);
   };
 
-  const calculateTotal = () => {
+  const calculateFee = (subtotal: number) => {
+    if (!settings) return subtotal < 1000 ? 20 : Math.round(subtotal * 0.02);
+    if (subtotal < settings.buyer_fee_threshold) return settings.buyer_fee_fixed_amount;
+    return Math.round(subtotal * (settings.buyer_fee_percentage / 100));
+  };
+
+  const calculateTravelerFee = (subtotal: number) => {
+    if (!settings) return subtotal < 1000 ? 20 : Math.round(subtotal * 0.02);
+    if (subtotal < settings.traveler_fee_threshold) return settings.traveler_fee_fixed_amount;
+    return Math.round(subtotal * (settings.traveler_fee_percentage / 100));
+  };
+
+  const calculateSubtotal = () => {
     const price = parseFloat(formData.target_price || '0');
     const rate = parseFloat(formData.exchange_rate || '1');
     const reward = parseFloat(formData.reward_fee || '0');
     return (price * rate) + reward;
   };
 
+  const calculateTotal = () => {
+    const subtotal = calculateSubtotal();
+    return subtotal + calculateFee(subtotal);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !userProfile) return;
 
-    const totalTwd = calculateTotal();
+    const subtotal = calculateSubtotal();
+    const fee = calculateFee(subtotal);
+    const travelerFee = calculateTravelerFee(subtotal);
 
     // Enforcement: Standard users limit 5000 TWD
-    if (userProfile.level === 'STANDARD' && totalTwd > 5000) {
-      alert(t('create.limit_alert', { total: totalTwd.toFixed(0) }));
+    if (userProfile.level === 'STANDARD' && (subtotal + fee) > 5000) {
+      alert(t('create.limit_alert', { total: (subtotal + fee).toFixed(0) }));
       return;
     }
 
@@ -106,9 +129,12 @@ export default function CreateWish() {
         reward_fee: parseFloat(formData.reward_fee),
         exchange_rate: parseFloat(formData.exchange_rate),
         description: formData.description,
+        shipping_address: formData.shipping_address,
         country: formData.country,
         currency: formData.currency,
         photo_url: photo_url,
+        buyer_platform_fee: fee,
+        traveler_platform_fee: travelerFee,
       });
       router.push('/dashboard');
     } catch (error) {
@@ -258,6 +284,19 @@ export default function CreateWish() {
             required
           />
 
+          <div className="space-y-1.5">
+            <label className="block text-sm font-medium text-muted-foreground">{t('create.shipping_address')}</label>
+            <Textarea
+              name="shipping_address"
+              placeholder={t('create.shipping_address_placeholder')}
+              value={formData.shipping_address}
+              onChange={handleChange}
+              required
+              className="min-h-[80px]"
+            />
+            <p className="text-[10px] text-muted-foreground italic px-1">{t('create.address_privacy_hint')}</p>
+          </div>
+
           {/* Pricing Section */}
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -307,8 +346,12 @@ export default function CreateWish() {
                   <div className="px-3 py-2 bg-secondary/20 rounded-lg border border-border/50 animate-in fade-in slide-in-from-top-1">
                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">{t('create.formula_title')}</p>
                     <p className="text-xs font-mono text-muted-foreground">
-                      ({formData.target_price || 0} {formData.currency} × {formData.exchange_rate}) + {formData.reward_fee || 0}
+                      ({formData.target_price || 0} {formData.currency} × {formData.exchange_rate}) + {formData.reward_fee || 0} + NT$ {calculateFee(calculateSubtotal())}
                     </p>
+                    <div className="mt-2 pt-2 border-t border-border/30">
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">{t('create.platform_fee')}</p>
+                      <p className="text-xs">NT$ {calculateFee(calculateSubtotal())}</p>
+                    </div>
                     <p className="text-[10px] text-muted-foreground mt-1 opacity-70 italic">{t('create.formula_help')}</p>
                   </div>
                 )}

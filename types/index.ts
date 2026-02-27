@@ -24,9 +24,22 @@ export interface Order {
   receipt_url?: string | null;
   photo_url?: string | null;
   description: string;
+  shipping_address?: string | null;
   tracking_number?: string | null;
+  buyer_platform_fee: number;
+  traveler_platform_fee: number;
   buyer?: Profile;
   traveler?: Profile;
+}
+
+export interface SystemSettings {
+  id: string;
+  buyer_fee_threshold: number;
+  buyer_fee_fixed_amount: number;
+  buyer_fee_percentage: number;
+  traveler_fee_threshold: number;
+  traveler_fee_fixed_amount: number;
+  traveler_fee_percentage: number;
 }
 
 export interface Profile {

@@ -51,11 +51,15 @@
         "total_est": "預計總支付額 (TWD)",
         "submit": "發布願望",
         "formula_title": "預算計算公式",
-        "formula_help": "總預算 = (物品原價 × 匯率) + 補貼報酬",
+        "formula_help": "總支出 = (物品原價 × 匯率) + 補貼報酬 + 平台服務費",
+        "platform_fee": "平台服務費",
         "reward_twd": "報酬以台幣計價",
         "limit_alert": "一般用戶限額為 5000 TWD。您目前的總額為 {total} TWD。請完成身份認證以提高限額。",
         "success": "願望已成功發布！",
-        "fail": "發布願望失敗。"
+        "fail": "發布願望失敗。",
+        "shipping_address": "收件地址",
+        "shipping_address_placeholder": "請輸入收件地址 (僅在付款後揭露給代購)",
+        "address_privacy_hint": "地址僅會在系統確認收到您的代管資金 (Escrow) 後，才會揭露給代購玩家。"
     },
     "dashboard": {
         "title": "個人控制台",
@@ -113,7 +117,11 @@
         "buyer": "買家",
         "positive": "正評",
         "negative": "負評",
-        "rate_thanks": "感謝您的評價！"
+        "rate_thanks": "感謝您的評價！",
+        "traveler_net": "實際入帳金額 (預估)",
+        "traveler_fee_hint": "* 已扣除平台服務費 NT${fee}",
+        "address_locked": "寄件地址將在系統確認收到資金後揭露",
+        "shipping_info_title": "寄送資訊"
     },
     "admin": {
         "title": "後台管理系統",
@@ -131,8 +139,17 @@
         "tracking": "物流單號",
         "confirm_escrow": "確認收款",
         "release_funds": "釋放資金",
+        "tab_settings": "系統設定",
         "view_btn": "詳情",
         "empty_orders": "此類別目前沒有訂單",
+        "buyer_fee_threshold": "買家收費切換限額 (TWD)",
+        "buyer_fee_fixed": "買家固定收費金額 (TWD)",
+        "buyer_fee_percent": "買家百分比收費 (%)",
+        "traveler_fee_threshold": "代購收費切換限額 (TWD)",
+        "traveler_fee_fixed": "代購固定收費金額 (TWD)",
+        "traveler_fee_percent": "代購百分比收費 (%)",
+        "update_settings_btn": "更新系統設定",
+        "settings_success": "系統設定已更新！",
         "no_email": "無信箱",
         "btn_unverify": "取消認證",
         "btn_verify": "通過認證",

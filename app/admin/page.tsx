@@ -2,11 +2,12 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { fetchAllOrders, fetchAllProfiles, updateProfile, updateOrderStatus, incrementOrderStats } from '@/utils/api';
-import { Order, Profile } from '@/types';
+import { fetchAllOrders, fetchAllProfiles, updateProfile, updateOrderStatus, incrementOrderStats, fetchSystemSettings, updateSystemSettings } from '@/utils/api';
+import { Order, Profile, SystemSettings } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ShieldCheck, User, Package, CheckCircle2, XCircle, CreditCard, Banknote, CheckCircle } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Loader2, ShieldCheck, User, Package, CheckCircle2, XCircle, CreditCard, Banknote, CheckCircle, Settings } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { StatusBadge } from '@/components/StatusBadge';
 
@@ -19,8 +20,9 @@ export default function AdminDashboard() {
     const router = useRouter();
     const [orders, setOrders] = useState<Order[]>([]);
     const [profiles, setProfiles] = useState<Profile[]>([]);
+    const [settings, setSettings] = useState<SystemSettings | null>(null);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'orders' | 'users'>('orders');
+    const [activeTab, setActiveTab] = useState<'orders' | 'users' | 'settings'>('orders');
     const [orderFilter, setOrderFilter] = useState<OrderFilter>('all');
     const { t } = useLanguage();
 
@@ -33,17 +35,58 @@ export default function AdminDashboard() {
     }, [user, authLoading]);
 
     const loadData = async () => {
+        setLoading(true);
+        console.log('Admin loading data...');
         try {
-            const [ordData, profData] = await Promise.all([
-                fetchAllOrders(),
-                fetchAllProfiles()
-            ]);
+            // Load separately to identify failures
+            const ordData = await fetchAllOrders().catch(e => { console.error('Orders load fail:', e); return []; });
+            const profData = await fetchAllProfiles().catch(e => { console.error('Profiles load fail:', e); return []; });
+            const settsData = await fetchSystemSettings().catch(e => {
+                console.error('Settings load fail:', e);
+                return null;
+            });
+
+            console.log('Loaded Settings:', settsData);
             setOrders(ordData);
             setProfiles(profData);
+            if (settsData) {
+                setSettings(settsData);
+            } else {
+                // Initial fallback if table error
+                setSettings({
+                    id: 'global',
+                    buyer_fee_threshold: 1000,
+                    buyer_fee_fixed_amount: 20,
+                    buyer_fee_percentage: 2,
+                    traveler_fee_threshold: 1000,
+                    traveler_fee_fixed_amount: 20,
+                    traveler_fee_percentage: 2
+                });
+            }
         } catch (error) {
-            console.error('Admin load error:', error);
+            console.error('General admin load error:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleUpdateSettings = async (e: React.FormEvent) => {
+        e.preventDefault();
+        console.log('Update button clicked');
+        if (!settings) {
+            console.error('Settings state is null');
+            alert('Settings data not loaded');
+            return;
+        }
+
+        try {
+            console.log('Pushing settings:', settings);
+            const result = await updateSystemSettings(settings);
+            console.log('Update result:', result);
+            alert(t('admin.settings_success'));
+        } catch (error) {
+            console.error('Update failure error:', error);
+            alert(t('error') + ': ' + (error as any).message);
         }
     };
 
@@ -110,18 +153,24 @@ export default function AdminDashboard() {
                 </div>
             </header>
 
-            <div className="flex bg-secondary/30 p-1 rounded-xl w-fit">
+            <div className="flex bg-secondary/30 p-1 rounded-xl w-fit overflow-x-auto">
                 <button
                     onClick={() => setActiveTab('orders')}
-                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'orders' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
+                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'orders' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
                 >
                     {t('admin.tab_orders')}
                 </button>
                 <button
                     onClick={() => setActiveTab('users')}
-                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'users' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
+                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'users' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
                 >
                     {t('admin.tab_users')}
+                </button>
+                <button
+                    onClick={() => setActiveTab('settings')}
+                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'settings' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
+                >
+                    {t('admin.tab_settings')}
                 </button>
             </div>
 
@@ -166,7 +215,7 @@ export default function AdminDashboard() {
                                         <div className="flex flex-wrap gap-x-6 gap-y-2 mt-3">
                                             <div className="flex flex-col">
                                                 <span className="text-[9px] text-muted-foreground uppercase font-black tracking-widest">{t('order.target_price')}</span>
-                                                <span className="text-sm font-bold">{order.currency}{order.total_amount} <span className="text-xs text-muted-foreground font-normal">({order.exchange_rate} {t('create.ex_rate')})</span></span>
+                                                <span className="text-sm font-bold">{order.currency}{order.target_price} <span className="text-xs text-muted-foreground font-normal">({order.exchange_rate} {t('create.ex_rate')})</span></span>
                                             </div>
                                             <div className="flex flex-col">
                                                 <span className="text-[9px] text-primary uppercase font-black tracking-widest">{t('order.total_budget')}</span>
@@ -223,7 +272,7 @@ export default function AdminDashboard() {
                         )}
                     </div>
                 </div>
-            ) : (
+            ) : activeTab === 'users' ? (
                 <div className="space-y-4">
                     {profiles.map(profile => (
                         <Card key={profile.id} className="border-border/50">
@@ -260,6 +309,91 @@ export default function AdminDashboard() {
                             </CardContent>
                         </Card>
                     ))}
+                </div>
+            ) : (
+                <div className="max-w-md mx-auto">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-lg flex items-center gap-2">
+                                <Settings className="w-5 h-5 text-primary" />
+                                {t('admin.tab_settings')}
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <form onSubmit={handleUpdateSettings} className="space-y-8">
+                                <div className="space-y-6">
+                                    {/* Buyer Fees */}
+                                    <div className="space-y-4">
+                                        <h4 className="text-sm font-black border-l-4 border-primary pl-2 uppercase tracking-tight">{t('order.buyer')}</h4>
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{t('admin.buyer_fee_threshold')}</label>
+                                            <Input
+                                                type="number"
+                                                value={settings?.buyer_fee_threshold}
+                                                onChange={(e) => setSettings(prev => prev ? { ...prev, buyer_fee_threshold: parseInt(e.target.value) } : null)}
+                                                className="font-bold rounded-xl"
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{t('admin.buyer_fee_fixed')}</label>
+                                            <Input
+                                                type="number"
+                                                value={settings?.buyer_fee_fixed_amount}
+                                                onChange={(e) => setSettings(prev => prev ? { ...prev, buyer_fee_fixed_amount: parseInt(e.target.value) } : null)}
+                                                className="font-bold rounded-xl"
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{t('admin.buyer_fee_percent')}</label>
+                                            <Input
+                                                type="number"
+                                                value={settings?.buyer_fee_percentage}
+                                                onChange={(e) => setSettings(prev => prev ? { ...prev, buyer_fee_percentage: parseInt(e.target.value) } : null)}
+                                                className="font-bold rounded-xl"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <hr className="border-border/50" />
+
+                                    {/* Traveler Fees */}
+                                    <div className="space-y-4">
+                                        <h4 className="text-sm font-black border-l-4 border-green-500 pl-2 uppercase tracking-tight">{t('order.traveler')}</h4>
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{t('admin.traveler_fee_threshold')}</label>
+                                            <Input
+                                                type="number"
+                                                value={settings?.traveler_fee_threshold}
+                                                onChange={(e) => setSettings(prev => prev ? { ...prev, traveler_fee_threshold: parseInt(e.target.value) } : null)}
+                                                className="font-bold rounded-xl"
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{t('admin.traveler_fee_fixed')}</label>
+                                            <Input
+                                                type="number"
+                                                value={settings?.traveler_fee_fixed_amount}
+                                                onChange={(e) => setSettings(prev => prev ? { ...prev, traveler_fee_fixed_amount: parseInt(e.target.value) } : null)}
+                                                className="font-bold rounded-xl"
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{t('admin.traveler_fee_percent')}</label>
+                                            <Input
+                                                type="number"
+                                                value={settings?.traveler_fee_percentage}
+                                                onChange={(e) => setSettings(prev => prev ? { ...prev, traveler_fee_percentage: parseInt(e.target.value) } : null)}
+                                                className="font-bold rounded-xl"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                                <Button type="submit" fullWidth className="font-black h-14 rounded-2xl shadow-lg shadow-primary/20">
+                                    {t('admin.update_settings_btn')}
+                                </Button>
+                            </form>
+                        </CardContent>
+                    </Card>
                 </div>
             )}
         </div>
