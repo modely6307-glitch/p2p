@@ -434,22 +434,19 @@ export default function OrderDetails() {
         </Card>
       )}
 
-      {/* Action Area */}
       <Card className="bg-secondary/20 border-primary/20">
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-            {t('order.next_steps')}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           {order.status === 'OPEN' && (
-            <div className="space-y-2">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                <CardTitle className="text-base">{t('status.OPEN')}</CardTitle>
+              </div>
               {role !== 'traveler' && (
                 <p className="text-sm text-muted-foreground">{t('order.wait_accept')}</p>
               )}
               {role === 'traveler' && (
-                <Button onClick={handleAcceptOrder} fullWidth className="h-12 font-bold text-base shadow-xl shadow-primary/20">
+                <Button onClick={handleAcceptOrder} fullWidth className="h-14 font-black text-lg shadow-xl shadow-primary/20 bg-primary hover:scale-[1.02] transition-transform">
                   {t('order.accept_btn')}
                 </Button>
               )}
@@ -457,14 +454,14 @@ export default function OrderDetails() {
           )}
 
           {order.status === 'MATCHED' && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-yellow-500 mb-2">
-                <ShieldCheck className="w-5 h-5" />
-                <span className="text-sm font-medium">{t('order.wait_escrow')}</span>
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
+                <CardTitle className="text-base">{role === 'buyer' ? t('order.wait_escrow') : '等待買家付款'}</CardTitle>
               </div>
               <p className="text-sm text-muted-foreground">{t('order.buyer_pay_hint')}</p>
               {role === 'admin' && (
-                <Button onClick={handleConfirmEscrow} fullWidth variant="outline">
+                <Button onClick={handleConfirmEscrow} fullWidth variant="outline" className="h-12 font-bold">
                   {t('order.admin_confirm_escrow')}
                 </Button>
               )}
@@ -473,51 +470,27 @@ export default function OrderDetails() {
 
           {order.status === 'ESCROWED' && (
             <div className="space-y-6">
-              <div className="bg-background/50 p-4 rounded-xl border border-border/50">
-                <p className="text-sm font-bold text-primary mb-1">{t('order.traveler_buy_hint')}</p>
-                <p className="text-xs text-muted-foreground leading-relaxed">{t('order.upload_guide')}</p>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                <CardTitle className="text-base">{role === 'traveler' ? (t('translations.order.next_steps_escrowed') || '買方已付款, 請提供採購證明') : t('status.ESCROWED')}</CardTitle>
               </div>
 
-              {role === 'traveler' && (
-                <div className="space-y-6">
-                  {/* Mandatory Product Photo */}
-                  <div className="space-y-3">
-                    <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t('create.proof_purchase_photo')}</p>
-                    {order.purchase_photo_url ? (
-                      <div className="relative rounded-xl overflow-hidden border border-border group">
-                        <img src={order.purchase_photo_url} alt="Purchase" className="w-full h-auto max-h-48 object-cover" />
-                        <label className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
-                          <input type="file" onChange={handleUploadPurchasePhoto} className="hidden" />
-                          <span className="text-white text-xs font-bold">{t('order.receipt_update')}</span>
-                        </label>
-                      </div>
-                    ) : (
-                      <div className="relative group">
-                        <input
-                          type="file"
-                          onChange={handleUploadPurchasePhoto}
-                          disabled={purchasePhotoUploading}
-                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                        />
-                        <div className="h-24 border-2 border-dashed border-primary/30 rounded-xl flex flex-col items-center justify-center bg-primary/5 group-hover:bg-primary/10 transition-colors">
-                          <Camera className={`w-8 h-8 ${purchasePhotoUploading ? 'animate-bounce' : ''} text-primary mb-2`} />
-                          <p className="text-xs font-bold text-primary uppercase tracking-wider">
-                            {purchasePhotoUploading ? t('common.loading') : t('order.upload_purchase_photo')}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+              <div className="space-y-6">
+                <div className="bg-background/50 p-4 rounded-xl border border-border/50">
+                  <p className="text-sm font-bold text-primary mb-1">{t('order.traveler_buy_hint')}</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{t('order.upload_guide')}</p>
+                </div>
 
-                  {/* Optional Receipt */}
-                  {order.require_receipt && (
+                {role === 'traveler' && (
+                  <div className="space-y-6">
+                    {/* Mandatory Product Photo */}
                     <div className="space-y-3">
-                      <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t('create.proof_receipt')}</p>
-                      {order.receipt_url ? (
+                      <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t('create.proof_purchase_photo')}</p>
+                      {order.purchase_photo_url ? (
                         <div className="relative rounded-xl overflow-hidden border border-border group">
-                          <img src={order.receipt_url} alt="Receipt" className="w-full h-auto max-h-48 object-cover" />
+                          <img src={order.purchase_photo_url} alt="Purchase" className="w-full h-auto max-h-48 object-cover" />
                           <label className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
-                            <input type="file" onChange={handleUploadReceipt} className="hidden" />
+                            <input type="file" onChange={handleUploadPurchasePhoto} className="hidden" />
                             <span className="text-white text-xs font-bold">{t('order.receipt_update')}</span>
                           </label>
                         </div>
@@ -525,66 +498,101 @@ export default function OrderDetails() {
                         <div className="relative group">
                           <input
                             type="file"
-                            onChange={handleUploadReceipt}
-                            disabled={uploading}
+                            onChange={handleUploadPurchasePhoto}
+                            disabled={purchasePhotoUploading}
                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                           />
-                          <div className="h-24 border-2 border-dashed border-border/30 rounded-xl flex flex-col items-center justify-center bg-secondary/10 group-hover:bg-secondary/20 transition-colors">
-                            <Upload className={`w-8 h-8 ${uploading ? 'animate-bounce' : ''} text-muted-foreground mb-2`} />
-                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                              {uploading ? t('common.loading') : t('order.receipt_update')}
+                          <div className="h-24 border-2 border-dashed border-primary/30 rounded-xl flex flex-col items-center justify-center bg-primary/5 group-hover:bg-primary/10 transition-colors">
+                            <Camera className={`w-8 h-8 ${purchasePhotoUploading ? 'animate-bounce' : ''} text-primary mb-2`} />
+                            <p className="text-xs font-bold text-primary uppercase tracking-wider">
+                              {purchasePhotoUploading ? t('common.loading') : t('order.upload_purchase_photo')}
                             </p>
                           </div>
                         </div>
                       )}
                     </div>
-                  )}
 
-                  {/* Optional Model Number */}
-                  {order.require_model_number && (
-                    <div className="space-y-3">
-                      <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t('create.proof_model')}</p>
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder={t('order.model_placeholder')}
-                          value={modelNumberInput || order.model_number || ''}
-                          onChange={(e) => setModelNumberInput(e.target.value)}
-                        />
-                        <Button
-                          size="sm"
-                          onClick={handleUpdateModelNumber}
-                          disabled={!modelNumberInput || modelNumberInput === order.model_number}
-                        >
-                          {t('common.save')}
-                        </Button>
+                    {/* Optional Receipt */}
+                    {order.require_receipt && (
+                      <div className="space-y-3">
+                        <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t('create.proof_receipt')}</p>
+                        {order.receipt_url ? (
+                          <div className="relative rounded-xl overflow-hidden border border-border group">
+                            <img src={order.receipt_url} alt="Receipt" className="w-full h-auto max-h-48 object-cover" />
+                            <label className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
+                              <input type="file" onChange={handleUploadReceipt} className="hidden" />
+                              <span className="text-white text-xs font-bold">{t('order.receipt_update')}</span>
+                            </label>
+                          </div>
+                        ) : (
+                          <div className="relative group">
+                            <input
+                              type="file"
+                              onChange={handleUploadReceipt}
+                              disabled={uploading}
+                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                            />
+                            <div className="h-24 border-2 border-dashed border-border/30 rounded-xl flex flex-col items-center justify-center bg-secondary/10 group-hover:bg-secondary/20 transition-colors">
+                              <Upload className={`w-8 h-8 ${uploading ? 'animate-bounce' : ''} text-muted-foreground mb-2`} />
+                              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                                {uploading ? t('common.loading') : t('order.receipt_update')}
+                              </p>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      <p className="text-[10px] text-muted-foreground italic">{t('order.proof_guide_model')}</p>
-                    </div>
-                  )}
-
-                  <div className="pt-4 border-t border-border/30">
-                    <Button
-                      fullWidth
-                      className="h-12 font-bold"
-                      disabled={!order.purchase_photo_url || (order.require_receipt && !order.receipt_url) || (order.require_model_number && !order.model_number)}
-                      onClick={async () => {
-                        await updateOrderStatus(order.id, 'BOUGHT');
-                        await loadOrder();
-                      }}
-                    >
-                      {t('admin.finish_purchase_btn')}
-                    </Button>
-                    {(!order.purchase_photo_url || (order.require_receipt && !order.receipt_url) || (order.require_model_number && !order.model_number)) && (
-                      <p className="text-[9px] text-red-500 mt-2 text-center font-bold animate-pulse">請先完成所有要求的證明上傳</p>
                     )}
+
+                    {/* Optional Model Number */}
+                    {order.require_model_number && (
+                      <div className="space-y-3">
+                        <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t('create.proof_model')}</p>
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder={t('order.model_placeholder')}
+                            value={modelNumberInput || order.model_number || ''}
+                            onChange={(e) => setModelNumberInput(e.target.value)}
+                          />
+                          <Button
+                            size="sm"
+                            onClick={handleUpdateModelNumber}
+                            disabled={!modelNumberInput || modelNumberInput === order.model_number}
+                          >
+                            {t('common.save')}
+                          </Button>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground italic">{t('order.proof_guide_model')}</p>
+                      </div>
+                    )}
+
+                    <div className="pt-4 border-t border-border/30">
+                      <Button
+                        fullWidth
+                        className="h-12 font-bold"
+                        disabled={!order.purchase_photo_url || (order.require_receipt && !order.receipt_url) || (order.require_model_number && !order.model_number)}
+                        onClick={async () => {
+                          await updateOrderStatus(order.id, 'BOUGHT');
+                          await loadOrder();
+                        }}
+                      >
+                        {t('admin.finish_purchase_btn')}
+                      </Button>
+                      {(!order.purchase_photo_url || (order.require_receipt && !order.receipt_url) || (order.require_model_number && !order.model_number)) && (
+                        <p className="text-[9px] text-red-500 mt-2 text-center font-bold animate-pulse">請先完成所有要求的證明上傳</p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           )}
 
           {order.status === 'BOUGHT' && (
             <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+                <CardTitle className="text-base">{t('status.BOUGHT')}</CardTitle>
+              </div>
               <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 space-y-3">
                 <p className="text-xs font-bold text-primary uppercase tracking-widest text-[10px]">{t('order.shipping_info')}</p>
                 <div className="flex gap-2">
@@ -602,13 +610,17 @@ export default function OrderDetails() {
 
           {order.status === 'SHIPPED' && (
             <div className="space-y-2">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+                <CardTitle className="text-base">{t('status.SHIPPED')}</CardTitle>
+              </div>
               <div className="flex items-center gap-2 text-blue-500 mb-2">
                 <Truck className="w-5 h-5" />
                 <span className="text-sm font-medium">{t('order.shipped_msg')}</span>
               </div>
               <p className="text-sm">{t('order.tracking_no')}：<span className="font-mono bg-muted px-1 rounded">{order.tracking_number}</span></p>
               {role === 'buyer' && (
-                <Button onClick={handleConfirmReceipt} fullWidth className="bg-green-600 hover:bg-green-700 font-bold h-12 rounded-xl">
+                <Button onClick={handleConfirmReceipt} fullWidth className="bg-green-600 hover:bg-green-700 font-bold h-12 rounded-xl mt-4">
                   {t('order.received_btn')}
                 </Button>
               )}
@@ -617,11 +629,15 @@ export default function OrderDetails() {
 
           {order.status === 'COMPLETED' && (
             <div className="space-y-4">
-              <div className="text-center">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-2 h-2 rounded-full bg-green-600" />
+                <CardTitle className="text-base">{t('status.COMPLETED')}</CardTitle>
+              </div>
+              <div className="text-center py-4 bg-green-500/5 rounded-2xl border border-green-500/10">
                 <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-green-500/20 text-green-500 mb-2">
                   <CheckCircle className="w-6 h-6" />
                 </div>
-                <h3 className="font-bold text-green-500">{t('order.completed_msg')}</h3>
+                <h3 className="font-bold text-green-600">{t('order.completed_msg')}</h3>
                 <p className="text-sm text-muted-foreground">{t('order.release_hint')}</p>
               </div>
 
