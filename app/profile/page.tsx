@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { fetchProfile } from '@/utils/api';
+import { fetchProfile, updateProfile } from '@/utils/api';
 import { Profile } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, User, Trophy, DollarSign, Star, LogOut } from 'lucide-react';
+import { Loader2, User, Trophy, DollarSign, Star, LogOut, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
@@ -15,6 +15,15 @@ export default function ProfilePage() {
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const [newNickname, setNewNickname] = useState('');
+
+  const maskEmail = (email: string | undefined) => {
+    if (!email) return 'User';
+    const prefix = email.split('@')[0];
+    const displayPrefix = prefix.slice(0, 3);
+    return (displayPrefix + '***').slice(0, 6).padEnd(6, '*');
+  };
 
   useEffect(() => {
     if (user) {
@@ -29,10 +38,22 @@ export default function ProfilePage() {
     try {
       const data = await fetchProfile(user.id);
       setProfile(data);
+      setNewNickname(data.display_name || '');
     } catch (error) {
       console.error('Error fetching profile:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSaveNickname = async () => {
+    if (!user || !newNickname.trim()) return;
+    try {
+      await updateProfile(user.id, { display_name: newNickname });
+      setProfile(prev => prev ? { ...prev, display_name: newNickname } : null);
+      setIsEditing(false);
+    } catch (error) {
+      alert('Failed to update nickname');
     }
   };
 
@@ -55,6 +76,8 @@ export default function ProfilePage() {
     ? Math.round((profile.positive_rating_count / profile.total_rating_count) * 100)
     : 0;
 
+  const displayName = profile.display_name || maskEmail(user?.email);
+
   return (
     <div className="p-4 space-y-6">
       <header className="flex items-center justify-between">
@@ -62,14 +85,37 @@ export default function ProfilePage() {
           <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center">
             <User className="w-8 h-8 text-muted-foreground" />
           </div>
-          <div>
-            <h1 className="text-2xl font-bold">{profile.display_name || 'Anonymous User'}</h1>
-            <p className="text-sm text-muted-foreground">ID: {profile.id.slice(0, 8)}</p>
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              {isEditing ? (
+                <div className="flex gap-2">
+                  <input
+                    className="bg-background border border-border rounded px-2 py-1 text-sm font-bold w-32"
+                    value={newNickname}
+                    onChange={(e) => setNewNickname(e.target.value)}
+                    autoFocus
+                  />
+                  <Button size="sm" className="h-8 px-2" onClick={handleSaveNickname}>Save</Button>
+                  <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => setIsEditing(false)}>Cancel</Button>
+                </div>
+              ) : (
+                <>
+                  <h2 className="text-xl font-bold">{displayName}</h2>
+                  <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)} className="p-1 h-auto hover:bg-transparent text-muted-foreground">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucude-pencil"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" /></svg>
+                  </Button>
+                  {profile?.is_verified && <ShieldCheck className="w-5 h-5 text-blue-500 fill-blue-500/10" />}
+                </>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground uppercase tracking-wider font-bold text-[10px]">{profile?.level || 'STANDARD'} USER</p>
           </div>
         </div>
-        <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground">
-          <LogOut className="w-5 h-5" />
-        </Button>
+        {!isEditing && (
+          <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground">
+            <LogOut className="w-5 h-5" />
+          </Button>
+        )}
       </header>
 
       <div className="grid grid-cols-2 gap-4">

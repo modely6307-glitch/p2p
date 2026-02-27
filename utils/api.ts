@@ -47,13 +47,17 @@ export const fetchOrderById = async (id: string) => {
   return data as Order;
 };
 
-export const createOrder = async (order: Omit<Order, 'id' | 'status' | 'created_at' | 'total_amount'>) => {
+export const createOrder = async (order: Omit<Order, 'id' | 'status' | 'created_at' | 'total_amount' | 'total_amount_twd'>) => {
+  const total_amount = order.target_price + order.reward_fee;
+  const total_amount_twd = total_amount * order.exchange_rate;
+
   const { data, error } = await supabase
     .from('orders')
     .insert([
       {
         ...order,
-        total_amount: order.target_price + order.reward_fee,
+        total_amount,
+        total_amount_twd,
         status: 'OPEN',
       },
     ])
@@ -62,6 +66,37 @@ export const createOrder = async (order: Omit<Order, 'id' | 'status' | 'created_
 
   if (error) throw error;
   return data as Order;
+};
+
+// --- Admin APIs ---
+
+export const fetchAllOrders = async () => {
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data as Order[];
+};
+
+export const fetchAllProfiles = async () => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data as Profile[];
+};
+
+export const updateProfile = async (userId: string, updates: Partial<Profile>) => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .update(updates)
+    .eq('id', userId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as Profile;
 };
 
 export const updateOrderStatus = async (id: string, status: OrderStatus) => {

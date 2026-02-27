@@ -16,18 +16,23 @@ export interface Order {
   target_price: number;
   reward_fee: number;
   total_amount: number;
+  total_amount_twd: number;
+  exchange_rate: number;
+  currency: string;
+  country: string;
   status: OrderStatus;
   receipt_url?: string | null;
   photo_url?: string | null;
   description: string;
-  country: string;
-  currency: string;
   tracking_number?: string | null;
 }
 
 export interface Profile {
   id: string;
   display_name?: string | null;
+  email?: string | null;
+  level: 'STANDARD' | 'VERIFIED' | 'ADMIN';
+  is_verified: boolean;
   completed_orders_count: number;
   total_order_amount: number;
   positive_rating_count: number;

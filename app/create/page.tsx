@@ -1,15 +1,15 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { createOrder } from '@/utils/api';
+import { createOrder, fetchProfile, uploadFile } from '@/utils/api';
+import { Profile } from '@/types';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ArrowLeft, Loader2, Camera, X } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { uploadFile } from '@/utils/api';
 
 export default function CreateWish() {
   const router = useRouter();
@@ -21,23 +21,31 @@ export default function CreateWish() {
     reward_fee: '',
     description: '',
     country: 'Japan',
-    currency: 'USD',
+    currency: 'TWD',
+    exchange_rate: '1.0',
   });
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [userProfile, setUserProfile] = useState<Profile | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      fetchProfile(user.id).then(setUserProfile);
+    }
+  }, [user]);
 
   const countries = [
-    { name: 'Japan', flag: '🇯🇵' },
-    { name: 'USA', flag: '🇺🇸' },
-    { name: 'Korea', flag: '🇰🇷' },
-    { name: 'Taiwan', flag: '🇹🇼' },
-    { name: 'Thailand', flag: '🇹🇭' },
-    { name: 'France', flag: '🇫🇷' },
+    { name: 'Japan', flag: '🇯🇵', defaultRate: 0.22 },
+    { name: 'USA', flag: '🇺🇸', defaultRate: 32.5 },
+    { name: 'Korea', flag: '🇰🇷', defaultRate: 0.024 },
+    { name: 'Taiwan', flag: '🇹🇼', defaultRate: 1.0 },
+    { name: 'Thailand', flag: '🇹🇭', defaultRate: 0.92 },
+    { name: 'France', flag: '🇫🇷', defaultRate: 35.2 },
   ];
 
   const currencies = [
-    { code: 'USD', symbol: '$' },
     { code: 'TWD', symbol: 'NT$' },
+    { code: 'USD', symbol: '$' },
     { code: 'JPY', symbol: '¥' },
     { code: 'KRW', symbol: '₩' },
     { code: 'EUR', symbol: '€' },
@@ -58,7 +66,19 @@ export default function CreateWish() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !userProfile) return;
+
+    const rate = parseFloat(formData.exchange_rate);
+    const target = parseFloat(formData.target_price);
+    const fee = parseFloat(formData.reward_fee);
+    const totalTwd = (target + fee) * rate;
+
+    // Enforcement: Standard users limit 5000 TWD
+    if (userProfile.level === 'STANDARD' && totalTwd > 5000) {
+      alert(`Standard user limit is 5000 TWD. Your total is ${totalTwd.toFixed(0)} TWD. Please verify your account to increase limit.`);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -71,8 +91,9 @@ export default function CreateWish() {
       await createOrder({
         buyer_id: user.id,
         item_name: formData.item_name,
-        target_price: parseFloat(formData.target_price),
-        reward_fee: parseFloat(formData.reward_fee),
+        target_price: target,
+        reward_fee: fee,
+        exchange_rate: rate,
         description: formData.description,
         country: formData.country,
         currency: formData.currency,
@@ -88,7 +109,23 @@ export default function CreateWish() {
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+
+    // Auto-update exchange rate when country changes for better UX
+    if (name === 'country') {
+      const country = countries.find(c => c.name === value);
+      if (country) {
+        setFormData(prev => ({
+          ...prev,
+          country: value,
+          exchange_rate: country.defaultRate.toString(),
+          currency: value === 'Taiwan' ? 'TWD' : prev.currency // Small logic for Taiwan
+        }));
+        return;
+      }
+    }
+
+    setFormData({ ...formData, [name]: value });
   };
 
   return (
@@ -146,20 +183,34 @@ export default function CreateWish() {
                 ))}
               </select>
             </div>
-            <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-muted-foreground">Currency</label>
-              <select
-                name="currency"
-                value={formData.currency}
-                onChange={handleChange}
-                className="flex h-12 w-full rounded-xl border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              >
-                {currencies.map((curr) => (
-                  <option key={curr.code} value={curr.code}>
-                    {curr.code} ({curr.symbol})
-                  </option>
-                ))}
-              </select>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-muted-foreground text-[10px] uppercase truncate">Currency</label>
+                <select
+                  name="currency"
+                  value={formData.currency}
+                  onChange={handleChange}
+                  className="flex h-12 w-full rounded-xl border border-input bg-transparent px-2 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  {currencies.map((curr) => (
+                    <option key={curr.code} value={curr.code}>
+                      {curr.code}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-muted-foreground text-[10px] uppercase truncate">Ex. Rate</label>
+                <Input
+                  name="exchange_rate"
+                  type="number"
+                  step="0.0001"
+                  value={formData.exchange_rate}
+                  onChange={handleChange}
+                  disabled={formData.currency === 'TWD'}
+                  className="px-2"
+                />
+              </div>
             </div>
           </div>
 
@@ -181,29 +232,40 @@ export default function CreateWish() {
             required
           />
 
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label={`Target Price (${currencies.find(c => c.code === formData.currency)?.symbol || '$'})`}
-              name="target_price"
-              type="number"
-              placeholder="999"
-              value={formData.target_price}
-              onChange={handleChange}
-              required
-              min="0"
-              step="0.01"
-            />
-            <Input
-              label={`Reward Fee (${currencies.find(c => c.code === formData.currency)?.symbol || '$'})`}
-              name="reward_fee"
-              type="number"
-              placeholder="50"
-              value={formData.reward_fee}
-              onChange={handleChange}
-              required
-              min="0"
-              step="0.01"
-            />
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label={`Target Price (${currencies.find(c => c.code === formData.currency)?.symbol || '$'})`}
+                name="target_price"
+                type="number"
+                placeholder="999"
+                value={formData.target_price}
+                onChange={handleChange}
+                required
+                min="0"
+                step="0.01"
+              />
+              <Input
+                label={`Reward Fee (${currencies.find(c => c.code === formData.currency)?.symbol || '$'})`}
+                name="reward_fee"
+                type="number"
+                placeholder="50"
+                value={formData.reward_fee}
+                onChange={handleChange}
+                required
+                min="0"
+                step="0.01"
+              />
+            </div>
+
+            {(formData.target_price || formData.reward_fee) && (
+              <div className="bg-primary/5 rounded-xl p-3 flex justify-between items-center border border-primary/10">
+                <div className="text-xs text-muted-foreground font-medium">Estimated Total (TWD)</div>
+                <div className="text-lg font-black text-primary">
+                  NT$ {((parseFloat(formData.target_price || '0') + parseFloat(formData.reward_fee || '0')) * parseFloat(formData.exchange_rate || '1')).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="pt-4">
