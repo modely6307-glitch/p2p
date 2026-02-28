@@ -285,7 +285,7 @@ export default function CreateWish() {
   const currentCurrencySymbol = currencies.find(c => c.code === formData.currency)?.symbol || '$';
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:p-8">
+    <div className="min-h-screen bg-background pb-20 lg:p-8 pt-8 px-4 lg:px-0">
       <div className="max-w-xl mx-auto space-y-6">
         <header className="flex items-center gap-4 px-4 lg:px-0">
           <button

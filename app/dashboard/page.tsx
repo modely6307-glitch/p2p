@@ -48,7 +48,7 @@ export default function Dashboard() {
   });
 
   return (
-    <div className="p-4 lg:p-8 space-y-6">
+    <div className="p-4 pt-8 lg:p-8 space-y-6">
       <header className="flex items-center justify-between">
         <h1 className="text-3xl lg:text-4xl font-bold tracking-tight">{t('dashboard.title')}</h1>
       </header>

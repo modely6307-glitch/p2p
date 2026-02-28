@@ -97,7 +97,7 @@ export default function ProfilePage() {
   const displayName = profile.display_name || maskEmail(user?.email);
 
   return (
-    <div className="p-4 lg:p-8 space-y-6 max-w-2xl lg:mx-auto">
+    <div className="p-4 pt-8 lg:p-8 space-y-6 max-w-2xl lg:mx-auto">
       <header className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center">

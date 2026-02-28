@@ -53,7 +53,7 @@ function MarketContent() {
     });
 
     return (
-        <div className="p-4 lg:p-8 space-y-6 pb-20 lg:pb-8">
+        <div className="p-4 pt-8 lg:p-8 space-y-6 pb-20 lg:pb-8">
             <header className="flex justify-between items-end">
                 <div>
                     <h1 className="text-3xl lg:text-4xl font-black tracking-tight mb-1">{t('home.title')}</h1>

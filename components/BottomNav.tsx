@@ -51,7 +51,7 @@ export const BottomNav = () => {
       {/* Desktop Sidebar Nav */}
       <nav className="hidden lg:flex fixed left-0 top-0 bottom-0 z-50 w-64 bg-background/80 backdrop-blur-xl border-r border-border flex-col">
         {/* Logo / Brand */}
-        <div className="p-6 pb-2">
+        <div className="p-6 pt-10 pb-4">
           <Link href="/" className="flex items-center gap-3 group">
             <div className="w-10 h-10 bg-primary text-primary-foreground rounded-xl flex items-center justify-center font-black text-lg shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform">
               G

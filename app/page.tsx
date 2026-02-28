@@ -84,7 +84,7 @@ export default function LandingPage() {
       )}
 
       {/* Hero Section */}
-      <section className="flex-1 flex flex-col items-center justify-center p-6 lg:p-12 text-center space-y-12 relative z-10">
+      <section className="flex-1 flex flex-col items-center justify-center p-6 pt-16 lg:p-12 text-center space-y-12 relative z-10">
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-1000 fill-mode-both">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-background/50 backdrop-blur-md border border-primary/20 text-primary rounded-full text-[10px] font-black uppercase tracking-[0.3em] shadow-xl shadow-primary/5">
             <Sparkles className="w-3 h-3 animate-spin-slow" />
@@ -113,7 +113,7 @@ export default function LandingPage() {
               <div className="absolute -top-12 -right-12 p-3 opacity-[0.03] group-hover:opacity-[0.08] transition-all duration-700 rotate-12 group-hover:rotate-0 scale-150 group-hover:scale-125">
                 <Plane className="w-48 h-48 text-primary" />
               </div>
-              <CardContent className="p-8 flex flex-col items-start gap-6 h-full relative z-10">
+              <CardContent className="p-8 pt-12 flex flex-col items-start gap-6 h-full relative z-10">
                 <div className="w-14 h-14 bg-primary text-primary-foreground rounded-2xl flex items-center justify-center shadow-2xl shadow-primary/40 group-hover:rotate-6 transition-all duration-500">
                   <Plane className="w-7 h-7" />
                 </div>
@@ -172,7 +172,7 @@ export default function LandingPage() {
               <div className="absolute -top-12 -right-12 p-3 opacity-[0.03] group-hover:opacity-[0.08] transition-all duration-700 -rotate-12 group-hover:rotate-0 scale-150 group-hover:scale-125">
                 <ShoppingBag className="w-48 h-48 text-foreground" />
               </div>
-              <CardContent className="p-8 flex flex-col items-start gap-6 h-full relative z-10">
+              <CardContent className="p-8 pt-12 flex flex-col items-start gap-6 h-full relative z-10">
                 <div className="w-14 h-14 bg-foreground text-background rounded-2xl flex items-center justify-center shadow-2xl shadow-foreground/20 group-hover:-rotate-6 transition-all duration-500">
                   <ShoppingBag className="w-7 h-7" />
                 </div>
