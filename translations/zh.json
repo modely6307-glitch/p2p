@@ -43,6 +43,9 @@
         "traveler_btn": "我即將出國旅遊 (代購)",
         "wisher_desc": "在各國尋找幫手，購買您心儀的物品。",
         "traveler_desc": "利用您的行程，賺取補貼與報酬。",
+        "ai_btn": "幫我推薦最近夯什麼",
+        "ai_desc": "不知道買什麼？讓 AI 告訴您全球在地熱銷好貨。",
+        "ai_hot_now": "熱門推薦",
         "date_prompt": "您的旅遊日期是？"
     },
     "create": {

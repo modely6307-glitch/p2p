@@ -43,6 +43,9 @@
         "traveler_btn": "I am traveling soon (Traveler/Shipper)",
         "wisher_desc": "Find helpers worldwide to purchase your desired items.",
         "traveler_desc": "Use your trip to earn rewards and subsidies.",
+        "ai_btn": "What's Hot Now? (AI)",
+        "ai_desc": "Let AI recommend trending global goods for you.",
+        "ai_hot_now": "Trending Now",
         "date_prompt": "When is your trip?"
     },
     "create": {
