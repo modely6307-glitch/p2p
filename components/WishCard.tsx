@@ -95,11 +95,11 @@ export const WishCard = ({ order }: WishCardProps) => {
           <div className="flex items-center justify-between mt-2 py-2 border-t border-border/30">
             <div className="flex flex-col">
               <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">{t('order.target_price')}</span>
-              <span className="text-sm font-bold">{currencySymbol}{order.target_price}</span>
+              <span className="text-sm font-bold">{currencySymbol}{order.target_price.toLocaleString()}</span>
             </div>
             <div className="flex flex-col text-right">
               <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">{t('order.total_budget')}</span>
-              <span className="text-sm font-black text-primary">{currencySymbol}{order.target_price + order.reward_fee}</span>
+              <span className="text-sm font-black text-primary">NT${(order.total_amount_twd || Math.round(order.target_price * (order.exchange_rate || 1) + order.reward_fee)).toLocaleString()}</span>
             </div>
           </div>
         </CardContent>
