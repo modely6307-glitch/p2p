@@ -32,6 +32,8 @@ export interface Order {
   model_number?: string | null;
   buyer_platform_fee: number;
   traveler_platform_fee: number;
+  expected_shipping_date: string;
+  auto_extend: boolean;
   buyer?: Profile;
   traveler?: Profile;
 }

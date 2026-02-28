@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "WishEscrow",
-  description: "P2P Wishlist/Escrow Platform",
+  title: "Gull",
+  description: "Global Shopping Proxy Platform",
 };
 
 import { LanguageProvider } from "@/context/LanguageContext";

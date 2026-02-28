@@ -32,7 +32,18 @@
         "title": "Wish Plaza",
         "subtitle": "Help others fulfill wishes, earn great rewards.",
         "search_placeholder": "Search items...",
-        "no_wishes": "No public wishes found at the moment."
+        "no_wishes": "No public wishes found at the moment.",
+        "sort_by_date": "Sort by Shipment Date",
+        "filter_date": "Filter by Date"
+    },
+    "landing": {
+        "title": "Gull: Shop Fast, World Without Borders",
+        "subtitle": "Secure & Transparent Global Shopping Proxy Platform",
+        "wisher_btn": "I want to buy something (Wisher)",
+        "traveler_btn": "I am traveling soon (Traveler/Shipper)",
+        "wisher_desc": "Find helpers worldwide to purchase your desired items.",
+        "traveler_desc": "Use your trip to earn rewards and subsidies.",
+        "date_prompt": "When is your trip?"
     },
     "create": {
         "title": "Post New Wish",
@@ -58,13 +69,6 @@
         "reward_twd": "Reward is fixed in TWD",
         "limit_alert": "Standard user limit is 5000 TWD. Your current total is {total} TWD. Please verify identity to increase limit.",
         "success": "Wish posted successfully!",
-        "fail": "Failed to post wish, please try again.",
-        "shipping_address": "Shipping Address",
-        "shipping_address_placeholder": "Enter shipping address (Revealed to traveler after payment)",
-        "address_privacy_hint": "Address will only be revealed to the traveler after the system confirms escrow payment.",
-        "proof_requirements": "Proof Requirements (Traveler Must Upload)",
-        "proof_purchase_photo": "Product Photo (Mandatory)",
-        "proof_receipt": "Receipt/Invoice",
         "proof_model": "Model/Serial Number"
     },
     "dashboard": {

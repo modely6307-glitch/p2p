@@ -11,7 +11,7 @@ export const BottomNav = () => {
   const { t } = useLanguage();
 
   const links = [
-    { href: '/', label: t('nav.market'), icon: Home },
+    { href: '/market', label: t('nav.market'), icon: Home },
     { href: '/create', label: t('nav.create'), icon: PlusSquare },
     { href: '/dashboard', label: t('nav.dashboard'), icon: LayoutDashboard },
     { href: '/profile', label: t('nav.profile'), icon: User },

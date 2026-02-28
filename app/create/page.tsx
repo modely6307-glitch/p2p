@@ -31,6 +31,8 @@ export default function CreateWish() {
     country: 'Japan',
     currency: 'JPY',
     exchange_rate: '0.22',
+    expected_shipping_date: '',
+    auto_extend: true,
   });
 
   const [photo, setPhoto] = useState<File | null>(null);
@@ -139,6 +141,8 @@ export default function CreateWish() {
         photo_url: photo_url,
         buyer_platform_fee: fee,
         traveler_platform_fee: travelerFee,
+        expected_shipping_date: formData.expected_shipping_date,
+        auto_extend: formData.auto_extend,
       });
       router.push('/dashboard');
     } catch (error) {
@@ -292,13 +296,38 @@ export default function CreateWish() {
             <label className="block text-sm font-medium text-muted-foreground">{t('create.shipping_address')}</label>
             <Textarea
               name="shipping_address"
-              placeholder={t('create.shipping_address_placeholder')}
+              placeholder={t('create.address_placeholder')}
               value={formData.shipping_address}
               onChange={handleChange}
               required
               className="min-h-[80px]"
             />
             <p className="text-[10px] text-muted-foreground italic px-1">{t('create.address_privacy_hint')}</p>
+          </div>
+
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-muted-foreground">{t('create.shipping_date')}</label>
+              <Input
+                type="date"
+                name="expected_shipping_date"
+                value={formData.expected_shipping_date}
+                onChange={handleChange}
+                required
+                className="h-12"
+              />
+              <p className="text-[10px] text-muted-foreground italic px-1">{t('create.shipping_date_hint')}</p>
+            </div>
+
+            <label className="flex items-center gap-3 p-3 rounded-2xl bg-secondary/10 border border-border/50 hover:bg-secondary/20 transition-colors cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.auto_extend}
+                onChange={(e) => setFormData(p => ({ ...p, auto_extend: e.target.checked }))}
+                className="w-5 h-5 rounded border-input text-primary focus:ring-primary"
+              />
+              <span className="text-sm font-medium">{t('create.auto_extend')}</span>
+            </label>
           </div>
 
           <div className="space-y-3 bg-secondary/10 p-4 rounded-2xl border border-border/50">

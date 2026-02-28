@@ -1,24 +1,24 @@
-# P2P 借貸媒合平台 - 產品需求文檔 (PRD)
+# Gull - 全球購物代理平台 產品需求文檔 (PRD)
 
 | 屬性 | 內容 |
 | :--- | :--- |
-| **專案名稱** | P2P Lending Platform |
-| **版本** | v1.0.0 (MVP) |
-| **狀態** | Draft (草稿) |
-| **最後更新** | 2023-10-27 |
-| **負責人** | Product Team |
+| **專案名稱** | Gull (原 P2P) |
+| **版本** | v1.1.0 |
+| **狀態** | Active (開發中) |
+| **最後更新** | 2026-02-28 |
+| **標語** | Gull 購快，世界沒界限 |
 
 ---
 
 ## 1. 專案概述 (Overview)
 
 ### 1.1 背景
-本專案旨在建立一個去中心化或點對點 (Peer-to-Peer) 的金融借貸媒合平台。解決傳統金融機構審核流程冗長、資訊不透明的問題，同時為投資人提供更多元的資金配置管道。
+Gull 是一個去中心化的全球購物代理平台，媒合「想要購買海外商品的人（許願者/Wisher）」與「即將前往該地區旅遊或居住的人（代購者/Traveler）」。
 
 ### 1.2 核心目標 (Objectives)
-1.  **媒合效率**：建立自動化媒合引擎，將資金供需雙方的匹配時間縮短至分鐘級。
-2.  **安全性**：確保 KYC/AML 合規，並保證資金流轉的原子性 (Atomicity) 與一致性。
-3.  **可擴展性**：系統架構需支援高併發交易 (High Concurrency)，為未來流量增長做準備。
+1.  **信任與安全**：透過代管資金 (Escrow) 系統，確保買賣雙方的資金與貨物安全。
+2.  **透明費率**：清晰的匯率披露與平台服務費計算模型。
+3.  **效率媒合**：利用地理位置與旅遊日期進行精準媒合。
 
 ---
 
@@ -26,74 +26,43 @@
 
 | 角色 | 權限與功能 | 痛點解決 |
 | :--- | :--- | :--- |
-| **借款人 (Borrower)** | 註冊、KYC、發布借款需求、還款、查看額度。 | 快速獲得資金，無需繁瑣臨櫃手續。 |
-| **投資人 (Lender)** | 註冊、KYC、充值、瀏覽標的、投標(手動/自動)、提現。 | 獲得比傳統儲蓄更高的收益，投資門檻低。 |
-| **管理員 (Admin)** | 用戶管理、風控審核(人工介入)、資金對帳、系統參數設定。 | 集中化管理平台風險與運營數據。 |
+| **許願者 (Wisher)** | 發布願望、支付代管資金、設定採購證明要求、確認收貨。 | 解決無法親自出國買東西、代購費過高或來源不明的問題。 |
+| **代購者 (Traveler)** | 瀏覽市場、接單、上傳採買證明（照片/發票）、提供物流單號。 | 利用旅遊行程賺取補貼，補貼機票與住宿成本。 |
+| **管理員 (Admin)** | 審核身份、人工確認收款/放款、處裡爭議、調整系統參數。 | 提供爭議仲裁與平台風險控管。 |
 
 ---
 
-## 3. 功能需求 (Functional Requirements)
+## 3. 核心功能需求
 
-### 3.1 帳戶與安全 (Account & Security)
-*   **註冊/登入**：支援 Email 與手機號碼 (OTP 驗證)。
-*   **身份認證 (eKYC)**：
-    *   整合 OCR 掃描證件。
-    *   活體檢測 (Liveness Check)。
-    *   風險名單過濾 (AML Screening)。
+### 3.1 平台服務費模型
+*   **買家服務費**：根據門檻 (Threshold) 設定固定金額或百分比（目前：1000 TWD 以下收 20，以上收 2%）。
+*   **代購服務費**：從代購收益中扣除的平台維護費。
+*   **匯率披露**：所有金額均顯示原幣別與台幣 (TWD) 等值，並明確標註匯率。
 
-### 3.2 交易核心 (Core Transaction)
-*   **借款申請**：
-    *   輸入：金額、期數 (3/6/12/24 期)、用途。
-    *   輸出：系統預審利率與額度。
-*   **投資媒合**：
-    *   **散標列表**：投資人可瀏覽詳細標的資訊（去識別化）。
-    *   **自動投標**：投資人設定策略（如：僅投 A 級風險、期限 < 12 個月），系統自動匹配。
-*   **訂單狀態機**：嚴格定義訂單流轉狀態 (Draft -> Review -> Bidding -> Full -> Repaying -> Done)。
+### 3.2 採購證明系統 (Proof of Purchase)
+*   **強制要求**：代購必須上傳商品採購現場照片。
+*   **選擇性要求**：許願者可勾選是否需要「發票/收據副本」及「型號/序號比對」。
+*   **狀態鎖定**：在代購完成所有要求的證明上傳前，無法點擊「完成採買」。
 
-### 3.3 資金結算 (Settlement)
-*   **虛擬帳戶**：為每個用戶建立獨立的資金帳戶 (Ledger)。
-*   **還款計畫**：支援「等額本息」與「先息後本」算法。
-*   **逾期處理**：自動計算罰息 (Late Fee)，並標記信用狀態。
+### 3.3 時間維度管理
+*   **預期寄出日**：許願者設定期望的發貨日期，系統以此排序廣告。
+*   **自動延續**：若願望到期無人接單，可設定自動延續一週。
+*   **旅遊篩選**：代購者可透過自己的旅遊日期篩選市場上的願望。
 
 ---
 
-## 4. 技術規格與數據模型 (Technical Specifications)
+## 4. 訂單狀態機 (Order State Machine)
 
-### 4.1 核心數據結構 (TypeScript Interface)
+1.  **OPEN** (待接單)：許願者發布後，出現在廣場。
+2.  **MATCHED** (待付款)：代購接單，等待買家匯款至代管帳戶。
+3.  **ESCROWED** (買方已付款)：管理員確認收款，代購可開始採買。
+4.  **BOUGHT** (已採買)：代購上傳證明並通過系統邏輯。
+5.  **SHIPPED** (已發貨)：代購填寫物流單號。
+6.  **COMPLETED** (已完成)：買家確認收貨，系統結算款項給代購。
 
-建議後端與前端共用以下 Type 定義，以確保資料一致性。
+---
 
-```typescript
-// 借款單狀態枚舉
-export enum LoanStatus {
-  PENDING_REVIEW = 'PENDING_REVIEW', // 待審核
-  BIDDING = 'BIDDING',               // 募資中
-  FULLY_FUNDED = 'FULLY_FUNDED',     // 滿標待放款
-  REPAYING = 'REPAYING',             // 還款中
-  COMPLETED = 'COMPLETED',           // 已結清
-  DEFAULTED = 'DEFAULTED',           // 違約
-}
-
-// 借款申請單模型
-export interface LoanApplication {
-  id: string;
-  borrowerId: string;
-  amount: number;           // 單位：分 (cents)，避免浮點數誤差
-  currency: string;         // e.g., 'TWD', 'USD'
-  termMonths: number;       // 期數
-  interestRateBps: number;  // 年化利率 (Basis Points, e.g., 500 = 5%)
-  status: LoanStatus;
-  riskGrade: 'A' | 'B' | 'C' | 'D' | 'F';
-  createdAt: Date;
-  fundedAmount: number;     // 當前已募金額
-}
-
-// 投資紀錄模型
-export interface Investment {
-  id: string;
-  loanId: string;
-  investorId: string;
-  amount: number;
-  status: 'RESERVED' | 'CONFIRMED' | 'CANCELLED'; // 資金凍結狀態
-  createdAt: Date;
-}
+## 5. 技術規格
+*   **Frontend**: Next.js, TailwindCSS (Vanilla CSS/Radix UI patterns).
+*   **Backend**: Supabase (Auth, DB, Storage).
+*   **Real-time**: Supabase Realtime for order status updates.

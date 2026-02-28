@@ -32,7 +32,18 @@
         "title": "願望廣場",
         "subtitle": "幫別人實現願望，賺取豐厚報酬。",
         "search_placeholder": "搜尋物品...",
-        "no_wishes": "目前沒有公開的願望。"
+        "no_wishes": "目前沒有公開的願望。",
+        "sort_by_date": "按寄出日期排序",
+        "filter_date": "篩選寄出日期"
+    },
+    "landing": {
+        "title": "Gull 購快，世界沒界限",
+        "subtitle": "安全、透明的全球購物代理平台",
+        "wisher_btn": "我有想要買的東西 (許願)",
+        "traveler_btn": "我即將出國旅遊 (代購)",
+        "wisher_desc": "在各國尋找幫手，購買您心儀的物品。",
+        "traveler_desc": "利用您的行程，賺取補貼與報酬。",
+        "date_prompt": "您的旅遊日期是？"
     },
     "create": {
         "title": "發布新願望",
@@ -58,10 +69,13 @@
         "reward_twd": "報酬以台幣計價",
         "limit_alert": "一般用戶限額為 5000 TWD。您目前的總額為 {total} TWD。請完成身份認證以提高限額。",
         "success": "願望已成功發布！",
-        "fail": "發布願望失敗。",
-        "shipping_address": "收件地址",
-        "shipping_address_placeholder": "請輸入收件地址 (僅在付款後揭露給代購)",
+        "shipping_date": "預期寄出日",
+        "shipping_date_hint": "指代購完成採買並交寄的日期。",
+        "auto_extend": "若到期無人接單，自動延長一週",
+        "address": "收件地址",
+        "address_placeholder": "請輸入收件地址 (僅在付款後揭露給代購)",
         "address_privacy_hint": "地址僅會在系統確認收到您的代管資金 (Escrow) 後，才會揭露給代購玩家。",
+        "fail": "發布願望失敗。",
         "proof_requirements": "採購證明要求 (代購需上傳)",
         "proof_purchase_photo": "商品採購照 (必填)",
         "proof_receipt": "購買收據/發票",
