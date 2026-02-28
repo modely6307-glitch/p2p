@@ -20,6 +20,17 @@ export const StepProgressBar = ({ currentStatus }: StepProgressBarProps) => {
   const currentStepIndex = steps.indexOf(currentStatus);
   const { t } = useLanguage();
 
+  if (currentStatus === 'DELISTED' || currentStatus === 'DISPUTE') {
+    return (
+      <div className="w-full py-4">
+        <div className="flex items-center justify-center gap-2 py-2 px-4 rounded-xl bg-gray-500/10 border border-gray-500/20">
+          <span className="w-2 h-2 rounded-full bg-gray-400" />
+          <span className="text-sm font-bold text-gray-400">{t(`status.${currentStatus}`)}</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full py-4">
       <div className="flex items-center justify-between relative">

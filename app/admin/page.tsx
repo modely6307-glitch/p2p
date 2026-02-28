@@ -113,12 +113,22 @@ export default function AdminDashboard() {
         }
     };
 
+    const handleAdminDelist = async (orderId: string) => {
+        if (!confirm(t('order.delist_confirm'))) return;
+        try {
+            await updateOrderStatus(orderId, 'DELISTED');
+            loadData();
+        } catch (error) {
+            alert(t('error'));
+        }
+    };
+
     const filteredOrders = orders.filter(order => {
         if (orderFilter === 'all') return true;
         if (orderFilter === 'open') return order.status === 'OPEN';
         if (orderFilter === 'matched') return order.status === 'MATCHED';
         if (orderFilter === 'paid') return ['ESCROWED', 'BOUGHT', 'SHIPPED'].includes(order.status);
-        if (orderFilter === 'completed') return order.status === 'COMPLETED';
+        if (orderFilter === 'completed') return order.status === 'COMPLETED' || order.status === 'DELISTED';
         return true;
     });
 
@@ -249,6 +259,16 @@ export default function AdminDashboard() {
                                             >
                                                 <CheckCircle className="w-4 h-4 mr-2" />
                                                 {t('admin.release_funds_btn')}
+                                            </Button>
+                                        )}
+                                        {(order.status === 'OPEN' || order.status === 'MATCHED') && (
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="h-10 px-3 text-red-400 border-red-500/20 hover:bg-red-500/10"
+                                                onClick={() => handleAdminDelist(order.id)}
+                                            >
+                                                {t('order.delist_btn')}
                                             </Button>
                                         )}
                                         <Button

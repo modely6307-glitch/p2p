@@ -5,7 +5,8 @@ export type OrderStatus =
   | 'BOUGHT'
   | 'SHIPPED'
   | 'COMPLETED'
-  | 'DISPUTE';
+  | 'DISPUTE'
+  | 'DELISTED';
 
 export interface Order {
   id: string;

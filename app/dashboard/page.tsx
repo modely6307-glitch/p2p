@@ -43,8 +43,8 @@ export default function Dashboard() {
   }, [activeTab, user, authLoading]);
 
   const filteredOrders = orders.filter(order => {
-    if (statusFilter === 'completed') return order.status === 'COMPLETED';
-    return order.status !== 'COMPLETED';
+    if (statusFilter === 'completed') return order.status === 'COMPLETED' || order.status === 'DELISTED';
+    return order.status !== 'COMPLETED' && order.status !== 'DELISTED';
   });
 
   return (

@@ -26,7 +26,8 @@
         "BOUGHT": "已採買",
         "SHIPPED": "已發貨",
         "COMPLETED": "已完成",
-        "DISPUTE": "爭議中"
+        "DISPUTE": "爭議中",
+        "DELISTED": "已下架"
     },
     "home": {
         "title": "願望廣場",
@@ -151,7 +152,15 @@
         "traveler_net": "實際入帳金額 (預估)",
         "traveler_fee_hint": "* 已扣除平台服務費 NT${fee}",
         "address_locked": "寄件地址將在系統確認收到資金後揭露",
-        "shipping_info_title": "寄送資訊"
+        "shipping_info_title": "寄送資訊",
+        "delist_btn": "下架此願望",
+        "delist_confirm": "確定要下架此願望嗎？下架後將不會出現在廣場中。",
+        "relist_btn": "重新上架",
+        "relist_confirm": "確定要重新上架嗎？",
+        "delisted_msg": "此願望已下架",
+        "delisted_hint": "您可以修改內容後重新上架。",
+        "delisted_by_admin": "此願望已被管理員下架。",
+        "expired_auto_delisted": "此願望已過期並自動下架。"
     },
     "admin": {
         "title": "後台管理系統",
@@ -206,5 +215,10 @@
         "check_email": "請檢查您的電子郵件以進行驗證！",
         "switch_to_signup": "還沒有帳號？現在就註冊",
         "switch_to_login": "已經有帳號？點此登入"
+    },
+    "notification": {
+        "title": "訂單更新",
+        "view_order": "查看訂單",
+        "status_changed": "訂單狀態已更新"
     }
 }

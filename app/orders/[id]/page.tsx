@@ -88,6 +88,10 @@ export default function OrderDetails() {
 
   const handleAcceptOrder = async () => {
     if (!order || !user) return;
+    if (order.status === 'DELISTED') {
+      alert(t('order.delisted_msg'));
+      return;
+    }
     try {
       await assignTraveler(order.id, user.id);
       await loadOrder();
@@ -192,6 +196,28 @@ export default function OrderDetails() {
       setRatingSubmitted(true);
     } catch (error) {
       console.error('Error submitting rating:', error);
+    }
+  };
+
+  const handleDelist = async () => {
+    if (!order) return;
+    if (!confirm(t('order.delist_confirm'))) return;
+    try {
+      await updateOrderStatus(order.id, 'DELISTED');
+      await loadOrder();
+    } catch (error) {
+      console.error('Error delisting order:', error);
+    }
+  };
+
+  const handleRelist = async () => {
+    if (!order) return;
+    if (!confirm(t('order.relist_confirm'))) return;
+    try {
+      await updateOrderStatus(order.id, 'OPEN');
+      await loadOrder();
+    } catch (error) {
+      console.error('Error relisting order:', error);
     }
   };
 
@@ -680,8 +706,37 @@ export default function OrderDetails() {
               )}
             </div>
           )}
+
+          {order.status === 'DELISTED' && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-2 h-2 rounded-full bg-gray-400" />
+                <CardTitle className="text-base text-gray-400">{t('order.delisted_msg')}</CardTitle>
+              </div>
+              <div className="text-center py-6 bg-gray-500/5 rounded-2xl border border-gray-500/10">
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-500/10 text-gray-400 mb-3">
+                  <AlertTriangle className="w-6 h-6" />
+                </div>
+                <p className="text-sm text-muted-foreground">{t('order.delisted_hint')}</p>
+              </div>
+              {role === 'buyer' && (
+                <Button onClick={handleRelist} fullWidth className="h-12 font-bold rounded-xl bg-primary hover:bg-primary/90">
+                  {t('order.relist_btn')}
+                </Button>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      {/* Delist button for buyer (OPEN only) or admin (OPEN/MATCHED) */}
+      {order.status === 'OPEN' && (role === 'buyer' || role === 'admin') && (
+        <div className="pt-2">
+          <Button onClick={handleDelist} variant="outline" fullWidth className="h-10 text-xs font-bold text-red-400 border-red-500/20 hover:bg-red-500/10 rounded-xl">
+            {t('order.delist_btn')}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

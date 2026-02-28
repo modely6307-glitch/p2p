@@ -26,7 +26,8 @@
         "BOUGHT": "Purchased",
         "SHIPPED": "Shipped",
         "COMPLETED": "Completed",
-        "DISPUTE": "Disputed"
+        "DISPUTE": "Disputed",
+        "DELISTED": "Delisted"
     },
     "home": {
         "title": "Wish Plaza",
@@ -151,7 +152,15 @@
         "traveler_net": "Net Earnings (Est.)",
         "traveler_fee_hint": "* Platform fee NT${fee} deducted",
         "address_locked": "Address revealed after payment confirmation",
-        "shipping_info_title": "Shipping Info"
+        "shipping_info_title": "Shipping Info",
+        "delist_btn": "Delist This Wish",
+        "delist_confirm": "Are you sure you want to delist this wish? It will no longer appear in the plaza.",
+        "relist_btn": "Re-list Wish",
+        "relist_confirm": "Are you sure you want to re-list this wish?",
+        "delisted_msg": "This wish has been delisted",
+        "delisted_hint": "You can edit and re-list this wish.",
+        "delisted_by_admin": "This wish was delisted by an admin.",
+        "expired_auto_delisted": "This wish has expired and was auto-delisted."
     },
     "admin": {
         "title": "Backend Management",
@@ -205,5 +214,10 @@
         "check_email": "Check your email for verification!",
         "switch_to_signup": "Don't have an account? Sign up",
         "switch_to_login": "Already have an account? Log in"
+    },
+    "notification": {
+        "title": "Order Update",
+        "view_order": "View Order",
+        "status_changed": "Order status has changed"
     }
 }
