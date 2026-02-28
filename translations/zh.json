@@ -139,6 +139,8 @@
         "reward_fee": "給予補貼/報酬",
         "total_budget": "總計預算",
         "buyer_paid_total": "買家支付總額",
+        "notify_paid_btn": "我已完成匯款",
+        "notify_paid_success": "已送出付款通知，請靜候管理員確認。",
         "traveler_gross_total": "訂單總額 (含報酬)",
         "delivery_info": "物流資訊",
         "tracking_no": "物流單號",
@@ -148,11 +150,16 @@
         "receipt_update": "更新購買證明",
         "receipt_uploading": "正在上傳新證明...",
         "next_steps": "買方已付款, 請上傳購買證明",
+        "next_steps_escrowed": "買方已付款，請開始採購並提供證明",
+        "payment_confirmed": "付款已確認",
         "upload_guide": "請在採購完成後上傳您的購買收據或發票，這將作為撥款的重要依據。",
         "wait_accept": "等待代購接下此願望。",
         "accept_btn": "接下此單",
-        "wait_escrow": "等待買方付款",
+        "wait_escrow": "等待買家付款",
+        "action_pay_title": "訂單已配對：請完成匯款",
+        "wait_payment_traveler": "等待買家完成付款",
         "buyer_pay_hint": "買家需將款項支付予平台代收帳戶。",
+        "wait_traveler_buy": "等待代購進行採買並上傳證明。",
         "admin_confirm_escrow": "[管理員] 確認款項已入帳",
         "traveler_buy_hint": "請前往採購並上傳購買證明。",
         "shipping_info": "發貨資訊",
@@ -183,7 +190,13 @@
         "delisted_msg": "此願望已下架",
         "delisted_hint": "您可以修改內容後重新上架。",
         "delisted_by_admin": "此願望已被管理員下架。",
-        "expired_auto_delisted": "此願望已過期並自動下架。"
+        "expired_auto_delisted": "此願望已過期並自動下架。",
+        "remittance_info": "匯款資訊",
+        "bank_name": "銀行名稱",
+        "bank_code": "銀行代碼",
+        "account_no": "帳號",
+        "account_name": "戶名",
+        "remittance_hint": "請將款項匯至以下平台代管帳戶，匯款後請靜候管理員確認入帳。"
     },
     "admin": {
         "title": "後台管理系統",
@@ -219,7 +232,8 @@
         "release_funds_alert": "確認撥款給旅客？此動作不可逆，訂單將標記為完成。",
         "confirm_payment_btn": "確認收款",
         "release_funds_btn": "釋放資金",
-        "finish_purchase_btn": "確認已完成採購"
+        "finish_purchase_btn": "確認已完成採購",
+        "payment_notified": "已通知匯款"
     },
     "countries": {
         "Japan": "日本",

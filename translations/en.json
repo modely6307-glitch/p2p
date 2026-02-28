@@ -139,6 +139,8 @@
         "reward_fee": "Reward Fee",
         "total_budget": "Total Budget",
         "buyer_paid_total": "Wisher Paid Total",
+        "notify_paid_btn": "I've Completed the Transfer",
+        "notify_paid_success": "Payment notification sent. Please wait for admin verification.",
         "traveler_gross_total": "Order Gross (incl. Reward)",
         "delivery_info": "Delivery Information",
         "tracking_no": "Tracking Number",
@@ -147,12 +149,17 @@
         "receipt_none": "No receipt uploaded",
         "receipt_update": "Update Receipt",
         "receipt_uploading": "Uploading new receipt...",
-        "next_steps": "Next Step: Current Task",
+        "next_steps": "Buyer has paid. Please upload purchase proof.",
+        "next_steps_escrowed": "Buyer has paid. Please start purchase and provide proof.",
+        "payment_confirmed": "Payment Confirmed",
         "upload_guide": "Please upload your purchase receipt or invoice after buying. This is essential for fund release.",
         "wait_accept": "Waiting for a traveler to accept this wish.",
         "accept_btn": "Accept Order",
-        "wait_escrow": "Waiting for Escrow",
+        "wait_escrow": "Waiting for Buyer Payment",
+        "action_pay_title": "Order Matched: Please Transfer Funds",
+        "wait_payment_traveler": "Waiting for buyer to complete payment",
         "buyer_pay_hint": "Buyer needs to fund the platform escrow account.",
+        "wait_traveler_buy": "Awaiting traveler to purchase and upload proof.",
         "admin_confirm_escrow": "[Admin] Confirm Funds Received",
         "traveler_buy_hint": "Please purchase the item and upload purchase proof.",
         "shipping_info": "Shipping Information",
@@ -183,7 +190,13 @@
         "delisted_msg": "This wish has been delisted",
         "delisted_hint": "You can edit and re-list this wish.",
         "delisted_by_admin": "This wish was delisted by an admin.",
-        "expired_auto_delisted": "This wish has expired and was auto-delisted."
+        "expired_auto_delisted": "This wish has expired and was auto-delisted.",
+        "remittance_info": "Payment Details",
+        "bank_name": "Bank Name",
+        "bank_code": "Bank Code",
+        "account_no": "Account Number",
+        "account_name": "Account Name",
+        "remittance_hint": "Please transfer the total budget to the following platform escrow account. Once completed, please wait for admin verification."
     },
     "admin": {
         "title": "Backend Management",
@@ -218,7 +231,8 @@
         "confirm_payment_alert": "Confirm you have received funds for this order? This will update status to 'Escrowed'.",
         "release_funds_alert": "Confirm release funds to traveler? This is irreversible and will mark order as completed.",
         "confirm_payment_btn": "Confirm Payment",
-        "release_funds_btn": "Release Funds"
+        "release_funds_btn": "Release Funds",
+        "payment_notified": "Payment Notified"
     },
     "countries": {
         "Japan": "Japan",

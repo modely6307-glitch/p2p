@@ -35,6 +35,7 @@ export interface Order {
   traveler_platform_fee: number;
   expected_shipping_date: string;
   auto_extend: boolean;
+  payment_notification_sent?: boolean;
   buyer?: Profile;
   traveler?: Profile;
 }

@@ -17,7 +17,7 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Loader2, Upload, Truck, CheckCircle, AlertTriangle, ShieldCheck, ThumbsUp, ThumbsDown, Camera } from 'lucide-react';
+import { Loader2, Upload, Truck, CheckCircle, AlertTriangle, ShieldCheck, ThumbsUp, ThumbsDown, Camera, CreditCard } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 const getCurrencySymbol = (currency: string) => {
@@ -32,6 +32,7 @@ const getCurrencySymbol = (currency: string) => {
 };
 
 import { getCountryFlag } from '@/utils/countries';
+import { cn } from '@/lib/utils';
 import { useLanguage } from '@/context/LanguageContext';
 
 const maskEmail = (email: string | undefined) => {
@@ -141,6 +142,19 @@ export default function OrderDetails() {
       await loadOrder();
     } catch (error) {
       console.error('Error adding tracking:', error);
+    }
+  };
+
+  const handleNotifyPaid = async () => {
+    if (!order) return;
+    try {
+      await updateOrderDetails(order.id, {
+        payment_notification_sent: true
+      });
+      alert(t('order.notify_paid_success'));
+      await loadOrder();
+    } catch (error) {
+      console.error('Error sent notification:', error);
     }
   };
 
@@ -491,12 +505,71 @@ export default function OrderDetails() {
           )}
 
           {order.status === 'MATCHED' && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 mb-2">
+            <div className="space-y-6 text-left">
+              <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
-                <CardTitle className="text-base">{role === 'buyer' ? t('order.wait_escrow') : '等待買家付款'}</CardTitle>
+                <CardTitle className="text-base">{role === 'buyer' ? t('order.action_pay_title') : t('order.wait_payment_traveler')}</CardTitle>
               </div>
-              <p className="text-sm text-muted-foreground">{t('order.buyer_pay_hint')}</p>
+
+              {role === 'buyer' ? (
+                <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                  <div className="bg-primary/5 p-4 rounded-2xl border border-primary/10 space-y-3">
+                    <div className="flex items-center gap-2 text-primary">
+                      <CreditCard className="w-5 h-5" />
+                      <h4 className="font-bold text-sm tracking-tight">{t('order.remittance_info')}</h4>
+                    </div>
+
+                    <p className="text-[10px] text-muted-foreground leading-relaxed bg-amber-500/5 p-3 rounded-xl border border-amber-500/10 italic">
+                      💡 {t('order.remittance_hint')}
+                    </p>
+
+                    <div className="space-y-2.5">
+                      <div className="flex justify-between items-center bg-background/50 p-2.5 rounded-xl border border-border/40">
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">{t('order.bank_name')}</span>
+                        <span className="text-sm font-black text-foreground">Gull Bank Taiwan (Mock)</span>
+                      </div>
+                      <div className="flex justify-between items-center bg-background/50 p-2.5 rounded-xl border border-border/40">
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">{t('order.bank_code')}</span>
+                        <span className="text-sm font-black font-mono text-primary">822</span>
+                      </div>
+                      <div className="flex justify-between items-center bg-background/50 p-2.5 rounded-xl border border-border/40">
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">{t('order.account_no')}</span>
+                        <span className="text-sm font-black font-mono text-primary">1234-5678-9012-3456</span>
+                      </div>
+                      <div className="flex justify-between items-center bg-background/50 p-2.5 rounded-xl border border-border/40">
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">{t('order.account_name')}</span>
+                        <span className="text-sm font-black text-foreground">Gull Global Co., Ltd.</span>
+                      </div>
+                    </div>
+
+
+
+                    <Button
+                      fullWidth
+                      onClick={handleNotifyPaid}
+                      disabled={order.payment_notification_sent}
+                      className={cn(
+                        "h-12 font-bold rounded-xl shadow-lg transition-all",
+                        order.payment_notification_sent
+                          ? "bg-muted text-muted-foreground border-border/50"
+                          : "bg-primary hover:scale-[1.02] shadow-primary/20"
+                      )}
+                    >
+                      {order.payment_notification_sent ? (
+                        <span className="flex items-center gap-2">
+                          <CheckCircle className="w-4 h-4" />
+                          已通知管理員
+                        </span>
+                      ) : (
+                        t('order.notify_paid_btn')
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">{t('order.buyer_pay_hint')}</p>
+              )}
+
               {role === 'admin' && (
                 <Button onClick={handleConfirmEscrow} fullWidth variant="outline" className="h-12 font-bold">
                   {t('order.admin_confirm_escrow')}
@@ -509,14 +582,26 @@ export default function OrderDetails() {
             <div className="space-y-6">
               <div className="flex items-center gap-2 mb-2">
                 <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                <CardTitle className="text-base">{role === 'traveler' ? (t('translations.order.next_steps_escrowed') || '買方已付款, 請提供採購證明') : t('status.ESCROWED')}</CardTitle>
+                <CardTitle className="text-base">{role === 'buyer' ? '付款已確認' : (t('translations.order.next_steps_escrowed') || '買方已付款, 請提供採購證明')}</CardTitle>
               </div>
 
               <div className="space-y-6">
-                <div className="bg-background/50 p-4 rounded-xl border border-border/50">
-                  <p className="text-sm font-bold text-primary mb-1">{t('order.traveler_buy_hint')}</p>
-                  <p className="text-xs text-muted-foreground leading-relaxed">{t('order.upload_guide')}</p>
-                </div>
+                {role === 'traveler' ? (
+                  <div className="bg-background/50 p-4 rounded-xl border border-border/50 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                    <p className="text-sm font-bold text-primary mb-1">{t('order.traveler_buy_hint')}</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{t('order.upload_guide')}</p>
+                  </div>
+                ) : role === 'buyer' ? (
+                  <div className="bg-green-500/5 p-6 rounded-2xl border border-green-500/20 text-center space-y-3 animate-in fade-in zoom-in duration-500">
+                    <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center mx-auto">
+                      <ShieldCheck className="w-6 h-6 text-green-500" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-green-600">您的款項已受平台保護</h4>
+                      <p className="text-sm text-muted-foreground mt-1">{t('order.wait_traveler_buy')}</p>
+                    </div>
+                  </div>
+                ) : null}
 
                 {role === 'traveler' && (
                   <div className="space-y-6">

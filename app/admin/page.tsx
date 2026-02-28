@@ -124,6 +124,8 @@ export default function AdminDashboard() {
         }
     };
 
+    const pendingPaymentCount = orders.filter(o => o.status === 'MATCHED' && o.payment_notification_sent).length;
+
     const filteredOrders = orders.filter(order => {
         if (orderFilter === 'all') return true;
         if (orderFilter === 'open') return order.status === 'OPEN';
@@ -167,9 +169,14 @@ export default function AdminDashboard() {
             <div className="flex bg-secondary/30 p-1 rounded-xl w-fit overflow-x-auto">
                 <button
                     onClick={() => setActiveTab('orders')}
-                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'orders' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
+                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap flex items-center gap-2 ${activeTab === 'orders' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
                 >
                     {t('admin.tab_orders')}
+                    {pendingPaymentCount > 0 && (
+                        <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center shadow-lg shadow-red-500/30">
+                            {pendingPaymentCount}
+                        </span>
+                    )}
                 </button>
                 <button
                     onClick={() => setActiveTab('users')}
@@ -198,9 +205,14 @@ export default function AdminDashboard() {
                             <button
                                 key={f.id}
                                 onClick={() => setOrderFilter(f.id as any)}
-                                className={`text-xs font-bold px-3 py-1.5 rounded-full transition-colors whitespace-nowrap ${orderFilter === f.id ? 'bg-primary text-primary-foreground' : 'bg-secondary/50 text-muted-foreground hover:bg-secondary'}`}
+                                className={`text-xs font-bold px-3 py-1.5 rounded-full transition-colors whitespace-nowrap flex items-center gap-1.5 ${orderFilter === f.id ? 'bg-primary text-primary-foreground' : 'bg-secondary/50 text-muted-foreground hover:bg-secondary'}`}
                             >
                                 {f.label}
+                                {f.id === 'matched' && pendingPaymentCount > 0 && (
+                                    <span className="w-4 h-4 rounded-full bg-red-500 text-white text-[9px] flex items-center justify-center animate-pulse">
+                                        {pendingPaymentCount}
+                                    </span>
+                                )}
                             </button>
                         ))}
                     </div>
@@ -220,7 +232,14 @@ export default function AdminDashboard() {
                                                 <h3 className="font-bold text-base truncate">{order.item_name}</h3>
                                                 <div className="text-[10px] text-muted-foreground font-mono mt-0.5 uppercase">{t('order.order_no')} #{order.id.slice(0, 8)}</div>
                                             </div>
-                                            <StatusBadge status={order.status} />
+                                            <div className="flex items-center gap-2">
+                                                <StatusBadge status={order.status} />
+                                                {order.status === 'MATCHED' && order.payment_notification_sent && (
+                                                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-red-500 text-white animate-pulse">
+                                                        {t('admin.payment_notified')}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
 
                                         <div className="flex flex-wrap gap-x-6 gap-y-2 mt-3">
