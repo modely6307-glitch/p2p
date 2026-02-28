@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { fetchOrders } from '@/utils/api';
 import { Order } from '@/types';
 import { WishCard } from '@/components/WishCard';
@@ -11,7 +11,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { getCountryFlag } from '@/utils/countries';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function Market() {
+function MarketContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const dateFilter = searchParams.get('date');
@@ -134,5 +134,17 @@ export default function Market() {
                 </div>
             )}
         </div>
+    );
+}
+
+export default function Market() {
+    return (
+        <Suspense fallback={
+            <div className="flex justify-center items-center py-24">
+                <Loader2 className="w-10 h-10 animate-spin text-primary opacity-50" />
+            </div>
+        }>
+            <MarketContent />
+        </Suspense>
     );
 }
