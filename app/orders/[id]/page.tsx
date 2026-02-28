@@ -582,7 +582,7 @@ export default function OrderDetails() {
             <div className="space-y-6">
               <div className="flex items-center gap-2 mb-2">
                 <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                <CardTitle className="text-base">{role === 'buyer' ? '付款已確認' : (t('translations.order.next_steps_escrowed') || '買方已付款, 請提供採購證明')}</CardTitle>
+                <CardTitle className="text-base">{role === 'buyer' ? t('order.payment_confirmed') : t('order.next_steps_escrowed')}</CardTitle>
               </div>
 
               <div className="space-y-6">
