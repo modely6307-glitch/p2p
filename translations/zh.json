@@ -83,6 +83,7 @@
         "fail": "發布願望失敗。",
         "err_past_date": "回國日期不可早於今日。",
         "err_verified_only_3days": "回國日期在 3 天內的願望僅限「認證用戶」發布。請選擇更晚的日期，或先完成用戶認證。",
+        "err_date_required": "請選擇預期回國日期。",
         "remember_address": "記住此地址，下次自動填入",
         "proof_requirements": "採購證明要求 (代購需上傳)",
         "proof_purchase_photo": "商品採購照 (必填)",

@@ -83,6 +83,7 @@
         "fail": "Failed to post wish.",
         "err_past_date": "Return date cannot be in the past.",
         "err_verified_only_3days": "Return dates within 3 days are restricted to 'Verified Users'. Please choose a later date or verify your account.",
+        "err_date_required": "Please pick an expected shipping date.",
         "remember_address": "Remember this address for next time",
         "proof_requirements": "Purchase Proof Requirements",
         "proof_purchase_photo": "Item Photo (Required)",

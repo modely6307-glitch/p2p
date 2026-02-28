@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createOrder, fetchProfile, uploadFile, updateProfile } from '@/utils/api';
 import { Profile } from '@/types';
@@ -28,6 +28,8 @@ export default function CreateWish() {
   const [selectedTier, setSelectedTier] = useState<'low' | 'mid' | 'high'>('mid');
   const [showFormula, setShowFormula] = useState(false);
   const [rememberAddress, setRememberAddress] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const dateInputRef = useRef<HTMLDivElement>(null);
 
   const [formData, setFormData] = useState({
     item_name: '',
@@ -167,6 +169,12 @@ export default function CreateWish() {
     const travelerFee = calculateTravelerFee(subtotal);
 
     // Date Validation
+    if (!formData.expected_shipping_date) {
+      setErrors(prev => ({ ...prev, expected_shipping_date: t('create.err_date_required') }));
+      dateInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+
     const selectedDate = new Date(formData.expected_shipping_date);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -495,37 +503,51 @@ export default function CreateWish() {
               <div className="space-y-4">
                 <div className="space-y-1.5">
                   <label className="block text-sm font-medium text-muted-foreground">{t('create.shipping_date')}</label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant={"outline"}
-                        className={cn(
-                          "w-full h-12 justify-start text-left font-normal rounded-xl border-border/50",
-                          !formData.expected_shipping_date && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {formData.expected_shipping_date ? (
-                          format(new Date(formData.expected_shipping_date), "PPP")
-                        ) : (
-                          <span>{t('create.pick_date')}</span>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={formData.expected_shipping_date ? new Date(formData.expected_shipping_date) : undefined}
-                        onSelect={(date) => {
-                          if (date) {
-                            setFormData(prev => ({ ...prev, expected_shipping_date: format(date, 'yyyy-MM-dd') }));
-                          }
-                        }}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <p className="text-[10px] text-muted-foreground italic px-1">{t('create.shipping_date_hint')}</p>
+                  <div ref={dateInputRef}>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full h-12 justify-start text-left font-normal rounded-xl border-border/50 transition-all",
+                            !formData.expected_shipping_date && "text-muted-foreground",
+                            errors.expected_shipping_date && "border-red-500 bg-red-500/5 ring-2 ring-red-500/20"
+                          )}
+                        >
+                          <CalendarIcon className={cn("mr-2 h-4 w-4", errors.expected_shipping_date && "text-red-500")} />
+                          {formData.expected_shipping_date ? (
+                            format(new Date(formData.expected_shipping_date), "PPP")
+                          ) : (
+                            <span>{t('create.pick_date')}</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={formData.expected_shipping_date ? new Date(formData.expected_shipping_date) : undefined}
+                          onSelect={(date) => {
+                            if (date) {
+                              setFormData(prev => ({ ...prev, expected_shipping_date: format(date, 'yyyy-MM-dd') }));
+                              setErrors(prev => {
+                                const newErrors = { ...prev };
+                                delete newErrors.expected_shipping_date;
+                                return newErrors;
+                              });
+                            }
+                          }}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    {errors.expected_shipping_date ? (
+                      <p className="text-[10px] text-red-500 font-bold mt-1.5 px-1 animate-in fade-in slide-in-from-top-1">
+                        ⚠️ {errors.expected_shipping_date}
+                      </p>
+                    ) : (
+                      <p className="text-[10px] text-muted-foreground italic px-1 mt-1.5">{t('create.shipping_date_hint')}</p>
+                    )}
+                  </div>
                 </div>
 
                 <label className="flex items-center gap-3 p-3 rounded-2xl bg-secondary/10 border border-border/50 hover:bg-secondary/20 transition-colors cursor-pointer">
