@@ -146,12 +146,12 @@ export const updateOrderStatus = async (id: string, status: OrderStatus) => {
   return data as Order;
 };
 
-export const assignTraveler = async (id: string, travelerId: string) => {
+export const assignTraveler = async (id: string, travelerId: string, status: OrderStatus = 'MATCHED') => {
   const { data, error } = await supabase
     .from('orders')
     .update({
       traveler_id: travelerId,
-      status: 'MATCHED'
+      status: status
     })
     .eq('id', id)
     .select()

@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Order } from '@/types';
+import { cn } from '@/lib/utils';
 import { Gift, ShieldCheck } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
@@ -44,6 +45,17 @@ export const WishCard = ({ order }: WishCardProps) => {
   return (
     <Card className="overflow-hidden hover:shadow-xl transition-all duration-300 border-border/40 bg-card/40 backdrop-blur-md group h-full flex flex-col">
       <Link href={`/orders/${order.id}`}>
+        {/* Ad Type Badge */}
+        {order.payment_type === 'PRE_ESCROW' && (
+          <div className="absolute top-3 left-3 z-10 flex gap-2">
+            <div className={cn(
+              "px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tighter shadow-sm backdrop-blur-md border bg-green-500/20 text-green-500 border-green-500/30 animate-pulse"
+            )}>
+              {t('order.tag_pre_escrow')}
+            </div>
+          </div>
+        )}
+
         <CardHeader className="p-4 pb-2">
           <div className="flex gap-4">
             {order.photo_url ? (

@@ -10,12 +10,12 @@ import { useNotifications } from '@/context/NotificationContext';
 export const BottomNav = () => {
   const pathname = usePathname();
   const { t } = useLanguage();
-  const { unreadCount } = useNotifications();
+  const { unreadCount, activeTaskCount } = useNotifications();
 
   const links = [
     { href: '/market', label: t('nav.market'), icon: Home, badge: 0 },
     { href: '/create', label: t('nav.create'), icon: PlusSquare, badge: 0 },
-    { href: '/dashboard', label: t('nav.dashboard'), icon: LayoutDashboard, badge: unreadCount },
+    { href: '/dashboard', label: t('nav.dashboard'), icon: LayoutDashboard, badge: unreadCount + activeTaskCount },
     { href: '/profile', label: t('nav.profile'), icon: User, badge: 0 },
   ];
 

@@ -9,6 +9,7 @@ import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 import { useLanguage } from '@/context/LanguageContext';
+import { useNotifications } from '@/context/NotificationContext';
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<'wishes' | 'tasks'>('wishes');
@@ -17,6 +18,7 @@ export default function Dashboard() {
   const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const { t } = useLanguage();
+  const { activeTaskCount } = useNotifications();
 
   useEffect(() => {
     const loadOrders = async () => {
@@ -68,12 +70,17 @@ export default function Dashboard() {
         </button>
         <button
           onClick={() => setActiveTab('tasks')}
-          className={`flex-1 pb-2 text-sm font-medium transition-colors relative ${activeTab === 'tasks'
+          className={`flex-1 pb-2 text-sm font-medium transition-colors relative flex items-center justify-center gap-2 ${activeTab === 'tasks'
             ? 'text-primary'
             : 'text-muted-foreground hover:text-foreground'
             }`}
         >
           {t('dashboard.tab_tasks')}
+          {activeTaskCount > 0 && (
+            <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-black flex items-center justify-center shadow-lg shadow-red-500/30">
+              {activeTaskCount}
+            </span>
+          )}
           {activeTab === 'tasks' && (
             <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full" />
           )}

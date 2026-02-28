@@ -94,7 +94,8 @@ export default function OrderDetails() {
       return;
     }
     try {
-      await assignTraveler(order.id, user.id);
+      const nextStatus = order.payment_type === 'PRE_ESCROW' ? 'ESCROWED' : 'MATCHED';
+      await assignTraveler(order.id, user.id, nextStatus);
       await loadOrder();
     } catch (error) {
       console.error('Error accepting order:', error);
@@ -490,9 +491,17 @@ export default function OrderDetails() {
             <div className="space-y-4">
               {role !== 'traveler' ? (
                 <>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                    <CardTitle className="text-base">{t('status.OPEN')}</CardTitle>
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                      <CardTitle className="text-base">{t('status.OPEN')}</CardTitle>
+                    </div>
+                    {order.payment_type === 'PRE_ESCROW' && (
+                      <div className="px-2 py-0.5 rounded-md bg-green-500/10 text-green-600 text-[10px] font-black uppercase tracking-tighter border border-green-500/20 animate-pulse flex items-center gap-1">
+                        <ShieldCheck className="w-3 h-3" />
+                        {t('order.tag_pre_escrow')}
+                      </div>
+                    )}
                   </div>
                   <p className="text-sm text-muted-foreground">{t('order.wait_accept')}</p>
                 </>

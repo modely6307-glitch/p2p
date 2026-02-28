@@ -36,6 +36,7 @@ export interface Order {
   expected_shipping_date: string;
   auto_extend: boolean;
   payment_notification_sent?: boolean;
+  payment_type: 'PRE_ESCROW' | 'MATCH_ESCROW';
   buyer?: Profile;
   traveler?: Profile;
 }

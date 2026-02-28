@@ -19,6 +19,7 @@ interface NotificationContextType {
     unreadCount: number;
     unreadWishCount: number;   // buyer orders with changes
     unreadTaskCount: number;   // traveler orders with changes
+    activeTaskCount: number;   // Total ongoing tasks as traveler
     activeToast: Notification | null;
     dismissToast: () => void;
     markAllRead: () => void;
@@ -56,6 +57,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [activeToast, setActiveToast] = useState<Notification | null>(null);
     const [userId, setUserId] = useState<string | null>(null);
+    const [activeTaskCount, setActiveTaskCount] = useState(0);
 
     // Get current user
     useEffect(() => {
@@ -120,6 +122,12 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
             }
 
             saveSnapshots(newSnapshots);
+
+            // Calculate active task count (as traveler, status not COMPLETED/DELISTED)
+            const ongoingTasks = (travelerOrders || []).filter(o =>
+                o.status !== 'COMPLETED' && o.status !== 'DELISTED'
+            ).length;
+            setActiveTaskCount(ongoingTasks);
 
             if (newNotifications.length > 0) {
                 setNotifications(prev => {
@@ -186,6 +194,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
             unreadCount,
             unreadWishCount,
             unreadTaskCount,
+            activeTaskCount,
             activeToast,
             dismissToast,
             markAllRead,

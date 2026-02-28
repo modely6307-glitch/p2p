@@ -44,6 +44,7 @@ export default function CreateWish() {
     exchange_rate: '0.22',
     expected_shipping_date: '',
     auto_extend: true,
+    payment_type: 'MATCH_ESCROW' as 'PRE_ESCROW' | 'MATCH_ESCROW',
   });
 
   const [photo, setPhoto] = useState<File | null>(null);
@@ -225,6 +226,7 @@ export default function CreateWish() {
         traveler_platform_fee: travelerFee,
         expected_shipping_date: formData.expected_shipping_date,
         auto_extend: formData.auto_extend,
+        payment_type: formData.payment_type,
       });
       router.push('/dashboard');
     } catch (error) {
@@ -595,6 +597,61 @@ export default function CreateWish() {
 
               {/* Pricing Section */}
               <div className="space-y-4">
+                <div className="space-y-3">
+                  <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">{t('create.payment_type')}</label>
+                  <div className="grid grid-cols-1 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setFormData(p => ({ ...p, payment_type: 'MATCH_ESCROW' }))}
+                      className={cn(
+                        "flex items-start gap-4 p-4 rounded-2xl border transition-all text-left",
+                        formData.payment_type === 'MATCH_ESCROW'
+                          ? "bg-primary/5 border-primary ring-1 ring-primary/20"
+                          : "bg-secondary/10 border-border/50 hover:bg-secondary/20"
+                      )}
+                    >
+                      <div className={cn(
+                        "w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5",
+                        formData.payment_type === 'MATCH_ESCROW' ? "border-primary" : "border-muted-foreground"
+                      )}>
+                        {formData.payment_type === 'MATCH_ESCROW' && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-sm font-bold">{t('create.match_escrow')}</div>
+                        <div className="text-[10px] text-muted-foreground mt-1 leading-relaxed">{t('create.match_escrow_hint')}</div>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setFormData(p => ({ ...p, payment_type: 'PRE_ESCROW' }))}
+                      className={cn(
+                        "flex items-start gap-4 p-4 rounded-2xl border transition-all text-left relative overflow-hidden",
+                        formData.payment_type === 'PRE_ESCROW'
+                          ? "bg-primary/10 border-primary ring-2 ring-primary/30"
+                          : "bg-secondary/10 border-border/50 hover:bg-secondary/20"
+                      )}
+                    >
+                      {formData.payment_type === 'PRE_ESCROW' && (
+                        <div className="absolute top-0 right-0 p-1 bg-primary text-primary-foreground text-[8px] font-black px-2 rounded-bl-lg uppercase tracking-tighter">Recommended</div>
+                      )}
+                      <div className={cn(
+                        "w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5",
+                        formData.payment_type === 'PRE_ESCROW' ? "border-primary" : "border-muted-foreground"
+                      )}>
+                        {formData.payment_type === 'PRE_ESCROW' && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-sm font-bold flex items-center gap-2">
+                          {t('create.pre_escrow')}
+                          <div className="px-1.5 py-0.5 bg-primary/20 text-primary rounded-md text-[8px] font-black uppercase">Fast</div>
+                        </div>
+                        <div className="text-[10px] text-muted-foreground mt-1 leading-relaxed">{t('create.pre_escrow_hint')}</div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <Input
                     label={`${t('create.price')} (${currentCurrencySymbol})`}
@@ -672,10 +729,26 @@ export default function CreateWish() {
                   type="submit"
                   fullWidth
                   disabled={loading}
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold h-12 rounded-xl"
+                  className={cn(
+                    "font-black h-14 rounded-2xl shadow-lg transition-all",
+                    formData.payment_type === 'PRE_ESCROW'
+                      ? "bg-primary shadow-primary/20 hover:scale-[1.02]"
+                      : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                  )}
                 >
-                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : t('create.submit')}
+                  {loading ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : formData.payment_type === 'PRE_ESCROW' ? (
+                    `立即支付 NT$ ${calculateTotal().toLocaleString()} 並刊登`
+                  ) : (
+                    t('create.submit')
+                  )}
                 </Button>
+                <p className="text-[10px] text-center text-muted-foreground mt-3 px-4 leading-relaxed">
+                  {formData.payment_type === 'PRE_ESCROW'
+                    ? "✨ 優先刊登：支付後即開始託管，代購接單後系統將自動跳過款項等待階段。"
+                    : "⏳ 一般刊登：發布廣告後無需立即支付，待有代購接單後再進行匯款即可。"}
+                </p>
               </div>
             </form>
           </Card>
