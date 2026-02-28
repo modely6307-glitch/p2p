@@ -42,7 +42,7 @@ export const WishCard = ({ order }: WishCardProps) => {
     : null;
 
   return (
-    <Card className="overflow-hidden hover:shadow-xl transition-all duration-300 border-border/40 bg-card/40 backdrop-blur-md group">
+    <Card className="overflow-hidden hover:shadow-xl transition-all duration-300 border-border/40 bg-card/40 backdrop-blur-md group h-full flex flex-col">
       <Link href={`/orders/${order.id}`}>
         <CardHeader className="p-4 pb-2">
           <div className="flex gap-4">

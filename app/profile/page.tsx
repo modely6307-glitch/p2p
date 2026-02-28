@@ -82,7 +82,7 @@ export default function ProfilePage() {
   const displayName = profile.display_name || maskEmail(user?.email);
 
   return (
-    <div className="p-4 space-y-6">
+    <div className="p-4 lg:p-8 space-y-6 max-w-2xl lg:mx-auto">
       <header className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center">
@@ -133,7 +133,7 @@ export default function ProfilePage() {
         </div>
       </header>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="bg-secondary/10 border-none shadow-none">
           <CardContent className="p-4 flex flex-col items-center justify-center text-center">
             <Trophy className="w-6 h-6 text-yellow-500 mb-2" />

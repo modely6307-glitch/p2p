@@ -218,7 +218,7 @@ export default function OrderDetails() {
     : null;
 
   return (
-    <div className="p-4 space-y-6 pb-24">
+    <div className="p-4 lg:p-8 space-y-6 pb-24 max-w-3xl lg:mx-auto">
       {/* Role Switcher for Demo */}
       <div className="flex justify-end gap-2 mb-4">
         <select
@@ -241,7 +241,7 @@ export default function OrderDetails() {
               </span>
               <StatusBadge status={order.status} />
             </div>
-            <h1 className="text-2xl font-bold">{order.item_name}</h1>
+            <h1 className="text-2xl lg:text-3xl font-bold">{order.item_name}</h1>
             <p className="text-muted-foreground text-xs">{t('order.order_no')} #{order.id.slice(0, 8)}</p>
           </div>
         </div>

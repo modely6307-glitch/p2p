@@ -48,7 +48,7 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="p-4 flex flex-col justify-center min-h-[80vh] space-y-8">
+        <div className="p-4 lg:p-8 flex flex-col justify-center min-h-[80vh] space-y-8 max-w-md mx-auto">
             <div className="text-center space-y-2">
                 <h1 className="text-4xl font-extrabold tracking-tight text-primary">Gull</h1>
                 <p className="text-muted-foreground text-sm font-medium">{t('login.subtitle')}</p>

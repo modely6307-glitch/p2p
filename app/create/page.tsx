@@ -187,12 +187,12 @@ export default function CreateWish() {
   const currentCurrencySymbol = currencies.find(c => c.code === formData.currency)?.symbol || '$';
 
   return (
-    <div className="p-4 space-y-6">
+    <div className="p-4 lg:p-8 space-y-6 max-w-2xl lg:mx-auto">
       <header className="flex items-center gap-4">
         <Button variant="ghost" size="sm" onClick={() => router.back()} className="p-0 hover:bg-transparent">
           <ArrowLeft className="w-6 h-6" />
         </Button>
-        <h1 className="text-2xl font-bold">{t('create.title')}</h1>
+        <h1 className="text-2xl lg:text-3xl font-bold">{t('create.title')}</h1>
       </header>
 
       <Card className="p-6">

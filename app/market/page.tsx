@@ -53,10 +53,10 @@ function MarketContent() {
     });
 
     return (
-        <div className="p-4 space-y-6 pb-20">
+        <div className="p-4 lg:p-8 space-y-6 pb-20 lg:pb-8">
             <header className="flex justify-between items-end">
                 <div>
-                    <h1 className="text-3xl font-black tracking-tight mb-1">{t('home.title')}</h1>
+                    <h1 className="text-3xl lg:text-4xl font-black tracking-tight mb-1">{t('home.title')}</h1>
                     <p className="text-muted-foreground text-sm font-medium">{t('home.subtitle')}</p>
                 </div>
                 {dateFilter && (
@@ -110,7 +110,7 @@ function MarketContent() {
                     </div>
                 </div>
             ) : filteredOrders.length > 0 ? (
-                <div className="grid gap-4">
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {filteredOrders.map((order) => (
                         <WishCard key={order.id} order={order} />
                     ))}

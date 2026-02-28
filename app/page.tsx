@@ -30,7 +30,7 @@ export default function LandingPage() {
   ];
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-120px)] bg-background overflow-hidden relative selection:bg-primary/30">
+    <div className="flex flex-col min-h-[calc(100vh-120px)] lg:min-h-screen bg-background overflow-hidden relative selection:bg-primary/30">
       {/* Dynamic Background Elements */}
       <div className="absolute top-[-10%] left-[-20%] w-[70%] h-[40%] bg-primary/20 blur-[120px] rounded-full animate-pulse pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-20%] w-[70%] h-[40%] bg-blue-500/10 blur-[120px] rounded-full pointer-events-none" />
@@ -80,7 +80,7 @@ export default function LandingPage() {
       )}
 
       {/* Hero Section */}
-      <section className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-12 relative z-10">
+      <section className="flex-1 flex flex-col items-center justify-center p-6 lg:p-12 text-center space-y-12 relative z-10">
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-1000 fill-mode-both">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-background/50 backdrop-blur-md border border-primary/20 text-primary rounded-full text-[10px] font-black uppercase tracking-[0.3em] shadow-xl shadow-primary/5">
             <Sparkles className="w-3 h-3 animate-spin-slow" />
@@ -88,21 +88,21 @@ export default function LandingPage() {
           </div>
 
           <h1 className="flex flex-col gap-4 py-4">
-            <span className="text-5xl md:text-7xl font-black tracking-tighter leading-tight bg-gradient-to-b from-foreground to-foreground/60 bg-clip-text text-transparent italic px-2">
+            <span className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter leading-tight bg-gradient-to-b from-foreground to-foreground/60 bg-clip-text text-transparent italic px-2">
               Gull 購快
             </span>
-            <span className="text-base md:text-xl font-bold tracking-[0.3em] text-primary/80 uppercase">
+            <span className="text-base md:text-xl lg:text-2xl font-bold tracking-[0.3em] text-primary/80 uppercase">
               世界沒界限
             </span>
           </h1>
 
-          <p className="text-muted-foreground/80 text-sm font-medium max-w-[280px] md:max-w-md mx-auto leading-relaxed">
+          <p className="text-muted-foreground/80 text-sm lg:text-base font-medium max-w-[280px] md:max-w-md lg:max-w-lg mx-auto leading-relaxed">
             {t('landing.subtitle')}
           </p>
         </div>
 
         {/* Action Choice - Grid 1:2 layout for modern look */}
-        <div className="w-full max-w-2xl mx-auto space-y-4 animate-in fade-in slide-in-from-bottom-12 duration-1000 delay-300 fill-mode-both">
+        <div className="w-full max-w-2xl lg:max-w-4xl mx-auto space-y-4 animate-in fade-in slide-in-from-bottom-12 duration-1000 delay-300 fill-mode-both">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Traveler Option */}
             <Card className="group relative border-none bg-gradient-to-br from-primary/10 via-background to-background hover:via-primary/5 transition-all duration-500 shadow-[0_20px_50px_rgba(0,0,0,0.2)] hover:shadow-primary/20 overflow-hidden ring-1 ring-primary/20 hover:ring-primary/40">
@@ -195,7 +195,7 @@ export default function LandingPage() {
       </section>
 
       {/* Features Bar */}
-      <div className="w-full max-w-2xl mx-auto grid grid-cols-3 gap-8 p-6 pb-16 opacity-40 animate-in fade-in duration-1000 delay-700 fill-mode-both">
+      <div className="w-full max-w-2xl lg:max-w-4xl mx-auto grid grid-cols-3 gap-8 p-6 lg:p-12 pb-16 opacity-40 animate-in fade-in duration-1000 delay-700 fill-mode-both">
         <div className="flex flex-col items-center gap-1.5 group cursor-default">
           <ShieldCheck className="w-5 h-5 text-green-500 group-hover:scale-110 transition-transform" />
           <span className="text-[10px] font-black uppercase tracking-widest">Safe Escrow</span>
