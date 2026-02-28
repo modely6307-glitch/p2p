@@ -49,8 +49,8 @@ export const fetchOrderById = async (id: string) => {
 
 export const createOrder = async (order: Omit<Order, 'id' | 'status' | 'created_at' | 'total_amount' | 'total_amount_twd'>) => {
   const base_amount_twd = (order.target_price * order.exchange_rate) + order.reward_fee;
-  const total_amount = order.target_price + order.reward_fee;
   const total_amount_twd = base_amount_twd + (order.buyer_platform_fee || 0);
+  const total_amount = total_amount_twd;
 
   const { data, error } = await supabase
     .from('orders')

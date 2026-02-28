@@ -180,7 +180,8 @@ export default function OrderDetails() {
     if (!order || !order.traveler_id) return;
     try {
       await updateOrderStatus(order.id, 'COMPLETED');
-      await incrementOrderStats(order.traveler_id, order.target_price + order.reward_fee);
+      const amountTwd = Math.round((order.target_price * (order.exchange_rate || 1)) + order.reward_fee);
+      await incrementOrderStats(order.traveler_id, amountTwd);
       await loadOrder();
     } catch (error) {
       console.error('Error completing order:', error);

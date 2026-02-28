@@ -80,7 +80,7 @@ export const WishCard = ({ order }: WishCardProps) => {
                   {countryConfig.flag} {t(`countries.${order.country}`)}
                 </span>
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-500/10 text-green-500">
-                  +{currencySymbol}{order.reward_fee} {t('order.reward_fee')}
+                  +NT$ {order.reward_fee.toLocaleString()} {t('order.reward_fee')}
                 </span>
                 {order.expected_shipping_date && (
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 flex items-center gap-1">

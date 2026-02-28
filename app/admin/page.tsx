@@ -105,7 +105,8 @@ export default function AdminDashboard() {
         try {
             await updateOrderStatus(order.id, 'COMPLETED');
             if (order.traveler_id) {
-                await incrementOrderStats(order.traveler_id, order.target_price + order.reward_fee);
+                const amountTwd = Math.round((order.target_price * (order.exchange_rate || 1)) + order.reward_fee);
+                await incrementOrderStats(order.traveler_id, amountTwd);
             }
             loadData();
         } catch (error) {
