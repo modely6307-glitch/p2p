@@ -5,10 +5,11 @@ import { fetchProfile, updateProfile } from '@/utils/api';
 import { Profile } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, User, Trophy, DollarSign, Star, LogOut, ShieldCheck } from 'lucide-react';
+import { Loader2, User, Trophy, DollarSign, Star, LogOut, ShieldCheck, MapPin } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
+import { Textarea } from '@/components/ui/textarea';
 
 import { useLanguage } from '@/context/LanguageContext';
 
@@ -19,6 +20,8 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [newNickname, setNewNickname] = useState('');
+  const [isEditingAddress, setIsEditingAddress] = useState(false);
+  const [newAddress, setNewAddress] = useState('');
   const { language, setLanguage, t } = useLanguage();
 
   const maskEmail = (email: string | undefined) => {
@@ -42,6 +45,7 @@ export default function ProfilePage() {
       const data = await fetchProfile(user.id);
       setProfile(data);
       setNewNickname(data.display_name || '');
+      setNewAddress(data.address || '');
     } catch (error) {
       console.error('Error fetching profile:', error);
     } finally {
@@ -56,7 +60,18 @@ export default function ProfilePage() {
       setProfile(prev => prev ? { ...prev, display_name: newNickname } : null);
       setIsEditing(false);
     } catch (error) {
-      alert(t('error'));
+      alert(t('common.error'));
+    }
+  };
+
+  const handleSaveAddress = async () => {
+    if (!user) return;
+    try {
+      await updateProfile(user.id, { address: newAddress });
+      setProfile(prev => prev ? { ...prev, address: newAddress } : null);
+      setIsEditingAddress(false);
+    } catch (error) {
+      alert(t('common.error'));
     }
   };
 
@@ -150,6 +165,40 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <MapPin className="w-5 h-5 text-primary" />
+            {t('profile.address_label')}
+          </CardTitle>
+          {!isEditingAddress && (
+            <Button variant="ghost" size="sm" onClick={() => setIsEditingAddress(true)} className="text-xs text-primary h-auto p-0 hover:bg-transparent">
+              {t('common.edit')}
+            </Button>
+          )}
+        </CardHeader>
+        <CardContent>
+          {isEditingAddress ? (
+            <div className="space-y-3">
+              <Textarea
+                className="min-h-[100px] text-sm"
+                value={newAddress}
+                onChange={(e) => setNewAddress(e.target.value)}
+                placeholder={t('create.address_placeholder')}
+              />
+              <div className="flex gap-2">
+                <Button size="sm" className="h-8" onClick={handleSaveAddress}>{t('common.save')}</Button>
+                <Button size="sm" variant="ghost" className="h-8" onClick={() => { setIsEditingAddress(false); setNewAddress(profile.address || ''); }}>{t('common.cancel')}</Button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed italic bg-secondary/5 p-3 rounded-xl border border-border/50">
+              {profile.address || t('profile.no_address')}
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

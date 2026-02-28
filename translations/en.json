@@ -2,6 +2,7 @@
     "common": {
         "save": "Save",
         "cancel": "Cancel",
+        "edit": "Edit",
         "confirm": "Confirm",
         "delete": "Delete",
         "logout": "Log Out",
@@ -47,7 +48,7 @@
         "ai_btn": "What's Hot Now? (AI)",
         "ai_desc": "Let AI recommend trending global goods for you.",
         "ai_hot_now": "Trending Now",
-        "date_prompt": "When is your trip?"
+        "date_prompt": "Return date?"
     },
     "create": {
         "title": "Post New Wish",
@@ -80,10 +81,28 @@
         "limit_alert": "Standard user limit is 5000 TWD. Current: {total} TWD. Verify to increase.",
         "success": "Wish posted successfully!",
         "fail": "Failed to post wish.",
+        "err_past_date": "Return date cannot be in the past.",
+        "err_verified_only_3days": "Return dates within 3 days are restricted to 'Verified Users'. Please choose a later date or verify your account.",
+        "remember_address": "Remember this address for next time",
         "proof_requirements": "Purchase Proof Requirements",
         "proof_purchase_photo": "Item Photo (Required)",
         "proof_receipt": "Receipt / Invoice",
-        "proof_model": "Model/Serial Number"
+        "proof_model": "Model/Serial Number",
+        "guide_title": "What's on your mind?",
+        "step_country": "Select Destination",
+        "step_method": "Choose Method",
+        "step_ai": "AI Recommendations",
+        "method_custom": "Custom Wish",
+        "method_custom_desc": "Manually enter item details, price, and reward.",
+        "method_ai": "AI Trending Items",
+        "method_ai_desc": "Quickly select popular items based on local trends.",
+        "tier_low": "Value Finds",
+        "tier_mid": "Top Picks",
+        "tier_high": "Luxury Gems",
+        "btn_next": "Next",
+        "btn_back": "Back",
+        "pick_date": "Pick a date",
+        "recommendation_hint": "Select an item to auto-fill details"
     },
     "dashboard": {
         "title": "My Dashboard",
@@ -105,7 +124,10 @@
         "positive_rate": "Positive Rating",
         "total_reviews": "Total Reviews",
         "no_ratings": "No ratings yet",
-        "logout_btn": "Log Out"
+        "address_label": "Default Shipping Address",
+        "address_saved": "Address auto-filled from profile",
+        "no_address": "No shipping address set",
+        "logout_btn": "Logout"
     },
     "order": {
         "details_title": "Order Details",

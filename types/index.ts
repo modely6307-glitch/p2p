@@ -59,4 +59,5 @@ export interface Profile {
   total_order_amount: number;
   positive_rating_count: number;
   total_rating_count: number;
+  address?: string | null;
 }
