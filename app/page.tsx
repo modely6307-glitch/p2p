@@ -6,7 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { useLanguage } from '@/context/LanguageContext';
-import { Plane, ShoppingBag, ArrowRight, Calendar, Globe2, ShieldCheck, Zap, Sparkles, Wand2, Star, TrendingUp, X } from 'lucide-react';
+import { Plane, ShoppingBag, ArrowRight, Calendar as CalendarIcon, Globe2, ShieldCheck, Zap, Sparkles, Wand2, Star, TrendingUp, X } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 export default function LandingPage() {
   const router = useRouter();
@@ -122,14 +126,38 @@ export default function LandingPage() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-black uppercase text-primary/60 tracking-widest">{t('landing.date_prompt')}</span>
-                      <Calendar className="w-3 h-3 text-primary/40" />
+                      <CalendarIcon className="w-3 h-3 text-primary/40" />
                     </div>
-                    <Input
-                      type="date"
-                      value={tripDate}
-                      onChange={(e) => setTripDate(e.target.value)}
-                      className="h-12 text-sm rounded-xl bg-background/50 border-primary/10 focus:border-primary/40 focus:ring-0 transition-all shadow-inner"
-                    />
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full h-12 justify-start text-left font-normal rounded-xl bg-background/50 border-primary/10 hover:bg-background/80 transition-all shadow-inner px-3",
+                            !tripDate && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {tripDate ? (
+                            format(new Date(tripDate), "PPP")
+                          ) : (
+                            <span>{t('create.pick_date')}</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={tripDate ? new Date(tripDate) : undefined}
+                          onSelect={(date) => {
+                            if (date) {
+                              setTripDate(format(date, 'yyyy-MM-dd'));
+                            }
+                          }}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </div>
                   <Button onClick={navigateToMarket} fullWidth className="group/btn h-14 font-black rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all active:scale-[0.98]">
                     探索願望清單
@@ -201,7 +229,7 @@ export default function LandingPage() {
           <span className="text-[10px] font-black uppercase tracking-widest">Safe Escrow</span>
         </div>
         <div className="flex flex-col items-center gap-1.5 group cursor-default">
-          <Calendar className="w-5 h-5 text-blue-500 group-hover:scale-110 transition-transform" />
+          <CalendarIcon className="w-5 h-5 text-blue-500 group-hover:scale-110 transition-transform" />
           <span className="text-[10px] font-black uppercase tracking-widest">Date Match</span>
         </div>
         <div className="flex flex-col items-center gap-1.5 group cursor-default">
