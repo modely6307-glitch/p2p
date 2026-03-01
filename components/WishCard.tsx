@@ -43,13 +43,13 @@ export const WishCard = ({ order }: WishCardProps) => {
     : null;
 
   return (
-    <Card className="overflow-hidden hover:shadow-xl transition-all duration-300 border-border/40 bg-card/40 backdrop-blur-md group h-full flex flex-col">
+    <Card className="overflow-hidden bg-white/95 backdrop-blur-xl border-border/60 hover:border-primary/20 shadow-sm hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition-all duration-300 group h-full flex flex-col">
       <Link href={`/orders/${order.id}`}>
         {/* Ad Type Badge */}
         {order.payment_type === 'PRE_ESCROW' && (
           <div className="absolute top-3 left-3 z-10 flex gap-2">
             <div className={cn(
-              "px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tighter shadow-sm backdrop-blur-md border bg-green-500/20 text-green-500 border-green-500/30 animate-pulse"
+              "px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider backdrop-blur-xl border bg-white/90 text-green-600 border-green-200 shadow-sm"
             )}>
               {t('order.tag_pre_escrow')}
             </div>
@@ -72,13 +72,13 @@ export const WishCard = ({ order }: WishCardProps) => {
                 <h3 className="text-base font-bold truncate leading-tight">{order.item_name}</h3>
               </div>
 
-              <div className="flex items-center gap-1.5 mb-2">
-                <div className="w-4 h-4 rounded-full bg-secondary flex items-center justify-center">
-                  <span className="text-[10px] text-muted-foreground italic font-black">👤</span>
+              <div className="flex items-center gap-1.5 mb-2.5 text-gray-600">
+                <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200">
+                  <span className="text-[10px] font-bold">👤</span>
                 </div>
-                <span className="text-[10px] font-bold text-muted-foreground truncate max-w-[80px]">{displayName}</span>
+                <span className="text-xs font-semibold truncate max-w-[80px]">{displayName}</span>
                 {successRate !== null && (
-                  <span className="text-[9px] bg-yellow-500/10 text-yellow-600 px-1 rounded flex items-center gap-0.5">
+                  <span className="text-[10px] bg-yellow-50 text-yellow-700 px-1.5 py-0.5 rounded-md font-medium flex items-center gap-1 border border-yellow-100">
                     ⭐ {successRate}%
                   </span>
                 )}
@@ -88,14 +88,14 @@ export const WishCard = ({ order }: WishCardProps) => {
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground flex items-center gap-1">
+                <span className="text-[10px] font-bold px-2 py-1 rounded-md bg-gray-50 text-gray-700 border border-gray-100 flex items-center gap-1 shadow-sm">
                   {countryConfig.flag} {t(`countries.${order.country}`)}
                 </span>
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-500/10 text-green-500">
+                <span className="text-xs font-bold px-2.5 py-1 rounded-md bg-green-50 text-green-700 border border-green-100 shadow-sm">
                   +NT$ {order.reward_fee.toLocaleString()} {t('order.reward_fee')}
                 </span>
                 {order.expected_shipping_date && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 flex items-center gap-1">
+                  <span className="text-[10px] font-bold px-2 py-1 rounded-md bg-blue-50 text-blue-700 border border-blue-100 flex items-center gap-1 shadow-sm">
                     📅 {order.expected_shipping_date}
                   </span>
                 )}
@@ -103,15 +103,15 @@ export const WishCard = ({ order }: WishCardProps) => {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="p-4 pt-0">
-          <div className="flex items-center justify-between mt-2 py-2 border-t border-border/30">
+        <CardContent className="p-5 pt-0">
+          <div className="flex items-center justify-between mt-3 py-3 border-t border-gray-100">
             <div className="flex flex-col">
-              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">{t('order.target_price')}</span>
-              <span className="text-sm font-bold">{currencySymbol}{order.target_price.toLocaleString()}</span>
+              <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-0.5">{t('order.target_price')}</span>
+              <span className="text-sm font-bold text-gray-900">{currencySymbol}{order.target_price.toLocaleString()}</span>
             </div>
             <div className="flex flex-col text-right">
-              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">{t('order.total_budget')}</span>
-              <span className="text-sm font-black text-primary">NT${(order.total_amount_twd || Math.round(order.target_price * (order.exchange_rate || 1) + order.reward_fee)).toLocaleString()}</span>
+              <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-0.5">{t('order.total_budget')}</span>
+              <span className="text-base font-black text-primary">NT${(order.total_amount_twd || Math.round(order.target_price * (order.exchange_rate || 1) + order.reward_fee)).toLocaleString()}</span>
             </div>
           </div>
         </CardContent>
