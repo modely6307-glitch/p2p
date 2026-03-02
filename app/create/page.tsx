@@ -17,6 +17,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { AiRecommendation } from '@/components/AiRecommendation';
 
 export default function CreateWish() {
   const router = useRouter();
@@ -82,43 +83,6 @@ export default function CreateWish() {
     { code: 'EUR', symbol: '€' },
     { code: 'THB', symbol: '฿' },
   ];
-
-  const aiRecommendations: Record<string, { [key in 'low' | 'mid' | 'high']: { name: string, price: number, reward: number, desc: string, icon: any }[] }> = {
-    Japan: {
-      low: [
-        { name: 'Kao Steam Eye Mask (12P)', price: 1200, reward: 150, desc: 'Popular relaxation item', icon: Zap },
-        { name: 'Orihiro Konjac Jelly', price: 250, reward: 80, desc: 'Famous Japanese snack', icon: ShoppingBag },
-        { name: 'DHC Lip Cream', price: 600, reward: 100, desc: 'Classic skincare item', icon: Star }
-      ],
-      mid: [
-        { name: 'Pokemon Center Plush', price: 3500, reward: 500, desc: 'Authentic JP Pokemon merch', icon: Sparkles },
-        { name: 'Shiseido Anessa Sunscreen', price: 2400, reward: 350, desc: 'No.1 sun protection', icon: Gem },
-        { name: 'Porter Tokyo Card Case', price: 9500, reward: 800, desc: 'Premium crafted leather', icon: Gem }
-      ],
-      high: [
-        { name: 'Nintendo Switch OLED', price: 37980, reward: 1500, desc: 'Latest hybrid console', icon: Sparkles },
-        { name: 'Sony WH-1000XM5', price: 48000, reward: 2000, desc: 'Best-in-class noise canceling', icon: Zap },
-        { name: 'SK-II Facial Treatment Essence', price: 22000, reward: 1200, desc: 'Legendary skincare water', icon: Gem }
-      ]
-    },
-    USA: {
-      low: [
-        { name: 'Trader Joe Eco Bag', price: 5, reward: 200, desc: 'Sustainable canvas bag', icon: ShoppingBag },
-        { name: 'Burt Bees Lip Balm', price: 4, reward: 100, desc: 'Natural beeswax formula', icon: Star },
-        { name: 'CeraVe Daily Moisturizer', price: 15, reward: 200, desc: 'Dermatologist recommended', icon: Zap }
-      ],
-      mid: [
-        { name: 'Stanley Quencher H2.0', price: 45, reward: 600, desc: 'Viral insulated tumbler', icon: Sparkles },
-        { name: 'Lululemon Everywhere Belt Bag', price: 38, reward: 500, desc: 'Trendy cross-body bag', icon: Gem },
-        { name: 'Coach Card Case', price: 75, reward: 800, desc: 'Classic canvas design', icon: Gem }
-      ],
-      high: [
-        { name: 'Apple iPad Air (M2)', price: 599, reward: 2000, desc: 'Powerful versatile tablet', icon: Sparkles },
-        { name: 'Dyson Airwrap Styler', price: 599, reward: 2500, desc: 'The ultimate hair tool', icon: Zap },
-        { name: 'Michael Kors Mercer Tote', price: 298, reward: 1500, desc: 'Luxury leather handbag', icon: Gem }
-      ]
-    }
-  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -364,46 +328,14 @@ export default function CreateWish() {
           </div>
         )}
 
-        {/* Step 2: AI Tiers */}
+        {/* Step 2: AI Recommendation UI */}
         {step === 2 && (
           <div className="space-y-6 animate-in fade-in slide-in-from-right-4 px-4 lg:px-0">
-            <div className="flex bg-secondary/30 p-1 rounded-xl w-full">
-              {(['low', 'mid', 'high'] as const).map((tier) => (
-                <button
-                  key={tier}
-                  onClick={() => setSelectedTier(tier)}
-                  className={`flex-1 py-3 rounded-lg text-xs font-black transition-all ${selectedTier === tier ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground'}`}
-                >
-                  {t(`create.tier_${tier}`)}
-                </button>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-1 gap-3">
-              {(aiRecommendations[formData.country]?.[selectedTier] || aiRecommendations['Japan'][selectedTier]).map((item, idx) => {
-                const ItemIcon = item.icon || ShoppingBag;
-                return (
-                  <Card
-                    key={idx}
-                    onClick={() => handleSelectRecommendation(item)}
-                    className="p-4 cursor-pointer hover:border-primary/50 transition-all border-border/50 bg-secondary/5 group flex items-center gap-4"
-                  >
-                    <div className="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                      <ItemIcon className="w-6 h-6 text-muted-foreground group-hover:text-primary transition-colors" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-bold text-sm truncate">{item.name}</h4>
-                      <p className="text-[10px] text-muted-foreground truncate">{item.desc}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs font-black text-primary">{currencies.find(cu => cu.code === formData.currency)?.symbol}{item.price.toLocaleString()}</span>
-                        <span className="text-[9px] text-green-600 font-bold bg-green-500/10 px-1.5 rounded-full">+NT${item.reward} Reward</span>
-                      </div>
-                    </div>
-                  </Card>
-                )
-              })}
-            </div>
-            <p className="text-[10px] text-center text-muted-foreground italic">{t('create.recommendation_hint')}</p>
+            <AiRecommendation
+              country={formData.country}
+              onProceed={() => setStep(3)}
+              onSelectRecommendation={handleSelectRecommendation}
+            />
           </div>
         )}
 
