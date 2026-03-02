@@ -1,4 +1,4 @@
-import { google } from '@ai-sdk/google';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { streamObject } from 'ai';
 import { z } from 'zod';
 
@@ -16,9 +16,11 @@ export async function POST(req: Request) {
             });
         }
 
-        // The AI SDK expects GOOGLE_GENERATIVE_AI_API_KEY by default, 
-        // mapping GEMINI_API_KEY here to satisfy it.
-        process.env.GOOGLE_GENERATIVE_AI_API_KEY = process.env.GEMINI_API_KEY;
+        // Initialize Google provider explicitly with the available API key
+        // This is safer than mutating process.env at runtime, which often fails in Vercel Serverless/Edge
+        const google = createGoogleGenerativeAI({
+            apiKey: process.env.GEMINI_API_KEY,
+        });
 
         // Generate a unique cache key based on the prompt inputs and attempt
         const cacheKey = `${country}_${startDate}_${endDate}_${userPreferences || ''}_${purchaseHistory || ''}_${attempt}`;
