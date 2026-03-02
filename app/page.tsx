@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,9 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { AiRecommendation } from '@/components/AiRecommendation';
+import { z } from 'zod';
+import { experimental_useObject as useObject } from '@ai-sdk/react';
 
 export default function LandingPage() {
   const router = useRouter();
@@ -27,11 +30,55 @@ export default function LandingPage() {
     router.push('/create');
   };
 
-  const mockRecommendations = [
-    { country: 'Japan', flag: '🇯🇵', items: ['Yuzu Skincare', 'Limited Edition KitKats', 'Ceramic Pour Over Set'] },
-    { country: 'USA', flag: '🇺🇸', items: ['Stanley Tumblers', 'Lululemon Belt Bags', 'Oura Ring Gen3'] },
-    { country: 'Thailand', flag: '🇹🇭', items: ['Handmade Elephant Pants', 'Dried Durian', 'Organic Coconut Oil'] }
-  ];
+  const [aiCountry, setAiCountry] = useState('Japan');
+
+  const now = new Date();
+  const endDate = now.toISOString().split('T')[0];
+  const threeMonthsAgo = new Date();
+  threeMonthsAgo.setMonth(now.getMonth() - 3);
+  const startDate = threeMonthsAgo.toISOString().split('T')[0];
+
+  const { object: japanData, submit: fetchJapan } = useObject({
+    api: '/api/recommend',
+    schema: z.object({
+      items: z.array(z.object({ name: z.string() }))
+    })
+  });
+
+  useEffect(() => {
+    // 預加載主動顯示的第一個國家以在卡片上展示
+    const timer1 = setTimeout(() => {
+      fetchJapan({ country: 'Japan', startDate, endDate, attempt: 1 });
+    }, 500);
+
+    // 其他國家則背景抓取，建立後台 Cache (無感載入)
+    const backgroundCountries = ['Korea', 'Thailand', 'USA', 'UK', 'France'];
+    const timer2 = setTimeout(() => {
+      backgroundCountries.forEach((country, idx) => {
+        // 加上一點間隔避免同時轟炸 API
+        setTimeout(async () => {
+          try {
+            const res = await fetch('/api/recommend', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ country, startDate, endDate, attempt: 1 })
+            });
+            // 消耗串流讓伺服器順利跑完並快取
+            if (res.body) {
+              const reader = res.body.getReader();
+              while (true) {
+                const { done } = await reader.read();
+                if (done) break;
+              }
+            }
+          } catch (e) { }
+        }, idx * 3000);
+      });
+    }, 2000);
+
+    return () => { clearTimeout(timer1); clearTimeout(timer2); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-120px)] lg:min-h-screen bg-gradient-to-br from-background via-background to-primary/5 overflow-hidden relative selection:bg-primary/20">
@@ -42,8 +89,8 @@ export default function LandingPage() {
       {/* AI Modal Overlay */}
       {showAI && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-background/80 backdrop-blur-xl animate-in fade-in duration-300">
-          <Card className="w-full max-w-sm border-0 bg-white/95 backdrop-blur-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] overflow-hidden relative rounded-3xl">
-            <button onClick={() => setShowAI(false)} className="absolute top-4 right-4 text-muted-foreground hover:text-gray-900 bg-gray-100 p-1.5 rounded-full transition-colors">
+          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto border-0 bg-white/95 backdrop-blur-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] relative rounded-3xl">
+            <button onClick={() => setShowAI(false)} className="absolute top-4 right-4 z-10 text-muted-foreground hover:text-gray-900 bg-gray-100 p-1.5 rounded-full transition-colors">
               <X className="w-4 h-4" />
             </button>
             <CardContent className="p-6 space-y-6">
@@ -57,27 +104,29 @@ export default function LandingPage() {
                 </div>
               </div>
 
-              <div className="space-y-4">
-                {mockRecommendations.map((rec) => (
-                  <div key={rec.country} className="space-y-3 p-4 rounded-xl bg-gray-50 border border-gray-100 shadow-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl">{rec.flag}</span>
-                      <span className="text-sm font-bold text-gray-800">{rec.country}</span>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {rec.items.map(item => (
-                        <span key={item} className="text-xs bg-white px-2.5 py-1 rounded-full border border-gray-200 text-gray-600 font-medium shadow-sm">
-                          {item}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
+              {/* Country Tabs */}
+              <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 pt-2">
+                {['Japan', 'Korea', 'Thailand', 'USA', 'UK', 'France'].map(c => (
+                  <Button key={c} variant={aiCountry === c ? 'primary' : 'outline'} size="sm" onClick={() => setAiCountry(c)} className="rounded-full shadow-sm shrink-0">
+                    {c}
+                  </Button>
                 ))}
               </div>
 
-              <Button onClick={() => router.push('/market')} fullWidth className="h-12 font-bold rounded-xl shadow-md hover:shadow-lg transition-all text-base">
-                前往市場接單
-              </Button>
+              <div className="pt-2">
+                <AiRecommendation
+                  country={aiCountry}
+                  onProceed={() => {
+                    router.push('/create');
+                    setShowAI(false);
+                  }}
+                  onSelectRecommendation={(item) => {
+                    sessionStorage.setItem('pendingAiWish', JSON.stringify({ ...item, country: aiCountry }));
+                    router.push('/create');
+                    setShowAI(false);
+                  }}
+                />
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -210,12 +259,17 @@ export default function LandingPage() {
                 </div>
               </div>
               <div className="flex gap-4 w-full md:w-auto overflow-x-auto no-scrollbar py-2">
-                {mockRecommendations.map((rec) => (
-                  <div key={rec.country} className="flex-shrink-0 flex items-center gap-2 px-4 py-2 bg-white/60 backdrop-blur-md rounded-xl border border-white group-hover:border-blue-200 shadow-sm transition-all hover:shadow-md">
-                    <span className="text-xl">{rec.flag}</span>
-                    <span className="text-sm font-bold text-gray-800">{rec.country}</span>
+                {japanData?.items ? japanData.items.slice(0, 3).map((item, idx) => (
+                  <div key={idx} className="flex-shrink-0 flex items-center gap-2 px-4 py-2 bg-white/60 backdrop-blur-md rounded-xl border border-white group-hover:border-blue-200 shadow-sm transition-all hover:shadow-md">
+                    <span className="text-sm font-bold text-gray-800">{item?.name || '...'}</span>
                   </div>
-                ))}
+                )) : (
+                  <>
+                    <div className="h-10 w-24 bg-white/40 rounded-xl animate-pulse" />
+                    <div className="h-10 w-24 bg-white/40 rounded-xl animate-pulse" />
+                    <div className="h-10 w-24 bg-white/40 rounded-xl animate-pulse" />
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>

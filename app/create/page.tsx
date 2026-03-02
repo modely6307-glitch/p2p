@@ -54,6 +54,26 @@ export default function CreateWish() {
   const [settings, setSettings] = useState<import('@/types').SystemSettings | null>(null);
 
   useEffect(() => {
+    // Check for pending AI wish from landing page
+    const pending = sessionStorage.getItem('pendingAiWish');
+    if (pending) {
+      try {
+        const item = JSON.parse(pending);
+        setFormData(prev => ({
+          ...prev,
+          item_name: item.name || '',
+          target_price: item.price ? item.price.toString() : '',
+          description: (item.desc || '') + (item.url ? `\n\n參考連結：${item.url}` : ''),
+          country: item.country || 'Japan'
+        }));
+        setMethod('ai');
+        setStep(3);
+      } catch (e) {
+        console.error('Failed to parse pending AI wish', e);
+      }
+      sessionStorage.removeItem('pendingAiWish');
+    }
+
     if (user) {
       fetchProfile(user.id).then(data => {
         setUserProfile(data);
