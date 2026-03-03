@@ -35,8 +35,8 @@
         "subtitle": "幫別人實現願望，賺取豐厚報酬。",
         "search_placeholder": "搜尋物品...",
         "no_wishes": "目前沒有公開的願望。",
-        "sort_by_date": "按寄出日期排序",
-        "filter_date": "篩選寄出日期"
+        "sort_by_date": "按回國日期排序",
+        "filter_date": "篩選回國日期"
     },
     "landing": {
         "title": "Gull 購快，世界沒界限",
@@ -48,7 +48,8 @@
         "ai_btn": "幫我推薦最近夯什麼",
         "ai_desc": "不知道買什麼？讓 AI 告訴您全球在地熱銷好貨。",
         "ai_hot_now": "熱門推薦",
-        "date_prompt": "回國日期？"
+        "departure_prompt": "出發日期？",
+        "return_prompt": "回國日期？"
     },
     "create": {
         "title": "發布新願望",
@@ -79,16 +80,18 @@
         "reward_twd": "報酬以台幣計價",
         "limit_alert": "一般用戶限額為 5000 TWD。您目前的總額為 {total} TWD。請完成身份認證以提高限額。",
         "success": "願望已成功發布！",
-        "shipping_date": "預期寄出日",
-        "shipping_date_hint": "指代購完成採買並交寄的日期。",
+        "shipping_date": "您希望您的旅人何時歸國",
+        "return_date_short": "回國日",
+        "shipping_date_hint": "指旅人完成採買並回國交寄的日期。",
         "auto_extend": "若到期無人接單，自動延長一週",
         "shipping_address": "收件地址",
         "address_placeholder": "請輸入收件地址 (僅在付款後揭露給代購)",
         "address_privacy_hint": "地址僅會在系統確認收到您的代管資金 (Escrow) 後，才會揭露給代購玩家。",
         "fail": "發布願望失敗。",
-        "err_past_date": "回國日期不可早於今日。",
-        "err_verified_only_3days": "回國日期在 3 天內的願望僅限「認證用戶」發布。請選擇更晚的日期，或先完成用戶認證。",
-        "err_date_required": "請選擇預期回國日期。",
+        "err_past_date": "日期不可早於今日。",
+        "err_verified_only_3days": "日期在 3 天內的願望僅限「認證用戶」發布。請選擇更晚的日期，或先完成用戶認證。",
+        "err_date_required": "請選擇預期日期。",
+        "err_departure_after_return": "出發日期不可晚於回國日期。",
         "remember_address": "記住此地址，下次自動填入",
         "proof_requirements": "採購證明要求 (代購需上傳)",
         "proof_purchase_photo": "商品採購照 (必填)",

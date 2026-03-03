@@ -96,7 +96,7 @@ export const WishCard = ({ order }: WishCardProps) => {
                 </span>
                 {order.expected_shipping_date && (
                   <span className="text-[10px] font-bold px-2 py-1 rounded-md bg-blue-50 text-blue-700 border border-blue-100 flex items-center gap-1 shadow-sm">
-                    📅 {order.expected_shipping_date}
+                    📅 {t('create.return_date_short')} {order.expected_shipping_date}
                   </span>
                 )}
               </div>

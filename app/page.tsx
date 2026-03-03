@@ -18,11 +18,19 @@ import { experimental_useObject as useObject } from '@ai-sdk/react';
 export default function LandingPage() {
   const router = useRouter();
   const { t } = useLanguage();
-  const [tripDate, setTripDate] = useState('');
+  const [departureDate, setDepartureDate] = useState('');
+  const [returnDate, setReturnDate] = useState('');
   const [showAI, setShowAI] = useState(false);
 
   const navigateToMarket = () => {
-    const url = tripDate ? `/market?date=${tripDate}` : '/market';
+    let params = new URLSearchParams();
+    if (departureDate) params.set('from', departureDate);
+    if (returnDate) params.set('to', returnDate);
+
+    // Legacy support or if only one date is set
+    if (returnDate && !departureDate) params.set('date', returnDate);
+
+    const url = params.toString() ? `/market?${params.toString()}` : '/market';
     router.push(url);
   };
 
@@ -171,24 +179,23 @@ export default function LandingPage() {
                   <p className="text-xs text-muted-foreground font-medium leading-relaxed">{t('landing.traveler_desc')}</p>
                 </div>
 
-                <div className="w-full space-y-5 pt-6 border-t border-border/50">
-                  <div className="space-y-3">
+                <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-4 pt-6 border-t border-border/50">
+                  <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold uppercase text-muted-foreground tracking-wider">{t('landing.date_prompt')}</span>
-                      <CalendarIcon className="w-4 h-4 text-primary/60" />
+                      <span className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">{t('landing.departure_prompt')}</span>
+                      <CalendarIcon className="w-3 h-3 text-primary/40" />
                     </div>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
                           variant={"outline"}
                           className={cn(
-                            "w-full h-12 justify-start text-left font-medium rounded-xl bg-white border-border/80 hover:bg-gray-50/80 hover:border-primary/30 transition-all shadow-sm px-4",
-                            !tripDate && "text-muted-foreground"
+                            "w-full h-11 justify-start text-left font-medium rounded-xl bg-white border-border/80 hover:bg-gray-50/80 hover:border-primary/30 transition-all shadow-sm px-3 text-xs",
+                            !departureDate && "text-muted-foreground"
                           )}
                         >
-                          <CalendarIcon className="mr-3 h-4 w-4" />
-                          {tripDate ? (
-                            <span className="text-gray-900">{format(new Date(tripDate), "PPP")}</span>
+                          {departureDate ? (
+                            <span className="text-gray-900">{format(new Date(departureDate), "MMM d, yyyy")}</span>
                           ) : (
                             <span>{t('create.pick_date')}</span>
                           )}
@@ -197,10 +204,14 @@ export default function LandingPage() {
                       <PopoverContent className="w-auto p-0" align="start">
                         <Calendar
                           mode="single"
-                          selected={tripDate ? new Date(tripDate) : undefined}
+                          selected={departureDate ? new Date(departureDate) : undefined}
                           onSelect={(date) => {
                             if (date) {
-                              setTripDate(format(date, 'yyyy-MM-dd'));
+                              setDepartureDate(format(date, 'yyyy-MM-dd'));
+                              // If departure is after return, reset return
+                              if (returnDate && date > new Date(returnDate)) {
+                                setReturnDate('');
+                              }
                             }
                           }}
                           initialFocus
@@ -208,10 +219,50 @@ export default function LandingPage() {
                       </PopoverContent>
                     </Popover>
                   </div>
-                  <Button onClick={navigateToMarket} fullWidth className="group/btn h-14 font-bold rounded-xl bg-primary hover:bg-primary/90 text-white shadow-md hover:shadow-lg hover:shadow-primary/20 transition-all active:scale-[0.98] text-base">
-                    探索願望清單
-                    <ArrowRight className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
-                  </Button>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">{t('landing.return_prompt')}</span>
+                      <CalendarIcon className="w-3 h-3 text-primary/40" />
+                    </div>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full h-11 justify-start text-left font-medium rounded-xl bg-white border-border/80 hover:bg-gray-50/80 hover:border-primary/30 transition-all shadow-sm px-3 text-xs",
+                            !returnDate && "text-muted-foreground"
+                          )}
+                        >
+                          {returnDate ? (
+                            <span className="text-gray-900">{format(new Date(returnDate), "MMM d, yyyy")}</span>
+                          ) : (
+                            <span>{t('create.pick_date')}</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={returnDate ? new Date(returnDate) : undefined}
+                          onSelect={(date) => {
+                            if (date) {
+                              setReturnDate(format(date, 'yyyy-MM-dd'));
+                            }
+                          }}
+                          disabled={(date) => departureDate ? date < new Date(departureDate) : false}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+
+                  <div className="md:col-span-2 pt-2">
+                    <Button onClick={navigateToMarket} fullWidth className="group/btn h-14 font-bold rounded-xl bg-primary hover:bg-primary/90 text-white shadow-md hover:shadow-lg hover:shadow-primary/20 transition-all active:scale-[0.98] text-base">
+                      探索願望清單
+                      <ArrowRight className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>

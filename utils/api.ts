@@ -174,13 +174,18 @@ export const updateOrderDetails = async (id: string, updates: Partial<Order>) =>
 }
 
 export const uploadFile = async (file: File, bucket: string, path: string) => {
+  // Sanitize path: replace problematic characters but keep /
+  const sanitizedPath = path.split('/').map(part =>
+    part.replace(/[^a-zA-Z0-9.\-_]/g, '_')
+  ).join('/');
+
   const { data, error } = await supabase.storage
     .from(bucket)
-    .upload(path, file);
+    .upload(sanitizedPath, file);
 
   if (error) throw error;
 
-  const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(path);
+  const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(sanitizedPath);
   return publicUrl;
 };
 

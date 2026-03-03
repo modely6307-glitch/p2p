@@ -14,7 +14,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 function MarketContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const dateFilter = searchParams.get('date');
+    const fromDate = searchParams.get('from');
+    const toDate = searchParams.get('to');
+    const dateFilter = searchParams.get('date'); // legacy/single date support
 
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
@@ -48,8 +50,17 @@ function MarketContent() {
     const filteredOrders = orders.filter(order => {
         const matchesSearch = order.item_name.toLowerCase().includes(search.toLowerCase());
         const matchesCountry = selectedCountry ? order.country === selectedCountry : true;
-        const matchesDate = dateFilter ? order.expected_shipping_date >= dateFilter : true;
-        return matchesSearch && matchesCountry && matchesDate;
+
+        // Departure check: must not be before departure
+        const matchesFrom = fromDate ? order.expected_shipping_date >= fromDate : true;
+
+        // Return check: current default is that expected_shipping_date should be >= return date
+        // But if fromDate is provided, we use the stricter of the two or prioritize the range if we wanted more complex logic.
+        // For now, we follow the user's request: "Don't see ads before departure" + "besides return date".
+        const effectiveTo = toDate || dateFilter;
+        const matchesTo = effectiveTo ? order.expected_shipping_date >= effectiveTo : true;
+
+        return matchesSearch && matchesCountry && matchesFrom && matchesTo;
     });
 
     return (
@@ -59,10 +70,15 @@ function MarketContent() {
                     <h1 className="text-3xl lg:text-4xl font-black tracking-tight mb-1">{t('home.title')}</h1>
                     <p className="text-muted-foreground text-sm font-medium">{t('home.subtitle')}</p>
                 </div>
-                {dateFilter && (
-                    <Button variant="outline" size="sm" onClick={() => router.push('/market')} className="rounded-full h-8 text-[10px] font-bold">
-                        <Calendar className="w-3 h-3 mr-1" />
-                        {dateFilter} <span className="ml-1 opacity-50">×</span>
+                {(fromDate || toDate || dateFilter) && (
+                    <Button variant="outline" size="sm" onClick={() => router.push('/market')} className="rounded-full h-8 text-[10px] font-bold gap-2">
+                        <Calendar className="w-3 h-3" />
+                        <div className="flex items-center gap-1">
+                            {fromDate && <span>{fromDate}</span>}
+                            {fromDate && (toDate || dateFilter) && <span className="opacity-30">→</span>}
+                            {(toDate || dateFilter) && <span>{toDate || dateFilter}</span>}
+                        </div>
+                        <span className="ml-1 opacity-50 text-xs">×</span>
                     </Button>
                 )}
             </header>

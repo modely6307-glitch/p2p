@@ -35,8 +35,8 @@
         "subtitle": "Help others fulfill wishes, earn great rewards.",
         "search_placeholder": "Search items...",
         "no_wishes": "No public wishes found at the moment.",
-        "sort_by_date": "Sort by Shipment Date",
-        "filter_date": "Filter by Date"
+        "sort_by_date": "Sort by Return Date",
+        "filter_date": "Filter by Return Date"
     },
     "landing": {
         "title": "Gull: Shop Fast, World Without Borders",
@@ -48,7 +48,8 @@
         "ai_btn": "What's Hot Now? (AI)",
         "ai_desc": "Let AI recommend trending global goods for you.",
         "ai_hot_now": "Trending Now",
-        "date_prompt": "Return date?"
+        "departure_prompt": "Departure date?",
+        "return_prompt": "Return date?"
     },
     "create": {
         "title": "Post New Wish",
@@ -65,8 +66,9 @@
         "shipping_address": "Shipping Address",
         "address_placeholder": "Enter shipping address (Revealed after payment)",
         "address_privacy_hint": "Address is only revealed after payment confirmation.",
-        "shipping_date": "Expected Shipping Date",
-        "shipping_date_hint": "The date for shipment after purchase.",
+        "shipping_date": "When do you want your traveler to return?",
+        "return_date_short": "Return Date",
+        "shipping_date_hint": "The date the traveler returns and completes the handover.",
         "auto_extend": "Auto-extend one week if not accepted",
         "price": "Original Price",
         "payment_type": "Ad Model",
@@ -86,9 +88,10 @@
         "limit_alert": "Standard user limit is 5000 TWD. Current: {total} TWD. Verify to increase.",
         "success": "Wish posted successfully!",
         "fail": "Failed to post wish.",
-        "err_past_date": "Return date cannot be in the past.",
-        "err_verified_only_3days": "Return dates within 3 days are restricted to 'Verified Users'. Please choose a later date or verify your account.",
-        "err_date_required": "Please pick an expected shipping date.",
+        "err_past_date": "Date cannot be in the past.",
+        "err_verified_only_3days": "Dates within 3 days are restricted to 'Verified Users'. Please choose a later date or verify your account.",
+        "err_date_required": "Please pick a date.",
+        "err_departure_after_return": "Departure date cannot be after return date.",
         "remember_address": "Remember this address for next time",
         "proof_requirements": "Purchase Proof Requirements",
         "proof_purchase_photo": "Item Photo (Required)",

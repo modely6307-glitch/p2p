@@ -371,7 +371,7 @@ export default function OrderDetails() {
           )}
           {order.expected_shipping_date && (
             <div className="flex justify-between py-2 border-b border-border/50">
-              <span className="text-muted-foreground">{t('create.shipping_date')}</span>
+              <span className="text-muted-foreground">{t('create.return_date_short')}</span>
               <span className="font-bold flex items-center gap-1">
                 📅 {order.expected_shipping_date}
                 {order.auto_extend && <span className="text-[10px] bg-blue-500/10 text-blue-500 px-1 rounded ml-1">Auto-Extend</span>}
