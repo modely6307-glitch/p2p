@@ -261,7 +261,9 @@
         "subtitle": "Global Shopping Proxy Platform, Secure Escrow",
         "check_email": "Check your email for verification!",
         "switch_to_signup": "Don't have an account? Sign up",
-        "switch_to_login": "Already have an account? Log in"
+        "switch_to_login": "Already have an account? Log in",
+        "or_continue_with": "Or continue with",
+        "google_login": "Sign in with Google"
     },
     "notification": {
         "title": "Order Update",
