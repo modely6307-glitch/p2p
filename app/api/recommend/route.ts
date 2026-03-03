@@ -38,6 +38,13 @@ export async function POST(req: Request) {
             });
         }
 
+        // 0. Validate Environment Variables for Remote
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) {
+            console.error('[Remote Error] GEMINI_API_KEY is missing in environment variables.');
+            return new Response(JSON.stringify({ error: 'Server configuration error: Missing AI API Key' }), { status: 500 });
+        }
+
         const dateKey = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
         /**
@@ -127,9 +134,13 @@ ${attempt > 1 ? `6. **特別指示**：這是第 ${attempt} 次推薦請求，�
 
         return result.toTextStreamResponse();
 
-    } catch (error) {
-        console.error('Error calling Gemini API:', error);
-        return new Response(JSON.stringify({ error: 'Failed to generate recommendations' }), {
+    } catch (error: any) {
+        console.error('Error in /api/recommend:', error);
+        return new Response(JSON.stringify({
+            error: 'Failed to generate recommendations',
+            details: error.message || 'Unknown error',
+            hint: 'Check if Supabase table ai_recommendation_cache exists and GEMINI_API_KEY is valid.'
+        }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' },
         });

@@ -242,25 +242,27 @@ export default function LandingPage() {
           {/* AI Recommendation Card - Full Width */}
           <Card
             onClick={() => setShowAI(true)}
-            className="group relative border-border/50 bg-gradient-to-r from-blue-50 to-purple-50 hover:from-blue-100 hover:to-purple-100 transition-all duration-500 shadow-md hover:shadow-lg overflow-hidden cursor-pointer"
+            className="group relative border-border/50 bg-gradient-to-r from-blue-50/80 to-purple-50/80 hover:from-blue-100/90 hover:to-purple-100/90 transition-all duration-500 shadow-md hover:shadow-lg overflow-hidden cursor-pointer"
           >
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_white_0%,_transparent_100%)] opacity-40 pointer-events-none" />
-            <CardContent className="p-8 flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
-              <div className="flex items-center gap-6 text-left w-full">
-                <div className="w-16 h-16 bg-white text-primary rounded-[1.5rem] flex items-center justify-center shadow-[0_8px_30px_rgba(0,0,0,0.08)] group-hover:scale-105 transition-transform duration-500">
-                  <Wand2 className="w-8 h-8 text-blue-500" />
+            <CardContent className="pt-12 pb-10 px-8 md:pt-20 md:pb-16 md:px-12 flex flex-col items-start gap-10 relative z-10">
+              <div className="flex items-center gap-6 md:gap-8 text-left w-full">
+                <div className="w-16 h-16 md:w-20 md:h-20 bg-white text-primary rounded-3xl flex items-center justify-center shadow-[0_8px_30px_rgba(0,0,0,0.08)] group-hover:scale-105 transition-transform duration-500 shrink-0">
+                  <Wand2 className="w-8 h-8 md:w-10 md:h-10 text-blue-500" />
                 </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-xl font-bold tracking-tight text-gray-900">{t('landing.ai_btn')}</h3>
-                    <div className="px-2.5 py-0.5 bg-blue-100 text-blue-600 rounded-full text-[10px] font-bold uppercase tracking-widest shadow-sm">Hot</div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    <h3 className="text-xl md:text-2xl font-black tracking-tight text-gray-900">{t('landing.ai_btn')}</h3>
+                    <div className="px-3 py-1 bg-blue-100 text-blue-600 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm">Hot</div>
                   </div>
-                  <p className="text-xs text-muted-foreground font-medium max-w-xs">{t('landing.ai_desc')}</p>
+                  <p className="text-sm text-muted-foreground font-medium max-w-sm leading-relaxed">{t('landing.ai_desc')}</p>
                 </div>
               </div>
-              <div className="flex gap-4 w-full md:w-auto overflow-x-auto no-scrollbar py-2">
+
+              {/* Align items with the text block for better hierarchy */}
+              <div className="w-full md:pl-[104px] flex gap-4 overflow-x-auto no-scrollbar py-2">
                 {japanData?.items ? japanData.items.slice(0, 3).map((item, idx) => (
-                  <div key={idx} className="flex-shrink-0 flex items-center gap-2 px-4 py-2 bg-white/60 backdrop-blur-md rounded-xl border border-white group-hover:border-blue-200 shadow-sm transition-all hover:shadow-md">
+                  <div key={idx} className="flex-shrink-0 flex items-center gap-2 px-5 py-2.5 bg-white/70 backdrop-blur-md rounded-2xl border border-white group-hover:border-blue-200 shadow-sm transition-all hover:shadow-md hover:translate-y-[-2px]">
                     <span className="text-sm font-bold text-gray-800">{item?.name || '...'}</span>
                   </div>
                 )) : (
