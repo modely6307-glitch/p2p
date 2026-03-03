@@ -10,6 +10,10 @@ import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/context/LanguageContext';
 import { getCountryFlag } from '@/utils/countries';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComp } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 function MarketContent() {
     const router = useRouter();
@@ -23,6 +27,29 @@ function MarketContent() {
     const [search, setSearch] = useState('');
     const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
     const { t } = useLanguage();
+
+    const handleDateChange = (type: 'from' | 'to', date: Date | undefined) => {
+        const params = new URLSearchParams(searchParams.toString());
+        const formatted = date ? format(date, 'yyyy-MM-dd') : null;
+
+        if (formatted) {
+            params.set(type, formatted);
+            // Validation: Ensure from <= to
+            if (type === 'from' && toDate && formatted > toDate) {
+                params.delete('to');
+            }
+            if (type === 'to' && fromDate && formatted < fromDate) {
+                // If return is set before departure, reset departure or keep it consistent
+                // We'll follow the same logic as landing page: Return >= Departure
+                params.set('from', formatted);
+            }
+        } else {
+            params.delete(type);
+        }
+
+        params.delete('date'); // Cleanup legacy
+        router.push(`/market?${params.toString()}`);
+    };
 
     useEffect(() => {
         const loadOrders = async () => {
@@ -51,14 +78,12 @@ function MarketContent() {
         const matchesSearch = order.item_name.toLowerCase().includes(search.toLowerCase());
         const matchesCountry = selectedCountry ? order.country === selectedCountry : true;
 
-        // Departure check: must not be before departure
+        // Trip Window Filter:
+        // 1. Must be after or on departure (Traveler is in the country)
         const matchesFrom = fromDate ? order.expected_shipping_date >= fromDate : true;
-
-        // Return check: current default is that expected_shipping_date should be >= return date
-        // But if fromDate is provided, we use the stricter of the two or prioritize the range if we wanted more complex logic.
-        // For now, we follow the user's request: "Don't see ads before departure" + "besides return date".
+        // 2. Must be before or on return (Traveler is still available or just returned)
         const effectiveTo = toDate || dateFilter;
-        const matchesTo = effectiveTo ? order.expected_shipping_date >= effectiveTo : true;
+        const matchesTo = effectiveTo ? order.expected_shipping_date <= effectiveTo : true;
 
         return matchesSearch && matchesCountry && matchesFrom && matchesTo;
     });
@@ -84,13 +109,75 @@ function MarketContent() {
             </header>
 
             <div className="space-y-4">
-                <div className="relative">
-                    <Input
-                        placeholder={t('home.search_placeholder')}
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        className="pl-4 h-12 rounded-2xl bg-secondary/30 border-none shadow-inner"
-                    />
+                <div className="flex flex-col md:flex-row gap-3">
+                    <div className="relative flex-1">
+                        <Input
+                            placeholder={t('home.search_placeholder')}
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="pl-4 h-12 rounded-2xl bg-secondary/30 border-none shadow-inner"
+                        />
+                    </div>
+
+                    <div className="flex gap-2">
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    className={cn(
+                                        "h-12 flex-1 md:w-40 justify-start text-left font-bold rounded-2xl border-none bg-secondary/30 shadow-inner px-4 text-xs gap-2",
+                                        !fromDate && "text-muted-foreground"
+                                    )}
+                                >
+                                    <Calendar className="w-4 h-4" />
+                                    {fromDate ? format(new Date(fromDate), "MMM d") : t('landing.departure_prompt')}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="end">
+                                <CalendarComp
+                                    mode="single"
+                                    selected={fromDate ? new Date(fromDate) : undefined}
+                                    onSelect={(date) => handleDateChange('from', date)}
+                                    disabled={(date) => toDate ? date > new Date(toDate) : false}
+                                    initialFocus
+                                />
+                                {fromDate && (
+                                    <div className="p-2 border-t border-border/50">
+                                        <Button variant="ghost" size="sm" fullWidth onClick={() => handleDateChange('from', undefined)} className="text-[10px] font-bold h-7 uppercase">清除</Button>
+                                    </div>
+                                )}
+                            </PopoverContent>
+                        </Popover>
+
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    className={cn(
+                                        "h-12 flex-1 md:w-40 justify-start text-left font-bold rounded-2xl border-none bg-secondary/30 shadow-inner px-4 text-xs gap-2",
+                                        !toDate && !dateFilter && "text-muted-foreground"
+                                    )}
+                                >
+                                    <Calendar className="w-4 h-4" />
+                                    {toDate || dateFilter ? format(new Date(toDate || dateFilter!), "MMM d") : t('landing.return_prompt')}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="end">
+                                <CalendarComp
+                                    mode="single"
+                                    selected={(toDate || dateFilter) ? new Date(toDate || dateFilter!) : undefined}
+                                    onSelect={(date) => handleDateChange('to', date)}
+                                    disabled={(date) => fromDate ? date < new Date(fromDate) : false}
+                                    initialFocus
+                                />
+                                {(toDate || dateFilter) && (
+                                    <div className="p-2 border-t border-border/50">
+                                        <Button variant="ghost" size="sm" fullWidth onClick={() => handleDateChange('to', undefined)} className="text-[10px] font-bold h-7 uppercase">清除</Button>
+                                    </div>
+                                )}
+                            </PopoverContent>
+                        </Popover>
+                    </div>
                 </div>
 
                 {!loading && availableCountries.length > 0 && (
