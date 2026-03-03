@@ -40,8 +40,12 @@ export async function POST(req: Request) {
 
         const dateKey = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
-        // FUTURE: Personalization logic can expand the userPreferencesHash here
-        // For now, we use 'default' or a basic hash if preferences exist
+        /**
+         * CACHE STRATEGY & PERSONALIZATION HOOK
+         * For guest/unlogged users (no userPreferences), we use 'default' hash to share a single daily recommendation.
+         * For future personalization (e.g., average order value, purchase history), 
+         * we can generate a unique hash here to silo their specific recommended items.
+         */
         const userPreferencesHash = userPreferences ? 'personal' : 'default';
 
         // 1. Try to fetch from Supabase Cache if not a manual refresh
