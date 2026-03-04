@@ -70,6 +70,7 @@
         "home_delivery": "Home Delivery",
         "cvs_pickup": "7-11 Store Pickup",
         "select_store": "Open 7-11 Map",
+        "use_favorite": "Choose from Favorites",
         "recipient_name": "Recipient Name",
         "recipient_phone": "Recipient Phone",
         "recipient_name_placeholder": "Full name (as on ID card)",
@@ -148,6 +149,11 @@
         "address_label": "Default Shipping Address",
         "address_saved": "Address auto-filled from profile",
         "no_address": "No shipping address set",
+        "favorite_stores": "Favorite 7-11 Stores",
+        "add_store": "Add Store",
+        "delete_store": "Delete",
+        "no_favorite_stores": "No favorite stores set",
+        "store_id": "Store ID",
         "logout_btn": "Logout"
     },
     "order": {

@@ -10,6 +10,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import { Textarea } from '@/components/ui/textarea';
+import { openECPayCVSMap } from '@/lib/ecpay';
+import { PlusSquare, Trash2 } from 'lucide-react';
 
 import { useLanguage } from '@/context/LanguageContext';
 
@@ -38,6 +40,54 @@ export default function ProfilePage() {
       setLoading(false);
     }
   }, [user, authLoading]);
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'ECPAY_CVS_STORE_SELECTED') {
+        const payload = event.data.payload;
+        addFavoriteStore({
+          store_id: payload.store_id,
+          store_name: payload.store_name,
+          store_address: payload.store_address
+        });
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [profile]);
+
+  const addFavoriteStore = async (store: any) => {
+    if (!user || !profile) return;
+    const currentStores = profile.favorite_stores || [];
+    if (currentStores.find(s => s.store_id === store.store_id)) return;
+
+    const newStores = [...currentStores, store];
+    try {
+      await updateProfile(user.id, { favorite_stores: newStores });
+      setProfile(prev => prev ? { ...prev, favorite_stores: newStores } : null);
+    } catch (error) {
+      alert(t('common.error'));
+    }
+  };
+
+  const removeFavoriteStore = async (storeId: string) => {
+    if (!user || !profile) return;
+    const newStores = (profile.favorite_stores || []).filter(s => s.store_id !== storeId);
+    try {
+      await updateProfile(user.id, { favorite_stores: newStores });
+      setProfile(prev => prev ? { ...prev, favorite_stores: newStores } : null);
+    } catch (error) {
+      alert(t('common.error'));
+    }
+  };
+
+  const simulateStoreSelection = () => {
+    addFavoriteStore({
+      store_id: '991182',
+      store_name: '新台大門市 (Mock)',
+      store_address: '台北市大安區羅斯福路四段1號'
+    });
+  };
 
   const loadProfile = async () => {
     if (!user) return;
@@ -196,6 +246,61 @@ export default function ProfilePage() {
             <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed italic bg-secondary/5 p-3 rounded-xl border border-border/50">
               {profile.address || t('profile.no_address')}
             </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-lg flex items-center gap-2 text-[#008134]">
+            <PlusSquare className="w-5 h-5" />
+            {t('profile.favorite_stores')}
+          </CardTitle>
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => openECPayCVSMap({
+                IsCollection: 'N',
+                ServerReplyURL: `${window.location.origin}/api/ecpay/cvs-callback`,
+                Device: window.innerWidth < 768 ? '1' : '0'
+              })}
+              className="text-xs text-[#008134] h-auto p-0 hover:bg-transparent"
+            >
+              {t('profile.add_store')}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={simulateStoreSelection}
+              className="text-[10px] text-blue-500 font-bold h-auto p-0 hover:bg-transparent"
+            >
+              Mock
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {(!profile.favorite_stores || profile.favorite_stores.length === 0) ? (
+            <p className="text-sm text-muted-foreground italic text-center py-4">{t('profile.no_favorite_stores')}</p>
+          ) : (
+            <div className="space-y-3">
+              {profile.favorite_stores.map((store) => (
+                <div key={store.store_id} className="p-3 rounded-xl bg-[#008134]/5 border border-[#008134]/20 flex justify-between items-center group">
+                  <div>
+                    <h4 className="text-sm font-bold text-[#008134]">{store.store_name} ({store.store_id})</h4>
+                    <p className="text-[10px] text-muted-foreground mt-1">{store.store_address}</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeFavoriteStore(store.store_id)}
+                    className="opacity-20 group-hover:opacity-100 transition-opacity p-2 h-auto text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
           )}
         </CardContent>
       </Card>

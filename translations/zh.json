@@ -91,6 +91,7 @@
         "home_delivery": "宅配到府",
         "cvs_pickup": "7-11 店到店取貨",
         "select_store": "開啟 7-11 電子地圖",
+        "use_favorite": "從常用門市選擇",
         "recipient_name": "收件人姓名",
         "recipient_phone": "收件人電話",
         "recipient_name_placeholder": "需與身分證一致 (利於取貨核對)",
@@ -148,6 +149,11 @@
         "address_label": "預設收件地址",
         "address_saved": "地址已自動填入",
         "no_address": "尚未設定收件地址",
+        "favorite_stores": "常用 7-11 門市",
+        "add_store": "新增門市",
+        "delete_store": "刪除",
+        "no_favorite_stores": "尚未設定常用門市",
+        "store_id": "店號",
         "logout_btn": "登出帳號"
     },
     "order": {

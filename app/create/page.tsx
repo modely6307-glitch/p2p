@@ -75,6 +75,20 @@ export default function CreateWish() {
     return () => window.removeEventListener('message', handleMessage);
   }, []);
 
+  const simulateStoreSelection = () => {
+    const mockStore = {
+      store_id: '991182',
+      store_name: '新台大門市',
+      store_address: '台北市大安區羅斯福路四段1號',
+      store_phone: '02-23637142'
+    };
+    setFormData(prev => ({
+      ...prev,
+      cvs_store_info: mockStore,
+      shipping_address: `${mockStore.store_name} (${mockStore.store_id}) - ${mockStore.store_address}`
+    }));
+  };
+
   useEffect(() => {
     // Check for pending AI wish from landing page
     const pending = sessionStorage.getItem('pendingAiWish');
@@ -550,18 +564,52 @@ export default function CreateWish() {
                         </div>
                       </div>
                     ) : (
-                      <Button
-                        type="button"
-                        onClick={() => openECPayCVSMap({
-                          IsCollection: 'N',
-                          ServerReplyURL: `${window.location.origin}/api/ecpay/cvs-callback`,
-                          Device: window.innerWidth < 768 ? '1' : '0'
-                        })}
-                        className="w-full h-12 rounded-2xl border-dashed border-2 bg-secondary/5 hover:bg-secondary/10 hover:border-[#008134]/50 text-muted-foreground hover:text-[#008134] transition-all flex items-center justify-center gap-2"
-                      >
-                        <PlusSquare className="w-5 h-5" />
-                        <span className="font-bold">{t('create.select_store')}</span>
-                      </Button>
+                      <div className="space-y-2">
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            onClick={() => openECPayCVSMap({
+                              IsCollection: 'N',
+                              ServerReplyURL: `${window.location.origin}/api/ecpay/cvs-callback`,
+                              Device: window.innerWidth < 768 ? '1' : '0'
+                            })}
+                            className="flex-1 h-12 rounded-2xl border-dashed border-2 bg-secondary/5 hover:bg-secondary/10 hover:border-[#008134]/50 text-muted-foreground hover:text-[#008134] transition-all flex items-center justify-center gap-2"
+                          >
+                            <PlusSquare className="w-5 h-5" />
+                            <span className="font-bold">{t('create.select_store')}</span>
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={simulateStoreSelection}
+                            className="h-12 px-4 rounded-2xl border-dashed border-2 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 transition-all text-[10px] font-black uppercase"
+                          >
+                            Mock
+                          </Button>
+                        </div>
+
+                        {userProfile?.favorite_stores && userProfile.favorite_stores.length > 0 && (
+                          <div className="space-y-2 pt-2">
+                            <label className="block text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">{t('create.use_favorite')}</label>
+                            <div className="flex flex-wrap gap-2">
+                              {userProfile.favorite_stores.map((store) => (
+                                <button
+                                  key={store.store_id}
+                                  type="button"
+                                  onClick={() => setFormData(prev => ({
+                                    ...prev,
+                                    cvs_store_info: store,
+                                    shipping_address: `${store.store_name} (${store.store_id}) - ${store.store_address}`
+                                  }))}
+                                  className="text-[10px] font-bold px-3 py-1.5 rounded-full bg-[#008134]/10 text-[#008134] border border-[#008134]/20 hover:bg-[#008134]/20 transition-colors"
+                                >
+                                  {store.store_name}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     )}
                     <p className="text-[10px] text-muted-foreground italic px-1">{t('create.address_privacy_hint')}</p>
                   </div>
