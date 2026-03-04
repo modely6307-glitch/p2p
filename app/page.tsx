@@ -37,6 +37,8 @@ export default function LandingPage() {
         params.set('date', returnDate);
     }
 
+    const url = params.toString() ? `/market?${params.toString()}` : '/market';
+    router.push(url);
   };
 
   const navigateToCreate = () => {
