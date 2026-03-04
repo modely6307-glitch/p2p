@@ -24,14 +24,19 @@ export default function LandingPage() {
 
   const navigateToMarket = () => {
     let params = new URLSearchParams();
-    if (departureDate) params.set('from', departureDate);
-    if (returnDate) params.set('to', returnDate);
+    
+    // If both dates are selected, it's a range
+    if (departureDate && returnDate) {
+        params.set('from', departureDate);
+        params.set('to', returnDate);
+    } 
+    // If only one date is selected, treat it as an exact date filter
+    else if (departureDate) {
+        params.set('date', departureDate);
+    } else if (returnDate) {
+        params.set('date', returnDate);
+    }
 
-    // Legacy support or if only one date is set
-    if (returnDate && !departureDate) params.set('date', returnDate);
-
-    const url = params.toString() ? `/market?${params.toString()}` : '/market';
-    router.push(url);
   };
 
   const navigateToCreate = () => {
