@@ -1,14 +1,14 @@
 export const ECPAY_CONFIG = {
     // Test Environment Settings (Stage)
     LOGISTICS_MAP_URL: 'https://logistics-stage.ecpay.com.tw/Express/map',
-    MERCHANT_ID: '2000933', // Stage C2C Merchant ID
-    HASH_KEY: 'XBERn1YOvpM9nfZc',
-    HASH_IV: 'h1ONHk4P4yqbl5LK',
+    MERCHANT_ID: '2000132', // Stage B2C Merchant ID
+    HASH_KEY: '5294y06JbISpM5x9',
+    HASH_IV: 'v77hoKGq4kWxNNIS',
 };
 
 export type ECPayCVSMapParams = {
     LogisticsType: 'CVS';
-    LogisticsSubType: '711';
+    LogisticsSubType: 'UNIMART';
     IsCollection: 'N' | 'Y';
     ServerReplyURL: string;
     ExtraData?: string;
@@ -28,7 +28,7 @@ export function openECPayCVSMap(params: Omit<ECPayCVSMapParams, 'LogisticsType' 
     const data: Record<string, string> = {
         MerchantID: ECPAY_CONFIG.MERCHANT_ID,
         LogisticsType: 'CVS',
-        LogisticsSubType: '711',
+        LogisticsSubType: 'UNIMART',
         IsCollection: params.IsCollection,
         ServerReplyURL: params.ServerReplyURL,
         ExtraData: params.ExtraData || '',
