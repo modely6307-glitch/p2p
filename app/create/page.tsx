@@ -18,6 +18,7 @@ import { format } from 'date-fns';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AiRecommendation } from '@/components/AiRecommendation';
+import { openECPayCVSMap } from '@/lib/ecpay';
 
 export default function CreateWish() {
   const router = useRouter();
@@ -46,12 +47,33 @@ export default function CreateWish() {
     expected_shipping_date: '',
     auto_extend: true,
     payment_type: 'MATCH_ESCROW' as 'PRE_ESCROW' | 'MATCH_ESCROW',
+    shipping_method: 'HOME' as 'HOME' | '711',
+    cvs_store_info: null as any,
+    recipient_name: '',
+    recipient_phone: '',
   });
 
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<Profile | null>(null);
   const [settings, setSettings] = useState<import('@/types').SystemSettings | null>(null);
+
+  useEffect(() => {
+    // Listen for ECPay Store Selection message
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'ECPAY_CVS_STORE_SELECTED') {
+        const payload = event.data.payload;
+        setFormData(prev => ({
+          ...prev,
+          cvs_store_info: payload,
+          shipping_address: `${payload.store_name} (${payload.store_id}) - ${payload.store_address}`
+        }));
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
 
   useEffect(() => {
     // Check for pending AI wish from landing page
@@ -146,7 +168,16 @@ export default function CreateWish() {
     if (!user || !userProfile) return;
 
     if (rememberAddress && formData.shipping_address) {
-      await updateProfile(user.id, { address: formData.shipping_address });
+      await updateProfile(user.id, {
+        address: formData.shipping_address,
+        phone: formData.recipient_phone,
+        display_name: formData.recipient_name
+      });
+    }
+
+    if (formData.shipping_method === '711' && !formData.cvs_store_info) {
+      alert(t('create.select_store'));
+      return;
     }
 
     const subtotal = calculateSubtotal();
@@ -211,6 +242,10 @@ export default function CreateWish() {
         expected_shipping_date: formData.expected_shipping_date,
         auto_extend: formData.auto_extend,
         payment_type: formData.payment_type,
+        shipping_method: formData.shipping_method,
+        cvs_store_info: formData.cvs_store_info,
+        recipient_name: formData.recipient_name,
+        recipient_phone: formData.recipient_phone,
       });
       router.push('/dashboard');
     } catch (error) {
@@ -430,28 +465,127 @@ export default function CreateWish() {
                 required
               />
 
-              <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-muted-foreground">{t('create.shipping_address')}</label>
-                <Textarea
-                  name="shipping_address"
-                  placeholder={t('create.address_placeholder')}
-                  value={formData.shipping_address}
-                  onChange={handleChange}
-                  required
-                  className="min-h-[80px]"
-                />
-                <p className="text-[10px] text-muted-foreground italic px-1">{t('create.address_privacy_hint')}</p>
-                <label className="flex items-center gap-2 mt-2 cursor-pointer group px-1">
-                  <input
-                    type="checkbox"
-                    checked={rememberAddress}
-                    onChange={(e) => setRememberAddress(e.target.checked)}
-                    className="w-4 h-4 rounded border-input text-primary focus:ring-primary"
+              {/* Shipping Method Selection */}
+              <div className="space-y-4 pt-4 border-t border-border/10">
+                <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">{t('create.shipping_method')}</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setFormData(p => ({ ...p, shipping_method: 'HOME' }))}
+                    className={cn(
+                      "flex flex-col items-center justify-center p-4 rounded-2xl border transition-all gap-2",
+                      formData.shipping_method === 'HOME'
+                        ? "bg-primary/5 border-primary ring-1 ring-primary/20"
+                        : "bg-secondary/10 border-border/50 hover:bg-secondary/20"
+                    )}
+                  >
+                    <Globe className={cn("w-5 h-5", formData.shipping_method === 'HOME' ? "text-primary" : "text-muted-foreground")} />
+                    <span className="text-xs font-bold">{t('create.home_delivery')}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setFormData(p => ({ ...p, shipping_method: '711' }))}
+                    className={cn(
+                      "flex flex-col items-center justify-center p-4 rounded-2xl border transition-all gap-2",
+                      formData.shipping_method === '711'
+                        ? "bg-[#008134]/5 border-[#008134] ring-1 ring-[#008134]/20"
+                        : "bg-secondary/10 border-border/50 hover:bg-secondary/20"
+                    )}
+                  >
+                    <div className="w-6 h-6 rounded-lg bg-[#008134] flex items-center justify-center text-white text-[10px] font-black">7</div>
+                    <span className="text-xs font-bold">{t('create.cvs_pickup')}</span>
+                  </button>
+                </div>
+
+                {formData.shipping_method === 'HOME' ? (
+                  <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2">
+                    <label className="block text-sm font-medium text-muted-foreground">{t('create.shipping_address')}</label>
+                    <Textarea
+                      name="shipping_address"
+                      placeholder={t('create.address_placeholder')}
+                      value={formData.shipping_address}
+                      onChange={handleChange}
+                      required={formData.shipping_method === 'HOME'}
+                      className="min-h-[80px]"
+                    />
+                    <p className="text-[10px] text-muted-foreground italic px-1">{t('create.address_privacy_hint')}</p>
+                    <label className="flex items-center gap-2 mt-2 cursor-pointer group px-1">
+                      <input
+                        type="checkbox"
+                        checked={rememberAddress}
+                        onChange={(e) => setRememberAddress(e.target.checked)}
+                        className="w-4 h-4 rounded border-input text-primary focus:ring-primary"
+                      />
+                      <span className="text-[11px] font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+                        {t('create.remember_address')}
+                      </span>
+                    </label>
+                  </div>
+                ) : (
+                  <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+                    {formData.cvs_store_info ? (
+                      <div className="p-4 rounded-2xl bg-[#008134]/5 border border-[#008134]/20 space-y-2">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="text-sm font-bold text-[#008134] flex items-center gap-2">
+                              <Check className="w-4 h-4" />
+                              {formData.cvs_store_info.store_name} ({formData.cvs_store_info.store_id})
+                            </h4>
+                            <p className="text-[10px] text-muted-foreground mt-1">{formData.cvs_store_info.store_address}</p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openECPayCVSMap({
+                              IsCollection: 'N',
+                              ServerReplyURL: `${window.location.origin}/api/ecpay/cvs-callback`,
+                              Device: window.innerWidth < 768 ? '1' : '0'
+                            })}
+                            className="text-[10px] h-7 px-2 hover:bg-[#008134]/10 hover:text-[#008134]"
+                          >
+                            {t('common.edit')}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <Button
+                        type="button"
+                        onClick={() => openECPayCVSMap({
+                          IsCollection: 'N',
+                          ServerReplyURL: `${window.location.origin}/api/ecpay/cvs-callback`,
+                          Device: window.innerWidth < 768 ? '1' : '0'
+                        })}
+                        className="w-full h-12 rounded-2xl border-dashed border-2 bg-secondary/5 hover:bg-secondary/10 hover:border-[#008134]/50 text-muted-foreground hover:text-[#008134] transition-all flex items-center justify-center gap-2"
+                      >
+                        <PlusSquare className="w-5 h-5" />
+                        <span className="font-bold">{t('create.select_store')}</span>
+                      </Button>
+                    )}
+                    <p className="text-[10px] text-muted-foreground italic px-1">{t('create.address_privacy_hint')}</p>
+                  </div>
+                )}
+
+                {/* Recipient Information (Always required for logistics tracking) */}
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <Input
+                    label={t('create.recipient_name')}
+                    name="recipient_name"
+                    placeholder={t('create.recipient_name_placeholder')}
+                    value={formData.recipient_name}
+                    onChange={handleChange}
+                    required
                   />
-                  <span className="text-[11px] font-medium text-muted-foreground group-hover:text-foreground transition-colors">
-                    {t('create.remember_address')}
-                  </span>
-                </label>
+                  <Input
+                    label={t('create.recipient_phone')}
+                    name="recipient_phone"
+                    placeholder={t('create.recipient_phone_placeholder')}
+                    value={formData.recipient_phone}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
               </div>
 
               <div className="space-y-4">

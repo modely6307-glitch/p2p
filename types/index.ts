@@ -37,6 +37,15 @@ export interface Order {
   auto_extend: boolean;
   payment_notification_sent?: boolean;
   payment_type: 'PRE_ESCROW' | 'MATCH_ESCROW';
+  shipping_method?: 'HOME' | '711';
+  cvs_store_info?: {
+    store_id: string;
+    store_name: string;
+    store_address: string;
+    store_phone?: string;
+  } | null;
+  recipient_name?: string | null;
+  recipient_phone?: string | null;
   buyer?: Profile;
   traveler?: Profile;
 }
@@ -62,4 +71,10 @@ export interface Profile {
   positive_rating_count: number;
   total_rating_count: number;
   address?: string | null;
+  phone?: string | null;
+  favorite_stores?: Array<{
+    store_id: string;
+    store_name: string;
+    store_address: string;
+  }>;
 }
