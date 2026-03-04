@@ -77,17 +77,20 @@ function MarketContent() {
     const filteredOrders = orders.filter(order => {
         const matchesSearch = order.item_name.toLowerCase().includes(search.toLowerCase());
         const matchesCountry = selectedCountry ? order.country === selectedCountry : true;
-
-        // Trip Window Filter:
-        // 1. Must be after or on departure (Traveler is in the country)
+ 
+        // Legacy/single-date mode from landing page
+        if (dateFilter) {
+            // Must be on the exact date selected
+            return order.expected_shipping_date === dateFilter && matchesSearch && matchesCountry;
+        }
+ 
+        // Trip Window Filter (from/to)
         const matchesFrom = fromDate ? order.expected_shipping_date >= fromDate : true;
-        // 2. Must be before or on return (Traveler is still available or just returned)
-        const effectiveTo = toDate || dateFilter;
-        const matchesTo = effectiveTo ? order.expected_shipping_date <= effectiveTo : true;
-
+        const matchesTo = toDate ? order.expected_shipping_date <= toDate : true;
+ 
         return matchesSearch && matchesCountry && matchesFrom && matchesTo;
     });
-
+ 
     return (
         <div className="p-4 pt-8 lg:p-8 space-y-6 pb-20 lg:pb-8">
             <header className="flex justify-between items-end">
