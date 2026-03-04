@@ -51,6 +51,8 @@ export default function CreateWish() {
     cvs_store_info: null as any,
     recipient_name: '',
     recipient_phone: '',
+    is_partial_payment: false,
+    deposit_percentage: 100,
   });
 
   const [photo, setPhoto] = useState<File | null>(null);
@@ -260,6 +262,11 @@ export default function CreateWish() {
         cvs_store_info: formData.cvs_store_info,
         recipient_name: formData.recipient_name,
         recipient_phone: formData.recipient_phone,
+        is_partial_payment: formData.is_partial_payment,
+        deposit_percentage: formData.is_partial_payment ? formData.deposit_percentage : 100,
+        deposit_amount: formData.is_partial_payment
+          ? Math.round(calculateTotal() * (formData.deposit_percentage / 100))
+          : calculateTotal(),
       });
       router.push('/dashboard');
     } catch (error) {
@@ -695,6 +702,61 @@ export default function CreateWish() {
                   />
                   <span className="text-sm font-medium">{t('create.auto_extend')}</span>
                 </label>
+
+                {/* Partial Payment Option */}
+                {(() => {
+                  if (!formData.expected_shipping_date || !settings) return null;
+                  const selectedDate = new Date(formData.expected_shipping_date);
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  const diffDays = Math.ceil((selectedDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+                  if (diffDays <= (settings.deposit_threshold_days || 30)) return null;
+
+                  return (
+                    <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                      <label className="flex items-center gap-3 p-4 rounded-2xl bg-blue-500/5 border border-blue-500/20 hover:bg-blue-500/10 transition-colors cursor-pointer ring-1 ring-blue-500/10">
+                        <input
+                          type="checkbox"
+                          checked={formData.is_partial_payment}
+                          onChange={(e) => setFormData(p => ({
+                            ...p,
+                            is_partial_payment: e.target.checked,
+                            deposit_percentage: e.target.checked ? 30 : 100
+                          }))}
+                          className="w-5 h-5 rounded border-blue-300 text-blue-500 focus:ring-blue-500"
+                        />
+                        <div className="flex-1">
+                          <span className="text-sm font-bold text-blue-700">{t('create.partial_payment')}</span>
+                          <p className="text-[10px] text-blue-600/70 mt-0.5">{t('create.deposit_hint')}</p>
+                        </div>
+                      </label>
+
+                      {formData.is_partial_payment && (
+                        <div className="p-4 rounded-2xl bg-background border border-border shadow-sm space-y-3 animate-in fade-in zoom-in-95">
+                          <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('create.deposit_percentage')}</label>
+                          <div className="flex gap-2">
+                            {[30, 50, 70].map(pct => (
+                              <button
+                                key={pct}
+                                type="button"
+                                onClick={() => setFormData(p => ({ ...p, deposit_percentage: pct }))}
+                                className={cn(
+                                  "flex-1 py-3 rounded-xl text-xs font-black transition-all border",
+                                  formData.deposit_percentage === pct
+                                    ? "bg-blue-500 text-white border-blue-600 shadow-md shadow-blue-500/20"
+                                    : "bg-secondary/5 text-muted-foreground border-border/50 hover:bg-secondary/10"
+                                )}
+                              >
+                                {pct}%
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
 
               <div className="space-y-3 bg-secondary/10 p-4 rounded-2xl border border-border/50">
@@ -854,6 +916,19 @@ export default function CreateWish() {
                         <p className="text-[10px] text-muted-foreground mt-1 opacity-70 italic">{t('create.formula_help')}</p>
                       </div>
                     )}
+
+                    {formData.is_partial_payment && (
+                      <div className="pt-3 space-y-2 border-t border-primary/20 animate-in fade-in slide-in-from-top-2">
+                        <div className="flex justify-between items-center text-blue-700 font-black">
+                          <span className="text-[10px] uppercase tracking-wider">Pay Now ({formData.deposit_percentage}% Deposit)</span>
+                          <span className="text-lg">NT${Math.round(calculateTotal() * (formData.deposit_percentage / 100)).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-muted-foreground/60 text-[10px] font-bold">
+                          <span className="uppercase tracking-widest">Balance Due Later</span>
+                          <span>NT${(calculateTotal() - Math.round(calculateTotal() * (formData.deposit_percentage / 100))).toLocaleString()}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -873,7 +948,7 @@ export default function CreateWish() {
                   {loading ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
                   ) : formData.payment_type === 'PRE_ESCROW' ? (
-                    `立即支付 NT$ ${calculateTotal().toLocaleString()} 並刊登`
+                    `立即支付 NT$ ${formData.is_partial_payment ? Math.round(calculateTotal() * (formData.deposit_percentage / 100)).toLocaleString() : calculateTotal().toLocaleString()} 並刊登`
                   ) : (
                     t('create.submit')
                   )}

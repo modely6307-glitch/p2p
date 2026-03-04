@@ -89,7 +89,8 @@ export const fetchSystemSettings = async () => {
       buyer_fee_percentage: 2,
       traveler_fee_threshold: 1000,
       traveler_fee_fixed_amount: 20,
-      traveler_fee_percentage: 2
+      traveler_fee_percentage: 2,
+      deposit_threshold_days: 30
     };
   }
   return data as SystemSettings;

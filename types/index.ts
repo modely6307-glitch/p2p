@@ -46,6 +46,9 @@ export interface Order {
   } | null;
   recipient_name?: string | null;
   recipient_phone?: string | null;
+  is_partial_payment?: boolean;
+  deposit_amount?: number | null;
+  deposit_percentage?: number | null;
   buyer?: Profile;
   traveler?: Profile;
 }
@@ -58,6 +61,7 @@ export interface SystemSettings {
   traveler_fee_threshold: number;
   traveler_fee_fixed_amount: number;
   traveler_fee_percentage: number;
+  deposit_threshold_days: number;
 }
 
 export interface Profile {

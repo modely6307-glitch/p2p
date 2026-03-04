@@ -61,7 +61,8 @@ export default function AdminDashboard() {
                     buyer_fee_percentage: 2,
                     traveler_fee_threshold: 1000,
                     traveler_fee_fixed_amount: 20,
-                    traveler_fee_percentage: 2
+                    traveler_fee_percentage: 2,
+                    deposit_threshold_days: 30
                 });
             }
         } catch (error) {
@@ -441,6 +442,22 @@ export default function AdminDashboard() {
                                                 type="number"
                                                 value={settings?.traveler_fee_percentage}
                                                 onChange={(e) => setSettings(prev => prev ? { ...prev, traveler_fee_percentage: parseInt(e.target.value) } : null)}
+                                                className="font-bold rounded-xl"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <hr className="border-border/50" />
+
+                                    {/* Advanced Config */}
+                                    <div className="space-y-4">
+                                        <h4 className="text-sm font-black border-l-4 border-blue-500 pl-2 uppercase tracking-tight">{t('common.advanced')}</h4>
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{t('admin.deposit_threshold')}</label>
+                                            <Input
+                                                type="number"
+                                                value={settings?.deposit_threshold_days}
+                                                onChange={(e) => setSettings(prev => prev ? { ...prev, deposit_threshold_days: parseInt(e.target.value) } : null)}
                                                 className="font-bold rounded-xl"
                                             />
                                         </div>
