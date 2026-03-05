@@ -57,24 +57,28 @@ export async function POST(req: Request) {
 
         // 1. Try to fetch from Supabase Cache if not a manual refresh
         if (!isRefresh && attempt === 1) {
-            const supabaseAdmin = getSupabaseAdmin();
-            const { data: cached, error: cacheError } = await supabaseAdmin
-                .from('ai_recommendation_cache')
-                .select('recommendation_data')
-                .eq('country', country)
-                .eq('date_key', dateKey)
-                .eq('user_preferences_hash', userPreferencesHash)
-                .maybeSingle();
+            try {
+                const supabaseAdmin = getSupabaseAdmin();
+                const { data: cached, error: cacheError } = await supabaseAdmin
+                    .from('ai_recommendation_cache')
+                    .select('recommendation_data')
+                    .eq('country', country)
+                    .eq('date_key', dateKey)
+                    .eq('user_preferences_hash', userPreferencesHash)
+                    .maybeSingle();
 
-            if (cached && !cacheError) {
-                console.log(`[Cache Hit] Serving daily recommendation for ${country} (${dateKey})`);
-                return new Response(JSON.stringify(cached.recommendation_data), {
-                    status: 200,
-                    headers: { 'Content-Type': 'application/json' },
-                });
-            }
-            if (cacheError) {
-                console.error('[Cache Error] Failed to fetch from Supabase:', cacheError);
+                if (cached && !cacheError) {
+                    console.log(`[Cache Hit] Serving daily recommendation for ${country} (${dateKey})`);
+                    return new Response(JSON.stringify(cached.recommendation_data), {
+                        status: 200,
+                        headers: { 'Content-Type': 'application/json' },
+                    });
+                }
+                if (cacheError) {
+                    console.error('[Cache Error] Failed to fetch from Supabase:', cacheError);
+                }
+            } catch (cacheErr: any) {
+                console.warn('[Cache Skip] Supabase admin client not available, skipping cache:', cacheErr.message);
             }
         }
 
@@ -115,19 +119,23 @@ ${attempt > 1 ? `6. **特別指示**：這是第 ${attempt} 次推薦請求，�
             prompt: prompt,
             onFinish: async ({ object }) => {
                 if (object && attempt === 1 && !isRefresh) {
-                    // Cache the first "stable" recommendation of the day
-                    console.log(`[Cache Storage] Archiving daily recommendation for ${country} to Supabase`);
-                    const supabaseAdmin = getSupabaseAdmin();
-                    const { error: saveError } = await supabaseAdmin
-                        .from('ai_recommendation_cache')
-                        .upsert({
-                            country,
-                            date_key: dateKey,
-                            recommendation_data: object,
-                            user_preferences_hash: userPreferencesHash
-                        }, { onConflict: 'country,date_key,user_preferences_hash' });
+                    try {
+                        // Cache the first "stable" recommendation of the day
+                        console.log(`[Cache Storage] Archiving daily recommendation for ${country} to Supabase`);
+                        const supabaseAdmin = getSupabaseAdmin();
+                        const { error: saveError } = await supabaseAdmin
+                            .from('ai_recommendation_cache')
+                            .upsert({
+                                country,
+                                date_key: dateKey,
+                                recommendation_data: object,
+                                user_preferences_hash: userPreferencesHash
+                            }, { onConflict: 'country,date_key,user_preferences_hash' });
 
-                    if (saveError) console.error('[Cache Save Error]:', saveError);
+                        if (saveError) console.error('[Cache Save Error]:', saveError);
+                    } catch (saveErr: any) {
+                        console.warn('[Cache Save Skip] Supabase admin client not available:', saveErr.message);
+                    }
                 }
             }
         });
