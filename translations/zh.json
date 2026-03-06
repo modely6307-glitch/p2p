@@ -227,7 +227,15 @@
         "bank_code": "銀行代碼",
         "account_no": "帳號",
         "account_name": "戶名",
-        "remittance_hint": "請將款項匯至以下平台代管帳戶，匯款後請靜候管理員確認入帳。"
+        "remittance_hint": "請將款項匯至以下平台代管帳戶，匯款後請靜候管理員確認入帳。",
+        "raise_dispute_btn": "提出申訴",
+        "dispute_reason": "申訴原因",
+        "dispute_upload_evidence": "上傳證據圖片 (選填)",
+        "dispute_upload_evidence_btn": "選擇圖片",
+        "dispute_submit": "送出申訴並凍結訂單",
+        "dispute_warning": "此訂單發生爭議，已暫停所有流轉，請等待管理員介入。",
+        "dispute_reason_placeholder": "請詳細說明您遇到什麼問題...",
+        "dispute_evidence_uploaded": "已上傳證據: "
     },
     "admin": {
         "title": "後台管理系統",
@@ -291,5 +299,13 @@
         "title": "訂單更新",
         "view_order": "查看訂單",
         "status_changed": "訂單狀態已更新"
+    },
+    "chat": {
+        "title": "專屬留言板",
+        "chat_with": "聯絡",
+        "subtitle": "安全溝通、紀錄留存",
+        "no_messages": "尚無留言，開始對話吧！",
+        "placeholder": "輸入留言...",
+        "you": "我"
     }
 }

@@ -174,6 +174,53 @@ export const updateOrderDetails = async (id: string, updates: Partial<Order>) =>
   return data as Order;
 }
 
+export const raiseDispute = async (
+  orderId: string,
+  userId: string,
+  reason: string,
+  evidenceUrl?: string | null
+) => {
+  const updates: Partial<Order> = {
+    status: 'DISPUTE',
+    dispute_reason: reason,
+    dispute_by_user_id: userId,
+    dispute_evidence_url: evidenceUrl,
+    dispute_created_at: new Date().toISOString()
+  };
+
+  const { data, error } = await supabase
+    .from('orders')
+    .update(updates)
+    .eq('id', orderId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as Order;
+};
+
+export const resolveDispute = async (
+  orderId: string,
+  resolutionStatus: OrderStatus,
+  resolutionNotes: string
+) => {
+  const updates: Partial<Order> = {
+    status: resolutionStatus,
+    dispute_resolution: resolutionNotes,
+    dispute_resolved_at: new Date().toISOString()
+  };
+
+  const { data, error } = await supabase
+    .from('orders')
+    .update(updates)
+    .eq('id', orderId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as Order;
+};
+
 export const uploadFile = async (file: File, bucket: string, path: string) => {
   // Sanitize path: replace problematic characters but keep /
   const sanitizedPath = path.split('/').map(part =>
@@ -219,4 +266,33 @@ export const incrementOrderStats = async (userId: string, amount: number) => {
   });
 
   if (error) throw error;
+};
+
+// --- Order Chat APIs ---
+
+export const fetchOrderMessages = async (orderId: string) => {
+  const { data, error } = await supabase
+    .from('order_messages')
+    .select(`*, user:profiles(id, display_name, email)`)
+    .eq('order_id', orderId)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+  return data;
+};
+
+export const sendOrderMessage = async (orderId: string, userId: string, content: string | null, imageUrl: string | null = null) => {
+  const { data, error } = await supabase
+    .from('order_messages')
+    .insert({
+      order_id: orderId,
+      user_id: userId,
+      content,
+      image_url: imageUrl
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
 };

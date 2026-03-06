@@ -9,15 +9,19 @@ import {
   updateOrderDetails,
   uploadFile,
   rateUser,
-  incrementOrderStats
+  incrementOrderStats,
+  raiseDispute,
+  resolveDispute
 } from '@/utils/api';
 import { Order, OrderStatus } from '@/types';
 import { StepProgressBar } from '@/components/StepProgressBar';
 import { StatusBadge } from '@/components/StatusBadge';
+import { OrderChat } from '@/components/OrderChat';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Loader2, Upload, Truck, CheckCircle, AlertTriangle, ShieldCheck, ThumbsUp, ThumbsDown, Camera, CreditCard } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Loader2, Upload, Truck, CheckCircle, AlertTriangle, ShieldCheck, ThumbsUp, ThumbsDown, Camera, CreditCard, X } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 const getCurrencySymbol = (currency: string) => {
@@ -58,6 +62,14 @@ export default function OrderDetails() {
   const [trackingNumber, setTrackingNumber] = useState('');
   const [ratingSubmitted, setRatingSubmitted] = useState(false);
   const [showFormula, setShowFormula] = useState(false);
+
+  // Dispute States
+  const [showDisputeModal, setShowDisputeModal] = useState(false);
+  const [disputeReason, setDisputeReason] = useState('');
+  const [disputeEvidence, setDisputeEvidence] = useState<File | null>(null);
+  const [disputeEvidencePreview, setDisputeEvidencePreview] = useState<string | null>(null);
+  const [isSubmittingDispute, setIsSubmittingDispute] = useState(false);
+  const [adminResolutionNotes, setAdminResolutionNotes] = useState('');
 
   useEffect(() => {
     if (user) {
@@ -237,6 +249,44 @@ export default function OrderDetails() {
     }
   };
 
+  const handleRaiseDispute = async () => {
+    if (!order || !user || !disputeReason) return;
+    setIsSubmittingDispute(true);
+    try {
+      let evidenceUrl = null;
+      if (disputeEvidence) {
+        const path = `${order.id}/dispute-${Date.now()}`;
+        evidenceUrl = await uploadFile(disputeEvidence, 'disputes', path);
+      }
+      await raiseDispute(order.id, user.id, disputeReason, evidenceUrl);
+      setShowDisputeModal(false);
+      setDisputeReason('');
+      setDisputeEvidence(null);
+      setDisputeEvidencePreview(null);
+      await loadOrder();
+    } catch (error) {
+      console.error('Error raising dispute:', error);
+      alert(t('common.error'));
+    } finally {
+      setIsSubmittingDispute(false);
+    }
+  };
+
+  const handleResolveDispute = async (status: OrderStatus) => {
+    if (!order) return;
+    if (!confirm('Confirm resolution action?')) return;
+    try {
+      if (status === 'COMPLETED' && order.traveler_id) {
+        const amountTwd = Math.round((order.target_price * (order.exchange_rate || 1)) + order.reward_fee);
+        await incrementOrderStats(order.traveler_id, amountTwd);
+      }
+      await resolveDispute(order.id, status, adminResolutionNotes);
+      await loadOrder();
+    } catch (error) {
+      console.error('Error resolving dispute:', error);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -346,6 +396,50 @@ export default function OrderDetails() {
       </header>
 
       <StepProgressBar currentStatus={order.status} />
+
+      {order.status === 'DISPUTE' && (
+        <Card className="border-red-500/50 bg-red-500/5 mb-6 shadow-xl shadow-red-500/10">
+          <CardContent className="pt-6 space-y-4">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-6 h-6 text-red-500" />
+              <h3 className="text-lg font-bold text-red-600">{t('status.DISPUTE')}</h3>
+            </div>
+            <p className="text-sm font-medium text-red-500">{t('order.dispute_warning')}</p>
+            <div className="bg-background/80 p-4 rounded-xl space-y-2 border border-red-500/20">
+              <p className="text-xs font-bold text-red-500/70 uppercase tracking-widest">{t('order.dispute_reason')}</p>
+              <p className="text-sm">{order.dispute_reason}</p>
+              {order.dispute_evidence_url && (
+                <div className="mt-3">
+                  <p className="text-xs font-bold text-red-500/70 uppercase tracking-widest mb-1">
+                    {t('order.dispute_evidence_uploaded')}
+                  </p>
+                  <img src={order.dispute_evidence_url} alt="Evidence" className="max-h-48 rounded-lg border border-red-500/20 shadow-sm" />
+                </div>
+              )}
+            </div>
+
+            {role === 'admin' && (
+              <div className="pt-4 border-t border-red-500/20 space-y-3">
+                <p className="text-xs font-bold text-red-500/70 uppercase tracking-widest">Admin Resolution</p>
+                <Textarea
+                  placeholder="Enter admin resolution notes..."
+                  value={adminResolutionNotes}
+                  onChange={(e) => setAdminResolutionNotes(e.target.value)}
+                  className="bg-background min-h-[60px]"
+                />
+                <div className="flex gap-2">
+                  <Button onClick={() => handleResolveDispute('DELISTED')} variant="outline" className="flex-1 border-red-500 text-red-600 hover:bg-red-500/10 hover:text-red-700">
+                    Refund Buyer (Delist)
+                  </Button>
+                  <Button onClick={() => handleResolveDispute('COMPLETED')} className="flex-1 bg-green-600 hover:bg-green-700">
+                    Force Release Funds to Traveler
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardContent className="pt-6 space-y-4">
@@ -824,12 +918,110 @@ export default function OrderDetails() {
         </CardContent>
       </Card>
 
-      {/* Delist button for buyer (OPEN only) or admin (OPEN/MATCHED) */}
+      {/* Order Chat Board */}
+      {order.status !== 'OPEN' && order.status !== 'DELISTED' && user && (
+        <div className="pt-2">
+          <OrderChat
+            orderId={order.id}
+            currentUserId={user.id}
+            role={role}
+            partnerName={partnerDisplayName}
+          />
+        </div>
+      )}
+
+      {/* Dispute / Delist buttons */}
+      {['ESCROWED', 'BOUGHT', 'SHIPPED'].includes(order.status) && (
+        <div className="pt-2">
+          <Button onClick={() => setShowDisputeModal(true)} variant="outline" fullWidth className="h-10 text-xs font-bold text-red-400 border-red-500/20 hover:bg-red-500/10 rounded-xl flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4" />
+            {t('order.raise_dispute_btn')}
+          </Button>
+        </div>
+      )}
+
       {order.status === 'OPEN' && (role === 'buyer' || role === 'admin') && (
         <div className="pt-2">
           <Button onClick={handleDelist} variant="outline" fullWidth className="h-10 text-xs font-bold text-red-400 border-red-500/20 hover:bg-red-500/10 rounded-xl">
             {t('order.delist_btn')}
           </Button>
+        </div>
+      )}
+
+      {/* Dispute Modal */}
+      {showDisputeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in">
+          <Card className="w-full max-w-md shadow-2xl border-red-500/20 bg-background">
+            <CardHeader className="border-b border-border/50 pb-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg font-bold text-red-500 flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5" />
+                  {t('order.raise_dispute_btn')}
+                </CardTitle>
+                <button type="button" onClick={() => setShowDisputeModal(false)} className="p-1 rounded-full hover:bg-secondary">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase text-muted-foreground">
+                  {t('order.dispute_reason')}
+                </label>
+                <Textarea
+                  placeholder={t('order.dispute_reason_placeholder')}
+                  value={disputeReason}
+                  onChange={(e) => setDisputeReason(e.target.value)}
+                  className="min-h-[100px]"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase text-muted-foreground">
+                  {t('order.dispute_upload_evidence')}
+                </label>
+                {disputeEvidencePreview ? (
+                  <div className="relative rounded-xl overflow-hidden border border-border">
+                    <img src={disputeEvidencePreview} alt="Evidence" className="w-full h-auto max-h-48 object-contain bg-muted" />
+                    <button
+                      type="button"
+                      onClick={() => { setDisputeEvidence(null); setDisputeEvidencePreview(null); }}
+                      className="absolute top-2 right-2 p-1.5 bg-background/90 rounded-full hover:bg-red-500/10 hover:text-red-500"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center h-24 border-2 border-dashed border-border rounded-xl cursor-pointer hover:bg-secondary/50 transition-colors">
+                    <Upload className="w-5 h-5 text-muted-foreground mb-1" />
+                    <span className="text-xs font-bold text-muted-foreground">{t('order.dispute_upload_evidence_btn')}</span>
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept="image/*"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          setDisputeEvidence(e.target.files[0]);
+                          setDisputeEvidencePreview(URL.createObjectURL(e.target.files[0]));
+                        }
+                      }}
+                    />
+                  </label>
+                )}
+              </div>
+
+              <div className="pt-2">
+                <Button
+                  fullWidth
+                  className="bg-red-600 hover:bg-red-700 h-12"
+                  disabled={!disputeReason || isSubmittingDispute}
+                  onClick={handleRaiseDispute}
+                >
+                  {isSubmittingDispute ? <Loader2 className="w-5 h-5 animate-spin" /> : t('order.dispute_submit')}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
     </div>

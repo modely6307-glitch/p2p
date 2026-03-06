@@ -51,6 +51,12 @@ export interface Order {
   deposit_percentage?: number | null;
   buyer?: Profile;
   traveler?: Profile;
+  dispute_reason?: string | null;
+  dispute_by_user_id?: string | null;
+  dispute_evidence_url?: string | null;
+  dispute_resolution?: string | null;
+  dispute_created_at?: string | null;
+  dispute_resolved_at?: string | null;
 }
 
 export interface SystemSettings {
@@ -81,4 +87,14 @@ export interface Profile {
     store_name: string;
     store_address: string;
   }>;
+}
+
+export interface OrderMessage {
+  id: string;
+  order_id: string;
+  user_id: string;
+  content?: string | null;
+  image_url?: string | null;
+  created_at: string;
+  user?: Profile; // Populated via join if needed
 }

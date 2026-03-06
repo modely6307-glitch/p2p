@@ -227,7 +227,15 @@
         "bank_code": "Bank Code",
         "account_no": "Account Number",
         "account_name": "Account Name",
-        "remittance_hint": "Please transfer the total budget to the following platform escrow account. Once completed, please wait for admin verification."
+        "remittance_hint": "Please transfer the total budget to the following platform escrow account. Once completed, please wait for admin verification.",
+        "raise_dispute_btn": "Raise Dispute",
+        "dispute_reason": "Reason for Dispute",
+        "dispute_upload_evidence": "Upload Evidence (Optional)",
+        "dispute_upload_evidence_btn": "Select Image",
+        "dispute_submit": "Submit and Freeze Order",
+        "dispute_warning": "Order frozen due to active dispute. Awaiting admin resolution.",
+        "dispute_reason_placeholder": "Please describe the issue in detail...",
+        "dispute_evidence_uploaded": "Evidence uploaded: "
     },
     "admin": {
         "title": "Backend Management",
@@ -290,5 +298,13 @@
         "title": "Order Update",
         "view_order": "View Order",
         "status_changed": "Order status has changed"
+    },
+    "chat": {
+        "title": "Message Board",
+        "chat_with": "Chat with",
+        "subtitle": "Securely communicate and keep records",
+        "no_messages": "No messages yet. Start the conversation!",
+        "placeholder": "Type a message...",
+        "you": "Me"
     }
 }

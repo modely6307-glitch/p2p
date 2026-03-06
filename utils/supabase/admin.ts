@@ -6,8 +6,8 @@ export const getSupabaseAdmin = () => {
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
     if (!supabaseUrl || !supabaseServiceKey) {
-        console.error('MISSING ADMIN ENV VARS: Check NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY')
+        throw new Error('Missing Supabase admin credentials: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set')
     }
 
-    return createClient(supabaseUrl || '', supabaseServiceKey || '')
+    return createClient(supabaseUrl, supabaseServiceKey)
 }

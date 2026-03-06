@@ -12,7 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { StatusBadge } from '@/components/StatusBadge';
 import { cn } from '@/lib/utils';
 
-type OrderFilter = 'all' | 'open' | 'matched' | 'paid' | 'completed';
+type OrderFilter = 'all' | 'open' | 'matched' | 'paid' | 'completed' | 'disputed';
 
 import { useLanguage } from '@/context/LanguageContext';
 
@@ -127,6 +127,8 @@ export default function AdminDashboard() {
     };
 
     const pendingPaymentCount = orders.filter(o => o.status === 'MATCHED' && o.payment_notification_sent).length;
+    const disputedCount = orders.filter(o => o.status === 'DISPUTE').length;
+    const totalAlertCount = pendingPaymentCount + disputedCount;
 
     const filteredOrders = orders.filter(order => {
         if (orderFilter === 'all') return true;
@@ -134,6 +136,7 @@ export default function AdminDashboard() {
         if (orderFilter === 'matched') return order.status === 'MATCHED';
         if (orderFilter === 'paid') return ['ESCROWED', 'BOUGHT', 'SHIPPED'].includes(order.status);
         if (orderFilter === 'completed') return order.status === 'COMPLETED' || order.status === 'DELISTED';
+        if (orderFilter === 'disputed') return order.status === 'DISPUTE';
         return true;
     });
 
@@ -174,9 +177,9 @@ export default function AdminDashboard() {
                     className={`px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap flex items-center gap-2 ${activeTab === 'orders' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
                 >
                     {t('admin.tab_orders')}
-                    {pendingPaymentCount > 0 && (
+                    {totalAlertCount > 0 && (
                         <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center shadow-lg shadow-red-500/30">
-                            {pendingPaymentCount}
+                            {totalAlertCount}
                         </span>
                     )}
                 </button>
@@ -202,6 +205,7 @@ export default function AdminDashboard() {
                             { id: 'open', label: t('admin.filter_open') },
                             { id: 'matched', label: t('admin.filter_matched') },
                             { id: 'paid', label: t('admin.filter_paid') },
+                            { id: 'disputed', label: t('status.DISPUTE') },
                             { id: 'completed', label: t('admin.filter_completed') }
                         ].map(f => (
                             <button
@@ -211,8 +215,13 @@ export default function AdminDashboard() {
                             >
                                 {f.label}
                                 {f.id === 'matched' && pendingPaymentCount > 0 && (
-                                    <span className="w-4 h-4 rounded-full bg-red-500 text-white text-[9px] flex items-center justify-center animate-pulse">
+                                    <span className="w-4 h-4 rounded-full bg-orange-500 text-white text-[9px] flex items-center justify-center animate-pulse">
                                         {pendingPaymentCount}
+                                    </span>
+                                )}
+                                {f.id === 'disputed' && disputedCount > 0 && (
+                                    <span className="w-4 h-4 rounded-full bg-red-600 text-white text-[9px] flex items-center justify-center animate-pulse shadow-lg shadow-red-500/50">
+                                        {disputedCount}
                                     </span>
                                 )}
                             </button>
