@@ -181,7 +181,23 @@ export default function CreateWish() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !userProfile) return;
+    if (!user) { alert('請先登入'); return; }
+    if (!userProfile) { alert('個人資料載入中，請稍後再試'); return; }
+
+    // Explicit field validation with visible feedback
+    const missingFields: string[] = [];
+    if (!formData.item_name.trim()) missingFields.push('物品名稱');
+    if (!formData.description.trim()) missingFields.push('描述/備註');
+    if (!formData.recipient_name.trim()) missingFields.push('收件人姓名');
+    if (!formData.recipient_phone.trim()) missingFields.push('收件人電話');
+    if (!parseFloat(formData.target_price)) missingFields.push('物品原價');
+    if (!parseFloat(formData.reward_fee) && parseFloat(formData.reward_fee) !== 0) missingFields.push('補貼/報酬');
+    if (formData.shipping_method === 'HOME' && !formData.shipping_address.trim()) missingFields.push('收件地址');
+
+    if (missingFields.length > 0) {
+      alert(`請填寫以下必填欄位：\n${missingFields.join('、')}`);
+      return;
+    }
 
     if (rememberAddress && formData.shipping_address) {
       await updateProfile(user.id, {
@@ -204,6 +220,7 @@ export default function CreateWish() {
     if (!formData.expected_shipping_date) {
       setErrors(prev => ({ ...prev, expected_shipping_date: t('create.err_date_required') }));
       dateInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      alert('請選擇預期回國日期');
       return;
     }
 
