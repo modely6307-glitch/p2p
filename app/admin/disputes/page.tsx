@@ -30,6 +30,8 @@ export default function AdminDisputesPage() {
 
         if (profile?.level === 'ADMIN') {
             loadDisputedOrders();
+        } else {
+            setLoading(false);
         }
     }, [user, profile, authLoading]);
 

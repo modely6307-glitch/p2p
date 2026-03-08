@@ -54,7 +54,7 @@ export default function OrderDetails() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
-  const { user, profile, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth(false);
   const { t } = useLanguage();
 
   const [order, setOrder] = useState<Order | null>(null);
@@ -87,9 +87,7 @@ export default function OrderDetails() {
   const [adminResolutionNotes, setAdminResolutionNotes] = useState('');
 
   useEffect(() => {
-    if (user) {
-      loadOrder();
-    }
+    loadOrder();
   }, [id, user, profile]);
 
   const loadOrder = async () => {

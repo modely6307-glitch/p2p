@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { supabase } from '@/utils/supabase/client';
+import { useAuthContext } from '@/context/AuthContext';
 import { Order, OrderStatus } from '@/types';
 
 interface Notification {
@@ -56,21 +57,10 @@ function saveDismissed(dismissed: Set<string>) {
 export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [activeToast, setActiveToast] = useState<Notification | null>(null);
-    const [userId, setUserId] = useState<string | null>(null);
+    const { user } = useAuthContext();
+    const userId = user?.id ?? null;
     const [activeTaskCount, setActiveTaskCount] = useState(0);
 
-    // Get current user
-    useEffect(() => {
-        const getUser = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            setUserId(user?.id ?? null);
-        };
-        getUser();
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            setUserId(session?.user?.id ?? null);
-        });
-        return () => subscription.unsubscribe();
-    }, []);
 
     // Poll orders and detect status changes
     const checkOrders = useCallback(async () => {
