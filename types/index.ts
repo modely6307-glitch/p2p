@@ -38,6 +38,7 @@ export interface Order {
   payment_notification_sent?: boolean;
   payment_type: 'PRE_ESCROW' | 'MATCH_ESCROW';
   shipping_method?: 'HOME' | '711';
+  parent_order_id?: string | null;
   cvs_store_info?: {
     store_id: string;
     store_name: string;

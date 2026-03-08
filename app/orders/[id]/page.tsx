@@ -11,7 +11,10 @@ import {
   rateUser,
   incrementOrderStats,
   raiseDispute,
-  resolveDispute
+  resolveDispute,
+  fetchWishGroup,
+  batchAssignTraveler,
+  followOrder
 } from '@/utils/api';
 import { Order, OrderStatus } from '@/types';
 import { StepProgressBar } from '@/components/StepProgressBar';
@@ -21,7 +24,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Upload, Truck, CheckCircle, AlertTriangle, ShieldCheck, ThumbsUp, ThumbsDown, Camera, CreditCard, X } from 'lucide-react';
+import { Loader2, Upload, Truck, CheckCircle, AlertTriangle, ShieldCheck, ThumbsUp, ThumbsDown, Camera, CreditCard, X, PlusSquare } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 const getCurrencySymbol = (currency: string) => {
@@ -38,6 +41,7 @@ const getCurrencySymbol = (currency: string) => {
 import { getCountryFlag } from '@/utils/countries';
 import { cn } from '@/lib/utils';
 import { useLanguage } from '@/context/LanguageContext';
+import { openECPayCVSMap } from '@/lib/ecpay';
 
 const maskEmail = (email: string | undefined) => {
   if (!email) return 'User';
@@ -50,18 +54,29 @@ export default function OrderDetails() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
-  const { user, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const { t } = useLanguage();
 
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
-  const [role, setRole] = useState<'buyer' | 'traveler' | 'admin'>('buyer');
+  const [role, setRole] = useState<'buyer' | 'traveler' | 'admin'>('traveler');
   const [uploading, setUploading] = useState(false);
   const [purchasePhotoUploading, setPurchasePhotoUploading] = useState(false);
   const [modelNumberInput, setModelNumberInput] = useState('');
   const [trackingNumber, setTrackingNumber] = useState('');
   const [ratingSubmitted, setRatingSubmitted] = useState(false);
   const [showFormula, setShowFormula] = useState(false);
+
+  // Follow Order States
+  const [wishGroup, setWishGroup] = useState<Order[]>([]);
+  const [batchAcceptCount, setBatchAcceptCount] = useState(1);
+  const [showFollowModal, setShowFollowModal] = useState(false);
+  const [followMethod, setFollowMethod] = useState<'HOME' | '711'>('HOME');
+  const [followAddress, setFollowAddress] = useState('');
+  const [followCvsStore, setFollowCvsStore] = useState<any>(null);
+  const [followName, setFollowName] = useState('');
+  const [followPhone, setFollowPhone] = useState('');
+  const [isFollowing, setIsFollowing] = useState(false);
 
   // Dispute States
   const [showDisputeModal, setShowDisputeModal] = useState(false);
@@ -75,21 +90,29 @@ export default function OrderDetails() {
     if (user) {
       loadOrder();
     }
-  }, [id, user]);
+  }, [id, user, profile]);
 
   const loadOrder = async () => {
     try {
       const data = await fetchOrderById(id);
       setOrder(data);
 
-      // Auto-set role based on current user
-      if (user) {
+      if (data.status === 'OPEN') {
+        const group = await fetchWishGroup(data.parent_order_id || null, data.id);
+        setWishGroup(group);
+      }
+
+      // Auto-set role based on current user or profile
+      if (profile?.level === 'ADMIN') {
+        setRole('admin');
+      } else if (user) {
         if (data.buyer_id === user.id) {
           setRole('buyer');
         } else if (data.traveler_id === user.id) {
           setRole('traveler');
         } else {
-          setRole('traveler');
+          // If not the buyer or the assigned traveler, they are a generic visitor
+          setRole('traveler'); // Keeping 'traveler' for naming consistency but logic will change in UI
         }
       }
     } catch (error) {
@@ -107,7 +130,12 @@ export default function OrderDetails() {
     }
     try {
       const nextStatus = order.payment_type === 'PRE_ESCROW' ? 'ESCROWED' : 'MATCHED';
-      await assignTraveler(order.id, user.id, nextStatus);
+      if (wishGroup.length > 0) {
+        const ordersToAccept = wishGroup.slice(0, batchAcceptCount).map(o => o.id);
+        await batchAssignTraveler(ordersToAccept, user.id, nextStatus);
+      } else {
+        await assignTraveler(order.id, user.id, nextStatus);
+      }
       await loadOrder();
     } catch (error) {
       console.error('Error accepting order:', error);
@@ -229,9 +257,13 @@ export default function OrderDetails() {
 
   const handleDelist = async () => {
     if (!order) return;
-    if (!confirm(t('order.delist_confirm'))) return;
+    const isFollowOrder = !!order.parent_order_id;
+    const confirmMsg = isFollowOrder ? '確定要取消跟單嗎？' : t('order.delist_confirm');
+
+    if (!confirm(confirmMsg)) return;
     try {
-      await updateOrderStatus(order.id, 'DELISTED');
+      const { delistOrderGroup } = await import('@/utils/api');
+      await delistOrderGroup(order.id);
       await loadOrder();
     } catch (error) {
       console.error('Error delisting order:', error);
@@ -274,7 +306,8 @@ export default function OrderDetails() {
 
   const handleResolveDispute = async (status: OrderStatus) => {
     if (!order) return;
-    if (!confirm('Confirm resolution action?')) return;
+    const actionName = status === 'DELISTED' ? '取消訂單退款' : '完成訂單撥款';
+    if (!confirm(`確定要將此訂單裁決為：「${actionName}」嗎？這個操作無法還原。`)) return;
     try {
       if (status === 'COMPLETED' && order.traveler_id) {
         const amountTwd = Math.round((order.target_price * (order.exchange_rate || 1)) + order.reward_fee);
@@ -311,19 +344,6 @@ export default function OrderDetails() {
 
   return (
     <div className="p-4 lg:p-8 space-y-6 pb-24 max-w-3xl lg:mx-auto">
-      {/* Role Switcher for Demo */}
-      <div className="flex justify-end gap-2 mb-4">
-        <select
-          value={role}
-          onChange={(e) => setRole(e.target.value as any)}
-          className="bg-secondary text-secondary-foreground text-xs rounded p-1"
-        >
-          <option value="buyer">{t('order.buyer')}</option>
-          <option value="traveler">{t('order.traveler')}</option>
-          <option value="admin">{t('profile.admin')}</option>
-        </select>
-      </div>
-
       <header>
         <div className="flex justify-between items-start mb-4">
           <div className="space-y-1">
@@ -420,19 +440,19 @@ export default function OrderDetails() {
 
             {role === 'admin' && (
               <div className="pt-4 border-t border-red-500/20 space-y-3">
-                <p className="text-xs font-bold text-red-500/70 uppercase tracking-widest">Admin Resolution</p>
+                <p className="text-xs font-bold text-red-500/70 uppercase tracking-widest">管理員裁決</p>
                 <Textarea
-                  placeholder="Enter admin resolution notes..."
+                  placeholder="輸入裁決說明 / 退款備註..."
                   value={adminResolutionNotes}
                   onChange={(e) => setAdminResolutionNotes(e.target.value)}
                   className="bg-background min-h-[60px]"
                 />
                 <div className="flex gap-2">
                   <Button onClick={() => handleResolveDispute('DELISTED')} variant="outline" className="flex-1 border-red-500 text-red-600 hover:bg-red-500/10 hover:text-red-700">
-                    Refund Buyer (Delist)
+                    取消訂單退款
                   </Button>
                   <Button onClick={() => handleResolveDispute('COMPLETED')} className="flex-1 bg-green-600 hover:bg-green-700">
-                    Force Release Funds to Traveler
+                    完成訂單撥款
                   </Button>
                 </div>
               </div>
@@ -583,27 +603,151 @@ export default function OrderDetails() {
         <CardContent className="pt-6">
           {order.status === 'OPEN' && (
             <div className="space-y-4">
-              {role !== 'traveler' ? (
-                <>
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                      <CardTitle className="text-base">{t('status.OPEN')}</CardTitle>
-                    </div>
-                    {order.payment_type === 'PRE_ESCROW' && (
-                      <div className="px-2 py-0.5 rounded-md bg-green-500/10 text-green-600 text-[10px] font-black uppercase tracking-tighter border border-green-500/20 animate-pulse flex items-center gap-1">
-                        <ShieldCheck className="w-3 h-3" />
-                        {t('order.tag_pre_escrow')}
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                  <CardTitle className="text-base">{t('status.OPEN')}</CardTitle>
+                </div>
+                {order.payment_type === 'PRE_ESCROW' && (
+                  <div className="px-2 py-0.5 rounded-md bg-green-500/10 text-green-600 text-[10px] font-black uppercase tracking-tighter border border-green-500/20 animate-pulse flex items-center gap-1">
+                    <ShieldCheck className="w-3 h-3" />
+                    {t('order.tag_pre_escrow')}
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-2 mb-4">
+                {wishGroup.length > 1 ? (
+                  <span className="text-xs font-bold text-orange-600 bg-orange-500/10 px-3 py-1 rounded-full ring-1 ring-orange-500/20 shadow-sm border border-orange-500/10 backdrop-blur-sm flex items-center gap-1 shadow-orange-500/5 transition-all animate-in zoom-in">
+                    <span className="text-sm">🔥</span> 共 {wishGroup.length} 人集結求購中
+                  </span>
+                ) : (
+                  <span className="text-xs font-medium text-blue-600 bg-blue-500/5 px-3 py-1 rounded-full border border-blue-500/10 flex items-center gap-1">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    正在等待旅人接單
+                  </span>
+                )}
+              </div>
+
+              <div className="bg-secondary/10 p-4 rounded-xl space-y-4">
+                {user && (order.buyer_id === user.id || wishGroup.some(o => o.buyer_id === user.id)) ? (
+                  <div className="space-y-3">
+                    <p className="text-sm font-medium leading-relaxed bg-primary/5 p-4 rounded-xl border border-primary/20 text-center shadow-sm text-primary">
+                      {order.buyer_id === user.id ? (
+                        order.payment_type === 'PRE_ESCROW'
+                          ? '您選擇了立即託管，請根據下方資訊完成匯款，後續由管理長確認後，代購接單將立刻生效。'
+                          : '這是您的許願單，請靜候旅人接單。'
+                      ) : (
+                        <>
+                          <CheckCircle className="w-5 h-5 mx-auto mb-2 text-primary animate-in zoom-in" />
+                          您已經成功跟單！請靜候旅人接單。
+                        </>
+                      )}
+                    </p>
+
+                    {/* PRE_ESCROW Buyer Payment Info */}
+                    {order.buyer_id === user.id && order.payment_type === 'PRE_ESCROW' && (
+                      <div className="space-y-4 mt-6 animate-in fade-in slide-in-from-bottom-2">
+                        <div className="bg-background p-4 rounded-2xl border border-primary/10 space-y-3 shadow-inner">
+                          <div className="flex items-center gap-2 text-primary">
+                            <CreditCard className="w-5 h-5" />
+                            <h4 className="font-bold text-sm tracking-tight">{t('order.remittance_info')}</h4>
+                          </div>
+
+                          <p className="text-[10px] text-muted-foreground leading-relaxed bg-amber-500/5 p-3 rounded-xl border border-amber-500/10 italic">
+                            💡 {t('order.remittance_hint')}
+                          </p>
+
+                          <div className="space-y-2.5">
+                            <div className="flex justify-between items-center bg-secondary/10 p-2.5 rounded-xl border border-border/40">
+                              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">{t('order.bank_name')}</span>
+                              <span className="text-sm font-black text-foreground">Gull Bank Taiwan (Mock)</span>
+                            </div>
+                            <div className="flex justify-between items-center bg-secondary/10 p-2.5 rounded-xl border border-border/40">
+                              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">{t('order.bank_code')}</span>
+                              <span className="text-sm font-black font-mono text-primary">822</span>
+                            </div>
+                            <div className="flex justify-between items-center bg-secondary/10 p-2.5 rounded-xl border border-border/40">
+                              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">{t('order.account_no')}</span>
+                              <span className="text-sm font-black font-mono text-primary">1234-5678-9012-3456</span>
+                            </div>
+                            <div className="flex justify-between items-center bg-secondary/10 p-2.5 rounded-xl border border-border/40">
+                              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">{t('order.account_name')}</span>
+                              <span className="text-sm font-black text-foreground">Gull Global Co., Ltd.</span>
+                            </div>
+                          </div>
+
+                          <Button
+                            fullWidth
+                            onClick={handleNotifyPaid}
+                            disabled={order.payment_notification_sent}
+                            className={cn(
+                              "h-12 font-bold rounded-xl shadow-lg transition-all",
+                              order.payment_notification_sent
+                                ? "bg-muted text-muted-foreground border-border/50"
+                                : "bg-primary hover:scale-[1.02] shadow-primary/20"
+                            )}
+                          >
+                            {order.payment_notification_sent ? (
+                              <span className="flex items-center gap-2">
+                                <CheckCircle className="w-4 h-4" />
+                                {t('order.paid_notified_status')}
+                              </span>
+                            ) : (
+                              t('order.notify_paid_btn')
+                            )}
+                          </Button>
+                        </div>
                       </div>
                     )}
+
+                    {order.buyer_id !== user.id && wishGroup.some(o => o.buyer_id === user.id) && (
+                      <Button onClick={() => {
+                        const myOrder = wishGroup.find(o => o.buyer_id === user.id);
+                        if (myOrder) window.location.href = `/orders/${myOrder.id}`;
+                      }} fullWidth variant="outline" className="h-14 font-black text-lg border-primary text-primary hover:bg-primary/5 shadow-sm group">
+                        前往我的跟單進度
+                      </Button>
+                    )}
                   </div>
-                  <p className="text-sm text-muted-foreground">{t('order.wait_accept')}</p>
-                </>
-              ) : (
-                <Button onClick={handleAcceptOrder} fullWidth className="h-14 font-black text-lg shadow-xl shadow-primary/20 bg-primary hover:scale-[1.02] transition-transform">
-                  {t('order.accept_btn')}
-                </Button>
-              )}
+                ) : (
+                  <>
+                    <div className="space-y-6">
+                      {/* Potential Traveler View: Help Buy */}
+                      <div className="space-y-3 bg-background p-4 rounded-xl border border-border/50 shadow-sm animate-in fade-in slide-in-from-bottom-2">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">我是代購旅人：</span>
+                          <div className="flex items-center gap-3 bg-secondary/10 p-1 rounded-lg border border-border/50">
+                            <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => setBatchAcceptCount(Math.max(1, batchAcceptCount - 1))}>-</Button>
+                            <span className="font-black text-lg w-6 text-center text-primary">{batchAcceptCount}</span>
+                            <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => setBatchAcceptCount(Math.min(wishGroup.length || 1, batchAcceptCount + 1))}>+</Button>
+                          </div>
+                        </div>
+                        <Button onClick={handleAcceptOrder} fullWidth className="h-14 font-black text-lg shadow-xl shadow-primary/20 bg-primary hover:scale-[1.02] transition-transform">
+                          {t('order.accept_btn')} ({batchAcceptCount} 單)
+                        </Button>
+                        <p className="text-[10px] text-center text-muted-foreground italic px-2">協助購買並賺取外快</p>
+                      </div>
+
+                      {/* Potential Buyer View: Follow (if not original buyer) */}
+                      {user && order.buyer_id !== user.id && (
+                        <div className="space-y-4 pt-4 border-t border-border/50 animate-in fade-in slide-in-from-top-2">
+                          <p className="text-center text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">或者，我也想要買這個：</p>
+                          <Button
+                            onClick={() => setShowFollowModal(true)}
+                            fullWidth
+                            variant="outline"
+                            className="h-14 font-black text-lg border-primary text-primary hover:bg-primary/5 shadow-md shadow-primary/5 group"
+                          >
+                            <PlusSquare className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
+                            我也要許這個願望 (跟單)
+                          </Button>
+                          <p className="text-[10px] text-center text-muted-foreground italic px-4">集體許願提高成對率！</p>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           )}
 
@@ -919,111 +1063,237 @@ export default function OrderDetails() {
       </Card>
 
       {/* Order Chat Board */}
-      {order.status !== 'OPEN' && order.status !== 'DELISTED' && user && (
-        <div className="pt-2">
-          <OrderChat
-            orderId={order.id}
-            currentUserId={user.id}
-            role={role}
-            partnerName={partnerDisplayName}
-          />
-        </div>
-      )}
+      {
+        order.status !== 'OPEN' && order.status !== 'DELISTED' && user && (
+          <div className="pt-2">
+            <OrderChat
+              orderId={order.id}
+              currentUserId={user.id}
+              role={role}
+              partnerName={partnerDisplayName}
+            />
+          </div>
+        )
+      }
 
       {/* Dispute / Delist buttons */}
-      {['ESCROWED', 'BOUGHT', 'SHIPPED'].includes(order.status) && (
-        <div className="pt-2">
-          <Button onClick={() => setShowDisputeModal(true)} variant="outline" fullWidth className="h-10 text-xs font-bold text-red-400 border-red-500/20 hover:bg-red-500/10 rounded-xl flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4" />
-            {t('order.raise_dispute_btn')}
-          </Button>
-        </div>
-      )}
+      {
+        ['ESCROWED', 'BOUGHT', 'SHIPPED'].includes(order.status) && (
+          <div className="pt-2">
+            <Button onClick={() => setShowDisputeModal(true)} variant="outline" fullWidth className="h-10 text-xs font-bold text-red-400 border-red-500/20 hover:bg-red-500/10 rounded-xl flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4" />
+              {t('order.raise_dispute_btn')}
+            </Button>
+          </div>
+        )
+      }
 
-      {order.status === 'OPEN' && (role === 'buyer' || role === 'admin') && (
-        <div className="pt-2">
-          <Button onClick={handleDelist} variant="outline" fullWidth className="h-10 text-xs font-bold text-red-400 border-red-500/20 hover:bg-red-500/10 rounded-xl">
-            {t('order.delist_btn')}
-          </Button>
-        </div>
-      )}
+      {
+        order.status === 'OPEN' && (role === 'buyer' || role === 'admin') && (
+          <div className="pt-2">
+            <Button onClick={handleDelist} variant="outline" fullWidth className="h-10 text-xs font-bold text-red-400 border-red-500/20 hover:bg-red-500/10 rounded-xl">
+              {order.parent_order_id ? '取消跟單' : t('order.delist_btn')}
+            </Button>
+          </div>
+        )
+      }
 
-      {/* Dispute Modal */}
-      {showDisputeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in">
-          <Card className="w-full max-w-md shadow-2xl border-red-500/20 bg-background">
-            <CardHeader className="border-b border-border/50 pb-4">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg font-bold text-red-500 flex items-center gap-2">
-                  <AlertTriangle className="w-5 h-5" />
-                  {t('order.raise_dispute_btn')}
-                </CardTitle>
-                <button type="button" onClick={() => setShowDisputeModal(false)} className="p-1 rounded-full hover:bg-secondary">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4 pt-4">
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase text-muted-foreground">
-                  {t('order.dispute_reason')}
-                </label>
-                <Textarea
-                  placeholder={t('order.dispute_reason_placeholder')}
-                  value={disputeReason}
-                  onChange={(e) => setDisputeReason(e.target.value)}
-                  className="min-h-[100px]"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase text-muted-foreground">
-                  {t('order.dispute_upload_evidence')}
-                </label>
-                {disputeEvidencePreview ? (
-                  <div className="relative rounded-xl overflow-hidden border border-border">
-                    <img src={disputeEvidencePreview} alt="Evidence" className="w-full h-auto max-h-48 object-contain bg-muted" />
+      {/* Follow Modal */}
+      {
+        showFollowModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in">
+            <Card className="w-full max-w-lg shadow-2xl border-primary/20 bg-background max-h-[90vh] overflow-y-auto">
+              <CardHeader className="border-b border-border/50 pb-4 sticky top-0 bg-background z-10">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg font-bold flex items-center gap-2 text-primary">
+                    <PlusSquare className="w-5 h-5" />
+                    我也要許這個願望 (跟單)
+                  </CardTitle>
+                  <button type="button" onClick={() => setShowFollowModal(false)} className="p-1 rounded-full hover:bg-secondary">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-4">
+                <div className="space-y-4">
+                  <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground">{t('create.shipping_method')}</label>
+                  <div className="grid grid-cols-2 gap-3">
                     <button
                       type="button"
-                      onClick={() => { setDisputeEvidence(null); setDisputeEvidencePreview(null); }}
-                      className="absolute top-2 right-2 p-1.5 bg-background/90 rounded-full hover:bg-red-500/10 hover:text-red-500"
+                      onClick={() => setFollowMethod('HOME')}
+                      className={cn(
+                        "flex flex-col items-center justify-center p-4 rounded-2xl border transition-all gap-2",
+                        followMethod === 'HOME' ? "bg-primary/5 border-primary ring-1 ring-primary/20" : "bg-secondary/10 border-border/50"
+                      )}
                     >
-                      <X className="w-4 h-4" />
+                      <span className="text-xs font-bold">{t('create.home_delivery')}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setFollowMethod('711')}
+                      className={cn(
+                        "flex flex-col items-center justify-center p-4 rounded-2xl border transition-all gap-2",
+                        followMethod === '711' ? "bg-[#008134]/5 border-[#008134] ring-1 ring-[#008134]/20" : "bg-secondary/10 border-border/50"
+                      )}
+                    >
+                      <span className="text-xs font-bold">{t('create.cvs_pickup')}</span>
                     </button>
                   </div>
-                ) : (
-                  <label className="flex flex-col items-center justify-center h-24 border-2 border-dashed border-border rounded-xl cursor-pointer hover:bg-secondary/50 transition-colors">
-                    <Upload className="w-5 h-5 text-muted-foreground mb-1" />
-                    <span className="text-xs font-bold text-muted-foreground">{t('order.dispute_upload_evidence_btn')}</span>
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept="image/*"
-                      onChange={(e) => {
-                        if (e.target.files && e.target.files[0]) {
-                          setDisputeEvidence(e.target.files[0]);
-                          setDisputeEvidencePreview(URL.createObjectURL(e.target.files[0]));
-                        }
-                      }}
-                    />
-                  </label>
-                )}
-              </div>
 
-              <div className="pt-2">
-                <Button
-                  fullWidth
-                  className="bg-red-600 hover:bg-red-700 h-12"
-                  disabled={!disputeReason || isSubmittingDispute}
-                  onClick={handleRaiseDispute}
-                >
-                  {isSubmittingDispute ? <Loader2 className="w-5 h-5 animate-spin" /> : t('order.dispute_submit')}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-    </div>
+                  {followMethod === 'HOME' ? (
+                    <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2">
+                      <label className="block text-sm font-medium text-muted-foreground">{t('create.shipping_address')}</label>
+                      <Textarea value={followAddress} onChange={(e) => setFollowAddress(e.target.value)} placeholder={t('create.address_placeholder')} className="min-h-[80px]" />
+                    </div>
+                  ) : (
+                    <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                      {followCvsStore ? (
+                        <div className="p-4 rounded-xl bg-[#008134]/5 border border-[#008134]/20 text-sm flex justify-between items-start">
+                          <div>
+                            <p className="font-bold text-[#008134] flex items-center gap-2">
+                              <CheckCircle className="w-4 h-4" />
+                              {followCvsStore.store_name} ({followCvsStore.store_id})
+                            </p>
+                            <p className="text-[10px] text-muted-foreground mt-1">{followCvsStore.store_address}</p>
+                          </div>
+                          <Button type="button" variant="ghost" size="sm" onClick={() => openECPayCVSMap({ IsCollection: 'N', ServerReplyURL: `${window.location.origin}/api/ecpay/cvs-callback`, Device: window.innerWidth < 768 ? '1' : '0' })} className="h-7 text-[10px] text-[#008134] hover:bg-[#008134]/10">
+                            {t('common.edit')}
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          <Button type="button" onClick={() => openECPayCVSMap({ IsCollection: 'N', ServerReplyURL: `${window.location.origin}/api/ecpay/cvs-callback`, Device: window.innerWidth < 768 ? '1' : '0' })} className="flex-1 h-12 rounded-2xl border-dashed border-2 bg-secondary/5 hover:bg-secondary/10 hover:border-[#008134]/50 text-muted-foreground hover:text-[#008134] transition-all flex items-center justify-center gap-2">
+                            <PlusSquare className="w-5 h-5" />
+                            <span className="font-bold">{t('create.select_store')}</span>
+                          </Button>
+                          <Button type="button" variant="outline" onClick={() => setFollowCvsStore({ store_id: '123456', store_name: 'Mock Store', store_address: 'Mock City' })} className="h-12 px-4 rounded-2xl border-dashed border-2 text-[10px] font-black uppercase">
+                            Mock
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-3 pt-4 border-t border-border/10">
+                    <Input label={t('create.recipient_name')} value={followName} onChange={(e) => setFollowName(e.target.value)} />
+                    <Input label={t('create.recipient_phone')} value={followPhone} onChange={(e) => setFollowPhone(e.target.value)} />
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-border/30">
+                  <Button
+                    fullWidth
+                    className="h-12 font-bold bg-primary hover:bg-primary/90"
+                    disabled={isFollowing || !followName || !followPhone || ((followMethod === 'HOME' && !followAddress) || (followMethod === '711' && !followCvsStore))}
+                    onClick={async () => {
+                      if (!user) return;
+                      setIsFollowing(true);
+                      try {
+                        const result = await followOrder(order.id, user.id, {
+                          shipping_method: followMethod,
+                          shipping_address: followMethod === 'HOME' ? followAddress : `${followCvsStore.store_name} - ${followCvsStore.store_address}`,
+                          cvs_store_info: followMethod === '711' ? followCvsStore : null,
+                          recipient_name: followName,
+                          recipient_phone: followPhone
+                        });
+                        setShowFollowModal(false);
+                        router.push(`/orders/${result.id}`);
+                      } catch (e) {
+                        console.error(e);
+                        alert('跟單失敗');
+                      } finally {
+                        setIsFollowing(false);
+                      }
+                    }}
+                  >
+                    {isFollowing ? <Loader2 className="w-5 h-5 animate-spin" /> : '確認跟單'}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )
+      }
+
+      {/* Dispute Modal */}
+      {
+        showDisputeModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in">
+            <Card className="w-full max-w-md shadow-2xl border-red-500/20 bg-background">
+              <CardHeader className="border-b border-border/50 pb-4">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg font-bold text-red-500 flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5" />
+                    {t('order.raise_dispute_btn')}
+                  </CardTitle>
+                  <button type="button" onClick={() => setShowDisputeModal(false)} className="p-1 rounded-full hover:bg-secondary">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase text-muted-foreground">
+                    {t('order.dispute_reason')}
+                  </label>
+                  <Textarea
+                    placeholder={t('order.dispute_reason_placeholder')}
+                    value={disputeReason}
+                    onChange={(e) => setDisputeReason(e.target.value)}
+                    className="min-h-[100px]"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase text-muted-foreground">
+                    {t('order.dispute_upload_evidence')}
+                  </label>
+                  {disputeEvidencePreview ? (
+                    <div className="relative rounded-xl overflow-hidden border border-border">
+                      <img src={disputeEvidencePreview} alt="Evidence" className="w-full h-auto max-h-48 object-contain bg-muted" />
+                      <button
+                        type="button"
+                        onClick={() => { setDisputeEvidence(null); setDisputeEvidencePreview(null); }}
+                        className="absolute top-2 right-2 p-1.5 bg-background/90 rounded-full hover:bg-red-500/10 hover:text-red-500"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center h-24 border-2 border-dashed border-border rounded-xl cursor-pointer hover:bg-secondary/50 transition-colors">
+                      <Upload className="w-5 h-5 text-muted-foreground mb-1" />
+                      <span className="text-xs font-bold text-muted-foreground">{t('order.dispute_upload_evidence_btn')}</span>
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            setDisputeEvidence(e.target.files[0]);
+                            setDisputeEvidencePreview(URL.createObjectURL(e.target.files[0]));
+                          }
+                        }}
+                      />
+                    </label>
+                  )}
+                </div>
+
+                <div className="pt-2">
+                  <Button
+                    fullWidth
+                    className="bg-red-600 hover:bg-red-700 h-12"
+                    disabled={!disputeReason || isSubmittingDispute}
+                    onClick={handleRaiseDispute}
+                  >
+                    {isSubmittingDispute ? <Loader2 className="w-5 h-5 animate-spin" /> : t('order.dispute_submit')}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )
+      }
+    </div >
   );
 }

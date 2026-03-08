@@ -1,14 +1,18 @@
 import { supabase } from './supabase/client';
 import { Order, OrderStatus, Profile, SystemSettings } from '@/types';
 
-export const fetchOrders = async (status?: OrderStatus) => {
+export const fetchOrders = async (status?: OrderStatus | OrderStatus[]) => {
   let query = supabase
     .from('orders')
     .select('*, buyer:profiles!buyer_id(*), traveler:profiles!traveler_id(*)')
     .order('created_at', { ascending: false });
 
   if (status) {
-    query = query.eq('status', status);
+    if (Array.isArray(status)) {
+      query = query.in('status', status);
+    } else {
+      query = query.eq('status', status);
+    }
   }
 
   const { data, error } = await query;
@@ -67,6 +71,78 @@ export const createOrder = async (order: Omit<Order, 'id' | 'status' | 'created_
 
   if (error) throw error;
   return data as Order;
+};
+
+export const followOrder = async (
+  parentOrderId: string,
+  buyerId: string,
+  shippingDetails: {
+    shipping_method: 'HOME' | '711';
+    shipping_address?: string | null;
+    cvs_store_info?: any;
+    recipient_name: string;
+    recipient_phone: string;
+  }
+) => {
+  const parentOrder = await fetchOrderById(parentOrderId);
+
+  // Default to 100% deposit if missing
+  const is_partial = typeof parentOrder.is_partial_payment === 'boolean' ? parentOrder.is_partial_payment : false;
+  const dep_pct = parentOrder.deposit_percentage || 100;
+
+  const newOrder: any = {
+    buyer_id: buyerId,
+    item_name: parentOrder.item_name,
+    target_price: parentOrder.target_price,
+    reward_fee: parentOrder.reward_fee,
+    exchange_rate: parentOrder.exchange_rate,
+    currency: parentOrder.currency,
+    country: parentOrder.country,
+    description: parentOrder.description,
+    require_receipt: parentOrder.require_receipt,
+    require_model_number: parentOrder.require_model_number,
+    photo_url: parentOrder.photo_url,
+    buyer_platform_fee: parentOrder.buyer_platform_fee,
+    traveler_platform_fee: parentOrder.traveler_platform_fee,
+    expected_shipping_date: parentOrder.expected_shipping_date,
+    auto_extend: parentOrder.auto_extend,
+    payment_type: parentOrder.payment_type,
+    is_partial_payment: is_partial,
+    deposit_percentage: dep_pct,
+    deposit_amount: parentOrder.deposit_amount,
+    parent_order_id: parentOrder.parent_order_id || parentOrderId,
+    ...shippingDetails,
+    payment_notification_sent: parentOrder.payment_type === 'PRE_ESCROW',
+  };
+
+  return createOrder(newOrder);
+};
+
+export const fetchWishGroup = async (parentOrderId: string | null, orderId: string) => {
+  const rootId = parentOrderId || orderId;
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*, buyer:profiles!buyer_id(*), traveler:profiles!traveler_id(*)')
+    .or(`id.eq.${rootId},parent_order_id.eq.${rootId}`)
+    .eq('status', 'OPEN')
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+  return data as Order[];
+};
+
+export const batchAssignTraveler = async (orderIds: string[], travelerId: string, status: OrderStatus = 'MATCHED') => {
+  const { data, error } = await supabase
+    .from('orders')
+    .update({
+      traveler_id: travelerId,
+      status: status
+    })
+    .in('id', orderIds)
+    .select();
+
+  if (error) throw error;
+  return data as Order[];
 };
 
 // --- Admin & Settings APIs ---
@@ -145,6 +221,20 @@ export const updateOrderStatus = async (id: string, status: OrderStatus) => {
 
   if (error) throw error;
   return data as Order;
+};
+
+export const delistOrderGroup = async (parentOrderId: string) => {
+  // Delist the parent order itself
+  await updateOrderStatus(parentOrderId, 'DELISTED');
+
+  // Delist all OPEN child orders
+  const { error } = await supabase
+    .from('orders')
+    .update({ status: 'DELISTED' })
+    .eq('parent_order_id', parentOrderId)
+    .eq('status', 'OPEN');
+
+  if (error) throw error;
 };
 
 export const assignTraveler = async (id: string, travelerId: string, status: OrderStatus = 'MATCHED') => {

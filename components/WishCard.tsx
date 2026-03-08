@@ -45,16 +45,23 @@ export const WishCard = ({ order }: WishCardProps) => {
   return (
     <Card className="overflow-hidden bg-white/95 backdrop-blur-xl border-border/60 hover:border-primary/20 shadow-sm hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition-all duration-300 group h-full flex flex-col">
       <Link href={`/orders/${order.id}`}>
-        {/* Ad Type Badge */}
-        {order.payment_type === 'PRE_ESCROW' && (
-          <div className="absolute top-3 left-3 z-10 flex gap-2">
+        {/* badges container */}
+        <div className="absolute top-3 left-3 z-10 flex flex-wrap gap-2">
+          {order.payment_type === 'PRE_ESCROW' && (
             <div className={cn(
               "px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider backdrop-blur-xl border bg-white/90 text-green-600 border-green-200 shadow-sm"
             )}>
               {t('order.tag_pre_escrow')}
             </div>
-          </div>
-        )}
+          )}
+          {order.parent_order_id && (
+            <div className={cn(
+              "px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wider backdrop-blur-xl border bg-primary text-primary-foreground shadow-sm flex items-center gap-1"
+            )}>
+              ⭐ 我的跟單
+            </div>
+          )}
+        </div>
 
         <CardHeader className="p-4 pb-2">
           <div className="flex gap-4">
