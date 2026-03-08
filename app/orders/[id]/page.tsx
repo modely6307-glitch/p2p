@@ -59,7 +59,7 @@ export default function OrderDetails() {
 
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
-  const [role, setRole] = useState<'buyer' | 'traveler' | 'admin'>('buyer');
+  const [role, setRole] = useState<'buyer' | 'traveler' | 'admin'>('traveler');
   const [uploading, setUploading] = useState(false);
   const [purchasePhotoUploading, setPurchasePhotoUploading] = useState(false);
   const [modelNumberInput, setModelNumberInput] = useState('');
@@ -343,19 +343,6 @@ export default function OrderDetails() {
 
   return (
     <div className="p-4 lg:p-8 space-y-6 pb-24 max-w-3xl lg:mx-auto">
-      {/* Role Switcher for Demo */}
-      <div className="flex justify-end gap-2 mb-4">
-        <select
-          value={role}
-          onChange={(e) => setRole(e.target.value as any)}
-          className="bg-secondary text-secondary-foreground text-xs rounded p-1"
-        >
-          <option value="buyer">{t('order.buyer')}</option>
-          <option value="traveler">{t('order.traveler')}</option>
-          <option value="admin">{t('profile.admin')}</option>
-        </select>
-      </div>
-
       <header>
         <div className="flex justify-between items-start mb-4">
           <div className="space-y-1">
