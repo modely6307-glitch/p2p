@@ -56,24 +56,28 @@ export default function AdminDashboard() {
     const loadData = async () => {
         if (loading && hasLoaded.current) return;
         setLoading(true);
-        console.time('Admin:LoadEverything');
+        console.log('Admin: loadData started');
+        console.time('Admin:FetchAll');
+
+        // UI Safety timer for this specific page
+        const uiFreezeTimer = setTimeout(() => {
+            if (isMounted.current && loading) {
+                console.warn('Admin: UI Force Unblock (loadData timed out)');
+                setLoading(false);
+            }
+        }, 6000);
 
         try {
-            // Use a timeout for the entire data fetch
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s total timeout
-
             console.log('Admin: Fetching data components...');
 
-            // Fetch everything, but individual failures shouldn't crash the UI
+            // Promise.all with individual catch logic
             const [ordData, profData, settsData] = await Promise.all([
                 fetchAllOrders().catch(e => { console.error('Orders fail:', e); return [] as Order[]; }),
                 fetchAllProfiles().catch(e => { console.error('Profiles fail:', e); return [] as Profile[]; }),
                 fetchSystemSettings().catch(e => { console.error('Settings fail:', e); return null; })
             ]);
 
-            clearTimeout(timeoutId);
-            console.timeEnd('Admin:LoadEverything');
+            console.timeEnd('Admin:FetchAll');
 
             if (isMounted.current) {
                 setOrders(ordData);
@@ -82,8 +86,9 @@ export default function AdminDashboard() {
                 hasLoaded.current = true;
             }
         } catch (error) {
-            console.error('Admin: Critical load error:', error);
+            console.error('Admin: Critical data fetch error:', error);
         } finally {
+            clearTimeout(uiFreezeTimer);
             if (isMounted.current) setLoading(false);
         }
     };

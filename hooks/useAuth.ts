@@ -14,73 +14,86 @@ export function useAuth(requireAuth: boolean = true) {
         let isMounted = true;
         let authSubscription: any = null;
 
-        const getUserData = async () => {
-            // Speed up: Try to get session from local storage first
-            const { data: { session } } = await supabase.auth.getSession();
-            if (isMounted && session?.user) {
-                setUser(session.user);
-                fetchProfile(session.user.id);
-            }
-
+        const fetchProfile = async (uid: string) => {
+            console.log('useAuth: Fetching profile for', uid);
             try {
+                const { data: userProfile } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', uid)
+                    .maybeSingle();
+
+                if (isMounted) {
+                    console.log('useAuth: Profile loaded, level:', userProfile?.level);
+                    setProfile(userProfile);
+                }
+            } catch (err) {
+                console.error('useAuth: Profile error', err);
+            }
+        };
+
+        const initializeAuth = async () => {
+            console.log('useAuth: Initializing auth sequence...');
+            try {
+                // 1. Initial local check
+                const { data: { session } } = await supabase.auth.getSession();
+                if (isMounted && session?.user) {
+                    console.log('useAuth: Local session found');
+                    setUser(session.user);
+                    await fetchProfile(session.user.id);
+                }
+
+                // 2. Full network verify
                 const { data: { user: authUser }, error: userError } = await supabase.auth.getUser();
                 if (userError) throw userError;
 
-                if (!isMounted) return;
-                setUser(authUser);
-
-                if (authUser) {
-                    fetchProfile(authUser.id);
-                } else {
-                    setProfile(null);
+                if (isMounted) {
+                    console.log('useAuth: User verified:', authUser?.id);
+                    setUser(authUser);
+                    if (authUser) {
+                        await fetchProfile(authUser.id);
+                    } else {
+                        setProfile(null);
+                    }
                 }
             } catch (err) {
                 console.error('useAuth: Init error', err);
             } finally {
-                if (isMounted) setLoading(false);
+                if (isMounted) {
+                    console.log('useAuth: Initialization complete, setting loading=false');
+                    setLoading(false);
+                }
             }
-        };
-
-        const fetchProfile = async (uid: string) => {
-            const { data: userProfile } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', uid)
-                .maybeSingle();
-            if (isMounted) setProfile(userProfile);
         };
 
         // Safety timeout to prevent permanent loading screens
         const safetyTimer = setTimeout(() => {
             if (isMounted && loading) {
-                console.warn('useAuth: Safety timeout triggered');
+                console.warn('useAuth: SAFETY TIMEOUT - Forcing UI unlock');
                 setLoading(false);
             }
-        }, 2000);
+        }, 3500);
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             if (!isMounted) return;
+            console.log('useAuth: Auth event:', event);
             const currentUser = session?.user ?? null;
             setUser(currentUser);
 
             if (currentUser) {
-                const { data: userProfile } = await supabase
-                    .from('profiles')
-                    .select('*')
-                    .eq('id', currentUser.id)
-                    .maybeSingle();
-                if (isMounted) setProfile(userProfile);
+                fetchProfile(currentUser.id);
             } else {
                 setProfile(null);
-                // setLoading(false); // Removed as initial loading is handled by getUserData's finally
+                if (event === 'SIGNED_OUT') setLoading(false);
             }
         });
         authSubscription = subscription;
 
-        getUserData();
+        initializeAuth();
 
         return () => {
             isMounted = false;
+            clearTimeout(safetyTimer);
             if (authSubscription) authSubscription.unsubscribe();
         };
     }, []);
@@ -92,7 +105,7 @@ export function useAuth(requireAuth: boolean = true) {
         if (!loading && requireAuth && !user) {
             const isLoginPage = typeof window !== 'undefined' && window.location.pathname === '/login';
             if (!isLoginPage) {
-                console.log('useAuth: Unauthenticated user on protected route, redirecting to login');
+                console.log('useAuth: Attempting redirect to /login');
                 router.push('/login');
             }
         }
