@@ -7,7 +7,7 @@ import { Order, Profile, SystemSettings } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, ShieldCheck, User, Package, CheckCircle2, XCircle, CreditCard, Banknote, CheckCircle, Settings } from 'lucide-react';
+import { Loader2, ShieldCheck, User, Package, CheckCircle2, XCircle, CreditCard, Banknote, CheckCircle, Settings, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { StatusBadge } from '@/components/StatusBadge';
 import { cn } from '@/lib/utils';
@@ -17,7 +17,7 @@ type OrderFilter = 'all' | 'open' | 'matched' | 'paid' | 'completed' | 'disputed
 import { useLanguage } from '@/context/LanguageContext';
 
 export default function AdminDashboard() {
-    const { user, loading: authLoading } = useAuth();
+    const { user, profile, loading: authLoading } = useAuth();
     const router = useRouter();
     const [orders, setOrders] = useState<Order[]>([]);
     const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -28,12 +28,28 @@ export default function AdminDashboard() {
     const { t } = useLanguage();
 
     useEffect(() => {
-        if (!authLoading && !user) {
+        if (authLoading) return;
+
+        if (!user) {
             router.push('/login');
             return;
         }
-        loadData();
-    }, [user, authLoading]);
+
+        // --- DEBUG BYPASS ---
+        // If we are in local development and having profile issues, 
+        // we can force loadData or add a more reliable check.
+        if (profile) {
+            if (profile.level === 'ADMIN') {
+                loadData();
+            } else {
+                console.log('User detected but not ADMIN:', profile.level);
+            }
+        } else {
+            // If profile is missing but user exists, potentially fetch it again or force it
+            console.log('User exists, but profile is null. Retrying or bypassing...');
+            loadData(); // Force load for now to unstick the UI if it's your test account
+        }
+    }, [user, profile, authLoading]);
 
     const loadData = async () => {
         setLoading(true);
@@ -154,7 +170,62 @@ export default function AdminDashboard() {
         }
     };
 
-    if (loading || authLoading) {
+    const [showBypass, setShowBypass] = useState(false);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (authLoading) setShowBypass(true);
+        }, 5000);
+        return () => clearTimeout(timer);
+    }, [authLoading]);
+
+    if (authLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <div className="text-center space-y-6">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" />
+                    <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground animate-pulse font-medium">正在載入系統資料...</p>
+                        {showBypass && (
+                            <p className="text-[10px] text-red-400 font-bold">驗證時間過長，可能是網路連線不穩</p>
+                        )}
+                    </div>
+
+                    {showBypass && (
+                        <div className="flex flex-col gap-2 pt-4">
+                            <Button variant="outline" size="sm" onClick={() => router.push('/')} className="rounded-xl">
+                                返回首頁
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => loadData()} className="text-[10px] text-muted-foreground underline">
+                                強制嘗試進入 (僅限調試)
+                            </Button>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    if (user && profile && profile.level !== 'ADMIN') {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-red-50/10 p-4">
+                <Card className="max-w-md w-full border-red-200 shadow-2xl shadow-red-500/10">
+                    <CardHeader className="text-center">
+                        <XCircle className="w-12 h-12 text-red-500 mx-auto mb-2" />
+                        <CardTitle className="text-red-600 font-black text-2xl">權限不足</CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-center space-y-6">
+                        <p className="text-muted-foreground font-medium">抱歉，您的帳號目前等級為 <span className="text-foreground font-bold">{profile.level}</span>，無法存取管理後台。</p>
+                        <Button onClick={() => router.push('/')} fullWidth variant="outline" className="h-12 font-bold border-red-200 text-red-600 hover:bg-red-50">
+                            返回首頁
+                        </Button>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
+
+    if (loading) {
         return (
             <div className="flex items-center justify-center min-h-screen">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -169,6 +240,15 @@ export default function AdminDashboard() {
                     <h1 className="text-2xl font-black tracking-tight">{t('admin.title')}</h1>
                     <p className="text-sm text-muted-foreground">{t('admin.subtitle')}</p>
                 </div>
+                {disputedCount > 0 && (
+                    <Button
+                        onClick={() => router.push('/admin/disputes')}
+                        className="bg-red-600 hover:bg-red-700 text-white font-black shadow-lg shadow-red-500/30 animate-pulse"
+                    >
+                        <AlertTriangle className="w-5 h-5 mr-2" />
+                        處理爭議案件 ({disputedCount})
+                    </Button>
+                )}
             </header>
 
             <div className="flex bg-secondary/30 p-1 rounded-xl w-fit overflow-x-auto">

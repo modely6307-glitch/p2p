@@ -107,10 +107,42 @@ export default function Dashboard() {
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
       ) : filteredOrders.length > 0 ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredOrders.map((order) => (
-            <WishCard key={order.id} order={order} />
-          ))}
+        <div className="space-y-8">
+          {activeTab === 'wishes' ? (
+            <>
+              {filteredOrders.filter(o => !o.parent_order_id).length > 0 && (
+                <div className="space-y-4">
+                  <h2 className="text-xl font-bold flex items-center gap-2 mb-2">
+                    <span className="text-2xl">🪄</span> 我的原創許願
+                  </h2>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {filteredOrders.filter(o => !o.parent_order_id).map((order) => (
+                      <WishCard key={order.id} order={order} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {filteredOrders.filter(o => o.parent_order_id).length > 0 && (
+                <div className={"space-y-4 " + (filteredOrders.filter(o => !o.parent_order_id).length > 0 ? "pt-4 border-t border-border/50" : "")}>
+                  <h2 className="text-xl font-bold flex items-center gap-2 mb-2">
+                    <span className="text-2xl">⭐</span> 我的排隊跟單
+                  </h2>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {filteredOrders.filter(o => o.parent_order_id).map((order) => (
+                      <WishCard key={order.id} order={order} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {filteredOrders.map((order) => (
+                <WishCard key={order.id} order={order} />
+              ))}
+            </div>
+          )}
         </div>
       ) : (
         <div className="text-center py-20 text-muted-foreground border-2 border-dashed border-border/50 rounded-3xl">
