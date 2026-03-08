@@ -54,9 +54,11 @@ function MarketContent() {
     useEffect(() => {
         const loadOrders = async () => {
             try {
-                const data = await fetchOrders('OPEN');
+                const data = await fetchOrders(['OPEN', 'ESCROWED']);
+                // Filter out ESCROWED orders that already have a traveler
+                const openData = data.filter(o => o.status === 'OPEN' || (o.status === 'ESCROWED' && !o.traveler_id));
                 // Sort by expected_shipping_date (closest first)
-                const sorted = data.sort((a, b) => {
+                const sorted = openData.sort((a, b) => {
                     if (!a.expected_shipping_date) return 1;
                     if (!b.expected_shipping_date) return -1;
                     return new Date(a.expected_shipping_date).getTime() - new Date(b.expected_shipping_date).getTime();

@@ -1,14 +1,18 @@
 import { supabase } from './supabase/client';
 import { Order, OrderStatus, Profile, SystemSettings } from '@/types';
 
-export const fetchOrders = async (status?: OrderStatus) => {
+export const fetchOrders = async (status?: OrderStatus | OrderStatus[]) => {
   let query = supabase
     .from('orders')
     .select('*, buyer:profiles!buyer_id(*), traveler:profiles!traveler_id(*)')
     .order('created_at', { ascending: false });
 
   if (status) {
-    query = query.eq('status', status);
+    if (Array.isArray(status)) {
+      query = query.in('status', status);
+    } else {
+      query = query.eq('status', status);
+    }
   }
 
   const { data, error } = await query;

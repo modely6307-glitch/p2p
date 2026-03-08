@@ -111,7 +111,8 @@ export default function OrderDetails() {
         } else if (data.traveler_id === user.id) {
           setRole('traveler');
         } else {
-          setRole('traveler');
+          // If not the buyer or the assigned traveler, they are a generic visitor
+          setRole('traveler'); // Keeping 'traveler' for naming consistency but logic will change in UI
         }
       }
     } catch (error) {
@@ -632,7 +633,9 @@ export default function OrderDetails() {
                   <div className="space-y-3">
                     <p className="text-sm font-medium leading-relaxed bg-primary/5 p-4 rounded-xl border border-primary/20 text-center shadow-sm text-primary">
                       {order.buyer_id === user.id ? (
-                        '這是您的許願單，請靜候旅人接單。'
+                        order.payment_type === 'PRE_ESCROW'
+                          ? '您選擇了立即託管，請根據下方資訊完成匯款，後續由管理長確認後，代購接單將立刻生效。'
+                          : '這是您的許願單，請靜候旅人接單。'
                       ) : (
                         <>
                           <CheckCircle className="w-5 h-5 mx-auto mb-2 text-primary animate-in zoom-in" />
@@ -640,6 +643,63 @@ export default function OrderDetails() {
                         </>
                       )}
                     </p>
+
+                    {/* PRE_ESCROW Buyer Payment Info */}
+                    {order.buyer_id === user.id && order.payment_type === 'PRE_ESCROW' && (
+                      <div className="space-y-4 mt-6 animate-in fade-in slide-in-from-bottom-2">
+                        <div className="bg-background p-4 rounded-2xl border border-primary/10 space-y-3 shadow-inner">
+                          <div className="flex items-center gap-2 text-primary">
+                            <CreditCard className="w-5 h-5" />
+                            <h4 className="font-bold text-sm tracking-tight">{t('order.remittance_info')}</h4>
+                          </div>
+
+                          <p className="text-[10px] text-muted-foreground leading-relaxed bg-amber-500/5 p-3 rounded-xl border border-amber-500/10 italic">
+                            💡 {t('order.remittance_hint')}
+                          </p>
+
+                          <div className="space-y-2.5">
+                            <div className="flex justify-between items-center bg-secondary/10 p-2.5 rounded-xl border border-border/40">
+                              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">{t('order.bank_name')}</span>
+                              <span className="text-sm font-black text-foreground">Gull Bank Taiwan (Mock)</span>
+                            </div>
+                            <div className="flex justify-between items-center bg-secondary/10 p-2.5 rounded-xl border border-border/40">
+                              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">{t('order.bank_code')}</span>
+                              <span className="text-sm font-black font-mono text-primary">822</span>
+                            </div>
+                            <div className="flex justify-between items-center bg-secondary/10 p-2.5 rounded-xl border border-border/40">
+                              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">{t('order.account_no')}</span>
+                              <span className="text-sm font-black font-mono text-primary">1234-5678-9012-3456</span>
+                            </div>
+                            <div className="flex justify-between items-center bg-secondary/10 p-2.5 rounded-xl border border-border/40">
+                              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">{t('order.account_name')}</span>
+                              <span className="text-sm font-black text-foreground">Gull Global Co., Ltd.</span>
+                            </div>
+                          </div>
+
+                          <Button
+                            fullWidth
+                            onClick={handleNotifyPaid}
+                            disabled={order.payment_notification_sent}
+                            className={cn(
+                              "h-12 font-bold rounded-xl shadow-lg transition-all",
+                              order.payment_notification_sent
+                                ? "bg-muted text-muted-foreground border-border/50"
+                                : "bg-primary hover:scale-[1.02] shadow-primary/20"
+                            )}
+                          >
+                            {order.payment_notification_sent ? (
+                              <span className="flex items-center gap-2">
+                                <CheckCircle className="w-4 h-4" />
+                                {t('order.paid_notified_text') || '已通知管理員'}
+                              </span>
+                            ) : (
+                              t('order.notify_paid_btn')
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
                     {order.buyer_id !== user.id && wishGroup.some(o => o.buyer_id === user.id) && (
                       <Button onClick={() => {
                         const myOrder = wishGroup.find(o => o.buyer_id === user.id);
@@ -651,11 +711,12 @@ export default function OrderDetails() {
                   </div>
                 ) : (
                   <>
-                    {role === 'traveler' ? (
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold tracking-widest text-muted-foreground uppercase">我要接單數量：</span>
-                          <div className="flex items-center gap-3 bg-background p-1 rounded-lg border border-border/50 shadow-sm">
+                    <div className="space-y-6">
+                      {/* Potential Traveler View: Help Buy */}
+                      <div className="space-y-3 bg-background p-4 rounded-xl border border-border/50 shadow-sm animate-in fade-in slide-in-from-bottom-2">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">我是代購旅人：</span>
+                          <div className="flex items-center gap-3 bg-secondary/10 p-1 rounded-lg border border-border/50">
                             <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => setBatchAcceptCount(Math.max(1, batchAcceptCount - 1))}>-</Button>
                             <span className="font-black text-lg w-6 text-center text-primary">{batchAcceptCount}</span>
                             <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => setBatchAcceptCount(Math.min(wishGroup.length || 1, batchAcceptCount + 1))}>+</Button>
@@ -664,23 +725,26 @@ export default function OrderDetails() {
                         <Button onClick={handleAcceptOrder} fullWidth className="h-14 font-black text-lg shadow-xl shadow-primary/20 bg-primary hover:scale-[1.02] transition-transform">
                           {t('order.accept_btn')} ({batchAcceptCount} 單)
                         </Button>
+                        <p className="text-[10px] text-center text-muted-foreground italic px-2">協助購買並賺取外快</p>
                       </div>
-                    ) : (
-                      <>
-                        <p className="text-sm text-foreground/80 font-medium leading-relaxed bg-background p-4 rounded-xl border border-border/50 text-center shadow-sm">
-                          {t('order.wait_accept')}
-                        </p>
-                        {order.payment_type === 'PRE_ESCROW' && !order.is_partial_payment && (
-                          <div className="space-y-4 mt-2 pt-4 border-t border-border/50">
-                            <p className="text-center text-xs font-bold text-muted-foreground uppercase tracking-widest">— 或者 —</p>
-                            <Button onClick={() => setShowFollowModal(true)} fullWidth variant="outline" className="h-14 font-black text-lg border-primary text-primary hover:bg-primary/5 shadow-sm group">
-                              <PlusSquare className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
-                              我也要許這個願望 (跟單)
-                            </Button>
-                          </div>
-                        )}
-                      </>
-                    )}
+
+                      {/* Potential Buyer View: Follow (if not original buyer) */}
+                      {user && order.buyer_id !== user.id && (
+                        <div className="space-y-4 pt-4 border-t border-border/50 animate-in fade-in slide-in-from-top-2">
+                          <p className="text-center text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">或者，我也想要買這個：</p>
+                          <Button
+                            onClick={() => setShowFollowModal(true)}
+                            fullWidth
+                            variant="outline"
+                            className="h-14 font-black text-lg border-primary text-primary hover:bg-primary/5 shadow-md shadow-primary/5 group"
+                          >
+                            <PlusSquare className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
+                            我也要許這個願望 (跟單)
+                          </Button>
+                          <p className="text-[10px] text-center text-muted-foreground italic px-4">集體許願提高成對率！</p>
+                        </div>
+                      )}
+                    </div>
                   </>
                 )}
               </div>

@@ -240,7 +240,7 @@ export default function CreateWish() {
         photo_url = await uploadFile(photo, 'wishes', path);
       }
 
-      await createOrder({
+      const result = await createOrder({
         buyer_id: user.id,
         item_name: formData.item_name,
         target_price: parseFloat(formData.target_price),
@@ -267,8 +267,10 @@ export default function CreateWish() {
         deposit_amount: formData.is_partial_payment
           ? Math.round(calculateTotal() * (formData.deposit_percentage / 100))
           : calculateTotal(),
+        // Immediately notify admin if it's a pre-escrow order
+        payment_notification_sent: formData.payment_type === 'PRE_ESCROW',
       });
-      router.push('/dashboard');
+      router.push(`/orders/${result.id}`);
     } catch (error) {
       console.error('Error creating wish:', error);
       alert(t('create.fail'));
