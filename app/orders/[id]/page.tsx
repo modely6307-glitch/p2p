@@ -628,9 +628,16 @@ export default function OrderDetails() {
                 )}
               </div>
               <div className="flex items-center gap-2 mb-4">
-                <span className="text-xs font-bold text-blue-600 bg-blue-500/10 px-3 py-1 rounded-full ring-1 ring-blue-500/20 shadow-sm border border-blue-500/10 backdrop-blur-sm flex items-center gap-1 shadow-blue-500/5">
-                  <span className="text-sm">🔥</span> 共 {wishGroup.length || 1} 人候補求購中
-                </span>
+                {wishGroup.length > 1 ? (
+                  <span className="text-xs font-bold text-orange-600 bg-orange-500/10 px-3 py-1 rounded-full ring-1 ring-orange-500/20 shadow-sm border border-orange-500/10 backdrop-blur-sm flex items-center gap-1 shadow-orange-500/5 transition-all animate-in zoom-in">
+                    <span className="text-sm">🔥</span> 共 {wishGroup.length} 人集結求購中
+                  </span>
+                ) : (
+                  <span className="text-xs font-medium text-blue-600 bg-blue-500/5 px-3 py-1 rounded-full border border-blue-500/10 flex items-center gap-1">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    正在等待旅人接單
+                  </span>
+                )}
               </div>
 
               <div className="bg-secondary/10 p-4 rounded-xl space-y-4">

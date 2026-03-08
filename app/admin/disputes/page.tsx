@@ -21,11 +21,14 @@ export default function AdminDisputesPage() {
     const [resolutionNotes, setResolutionNotes] = useState<Record<string, string>>({});
 
     useEffect(() => {
-        if (!authLoading) {
-            if (!user || profile?.level !== 'ADMIN') {
-                router.push('/login');
-                return;
-            }
+        if (authLoading) return;
+
+        if (!user) {
+            router.push('/login');
+            return;
+        }
+
+        if (profile?.level === 'ADMIN') {
             loadDisputedOrders();
         }
     }, [user, profile, authLoading]);
@@ -67,10 +70,29 @@ export default function AdminDisputesPage() {
         }
     };
 
-    if (loading || authLoading) {
+    if (authLoading) {
         return (
             <div className="flex items-center justify-center min-h-screen">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+        );
+    }
+
+    if (user && profile?.level !== 'ADMIN') {
+        return (
+            <div className="flex items-center justify-center min-h-screen p-4">
+                <Card className="max-w-md w-full border-red-200">
+                    <CardHeader className="text-center">
+                        <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-2" />
+                        <CardTitle className="text-red-600 font-bold">權限不足</CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-center">
+                        <p className="text-muted-foreground mb-6">您無權訪問此頁面。</p>
+                        <Button onClick={() => router.push('/')} variant="outline" className="w-full">
+                            返回首頁
+                        </Button>
+                    </CardContent>
+                </Card>
             </div>
         );
     }

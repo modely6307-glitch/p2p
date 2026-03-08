@@ -3,16 +3,24 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, PlusSquare, LayoutDashboard, User } from 'lucide-react';
+import { Home, PlusSquare, LayoutDashboard, User, ShieldAlert } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { useNotifications } from '@/context/NotificationContext';
+import { useAuth } from '@/hooks/useAuth';
 
 export const BottomNav = () => {
   const pathname = usePathname();
   const { t } = useLanguage();
   const { unreadCount, activeTaskCount } = useNotifications();
+  const { profile } = useAuth(false);
 
-  const links = [
+  const isAdmin = profile?.level === 'ADMIN';
+
+  const links = isAdmin ? [
+    { href: '/admin', label: '管理後台', icon: LayoutDashboard, badge: 0 },
+    { href: '/admin/disputes', label: '爭議處理', icon: ShieldAlert, badge: 0 },
+    { href: '/profile', label: t('nav.profile'), icon: User, badge: 0 },
+  ] : [
     { href: '/market', label: t('nav.market'), icon: Home, badge: 0 },
     { href: '/create', label: t('nav.create'), icon: PlusSquare, badge: 0 },
     { href: '/dashboard', label: t('nav.dashboard'), icon: LayoutDashboard, badge: unreadCount + activeTaskCount },

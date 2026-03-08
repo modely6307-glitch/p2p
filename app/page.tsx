@@ -14,10 +14,19 @@ import { cn } from '@/lib/utils';
 import { AiRecommendation } from '@/components/AiRecommendation';
 import { z } from 'zod';
 import { experimental_useObject as useObject } from '@ai-sdk/react';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function LandingPage() {
+  const { user, profile, loading: authLoading } = useAuth(false); // Don't require auth for landing
   const router = useRouter();
   const { t } = useLanguage();
+
+  // Redirect Admin away from landing page if logged in
+  useEffect(() => {
+    if (!authLoading && profile?.level === 'ADMIN') {
+      router.push('/admin');
+    }
+  }, [profile, authLoading, router]);
   const [departureDate, setDepartureDate] = useState('');
   const [returnDate, setReturnDate] = useState('');
   const [showAI, setShowAI] = useState(false);

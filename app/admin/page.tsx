@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { fetchAllOrders, fetchAllProfiles, updateProfile, updateOrderStatus, incrementOrderStats, fetchSystemSettings, updateSystemSettings } from '@/utils/api';
 import { Order, Profile, SystemSettings } from '@/types';
@@ -26,6 +26,7 @@ export default function AdminDashboard() {
     const [activeTab, setActiveTab] = useState<'orders' | 'users' | 'settings'>('orders');
     const [orderFilter, setOrderFilter] = useState<OrderFilter>('all');
     const { t } = useLanguage();
+    const hasLoaded = useRef(false);
 
     useEffect(() => {
         if (authLoading) return;
@@ -35,58 +36,62 @@ export default function AdminDashboard() {
             return;
         }
 
-        // --- DEBUG BYPASS ---
-        // If we are in local development and having profile issues, 
-        // we can force loadData or add a more reliable check.
+        if (hasLoaded.current) return;
+
+        // If profile is loaded, check ADMIN status, else if it's taking too long, we might be the admin but profile is slow
         if (profile) {
             if (profile.level === 'ADMIN') {
                 loadData();
+                hasLoaded.current = true;
             } else {
-                console.log('User detected but not ADMIN:', profile.level);
+                console.log('Access denied: level is', profile.level);
             }
-        } else {
-            // If profile is missing but user exists, potentially fetch it again or force it
-            console.log('User exists, but profile is null. Retrying or bypassing...');
-            loadData(); // Force load for now to unstick the UI if it's your test account
+        } else if (!authLoading) {
+            // If auth is done but profile still null, try loading once
+            loadData();
+            hasLoaded.current = true;
         }
     }, [user, profile, authLoading]);
 
     const loadData = async () => {
+        if (loading && hasLoaded.current) return;
         setLoading(true);
-        console.log('Admin loading data...');
-        try {
-            // Load separately to identify failures
-            const ordData = await fetchAllOrders().catch(e => { console.error('Orders load fail:', e); return []; });
-            const profData = await fetchAllProfiles().catch(e => { console.error('Profiles load fail:', e); return []; });
-            const settsData = await fetchSystemSettings().catch(e => {
-                console.error('Settings load fail:', e);
-                return null;
-            });
+        console.time('Admin:LoadEverything');
 
-            console.log('Loaded Settings:', settsData);
-            setOrders(ordData);
-            setProfiles(profData);
-            if (settsData) {
-                setSettings(settsData);
-            } else {
-                // Initial fallback if table error
-                setSettings({
-                    id: 'global',
-                    buyer_fee_threshold: 1000,
-                    buyer_fee_fixed_amount: 20,
-                    buyer_fee_percentage: 2,
-                    traveler_fee_threshold: 1000,
-                    traveler_fee_fixed_amount: 20,
-                    traveler_fee_percentage: 2,
-                    deposit_threshold_days: 30
-                });
+        try {
+            // Use a timeout for the entire data fetch
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s total timeout
+
+            console.log('Admin: Fetching data components...');
+
+            // Fetch everything, but individual failures shouldn't crash the UI
+            const [ordData, profData, settsData] = await Promise.all([
+                fetchAllOrders().catch(e => { console.error('Orders fail:', e); return [] as Order[]; }),
+                fetchAllProfiles().catch(e => { console.error('Profiles fail:', e); return [] as Profile[]; }),
+                fetchSystemSettings().catch(e => { console.error('Settings fail:', e); return null; })
+            ]);
+
+            clearTimeout(timeoutId);
+            console.timeEnd('Admin:LoadEverything');
+
+            if (isMounted.current) {
+                setOrders(ordData);
+                setProfiles(profData);
+                if (settsData) setSettings(settsData);
+                hasLoaded.current = true;
             }
         } catch (error) {
-            console.error('General admin load error:', error);
+            console.error('Admin: Critical load error:', error);
         } finally {
-            setLoading(false);
+            if (isMounted.current) setLoading(false);
         }
     };
+
+    const isMounted = useRef(true);
+    useEffect(() => {
+        return () => { isMounted.current = false; };
+    }, []);
 
     const handleUpdateSettings = async (e: React.FormEvent) => {
         e.preventDefault();

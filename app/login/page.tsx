@@ -19,6 +19,27 @@ export default function LoginPage() {
     const [error, setError] = useState<string | null>(null);
     const { t } = useLanguage();
 
+    // AUTO-REDIRECT if already logged in
+    React.useEffect(() => {
+        const checkExistingSession = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user) {
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('level')
+                    .eq('id', session.user.id)
+                    .maybeSingle();
+
+                if (profile?.level === 'ADMIN') {
+                    router.push('/admin');
+                } else {
+                    router.push('/dashboard');
+                }
+            }
+        };
+        checkExistingSession();
+    }, [router]);
+
     const handleAuth = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
@@ -33,12 +54,26 @@ export default function LoginPage() {
                 if (error) throw error;
                 alert(t('login.check_email'));
             } else {
-                const { error } = await supabase.auth.signInWithPassword({
+                const { data: { user }, error } = await supabase.auth.signInWithPassword({
                     email,
                     password,
                 });
                 if (error) throw error;
-                router.push('/dashboard');
+
+                if (user) {
+                    // Fetch profile to check level
+                    const { data: profile } = await supabase
+                        .from('profiles')
+                        .select('level')
+                        .eq('id', user.id)
+                        .maybeSingle();
+
+                    if (profile?.level === 'ADMIN') {
+                        router.push('/admin');
+                    } else {
+                        router.push('/dashboard');
+                    }
+                }
             }
         } catch (err: any) {
             setError(err.message);

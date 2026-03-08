@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { fetchMyWishes, fetchMyTasks } from '@/utils/api';
 import { Order } from '@/types';
+import { useRouter } from 'next/navigation';
 import { WishCard } from '@/components/WishCard';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
@@ -15,8 +16,16 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<'wishes' | 'tasks'>('wishes');
   const [statusFilter, setStatusFilter] = useState<'active' | 'completed'>('active');
   const [orders, setOrders] = useState<Order[]>([]);
-  const { user, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
+
+  // Redirect Admin away from user dashboard
+  useEffect(() => {
+    if (!authLoading && profile?.level === 'ADMIN') {
+      router.push('/admin');
+    }
+  }, [profile, authLoading, router]);
   const { t } = useLanguage();
   const { activeTaskCount } = useNotifications();
 
