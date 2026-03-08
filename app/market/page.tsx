@@ -14,8 +14,10 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar as CalendarComp } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/hooks/useAuth';
 
 function MarketContent() {
+    const { user } = useAuth(false);
     const router = useRouter();
     const searchParams = useSearchParams();
     const fromDate = searchParams.get('from');
@@ -34,13 +36,10 @@ function MarketContent() {
 
         if (formatted) {
             params.set(type, formatted);
-            // Validation: Ensure from <= to
             if (type === 'from' && toDate && formatted > toDate) {
                 params.delete('to');
             }
             if (type === 'to' && fromDate && formatted < fromDate) {
-                // If return is set before departure, reset departure or keep it consistent
-                // We'll follow the same logic as landing page: Return >= Departure
                 params.set('from', formatted);
             }
         } else {
@@ -55,8 +54,38 @@ function MarketContent() {
         const loadOrders = async () => {
             try {
                 const data = await fetchOrders(['OPEN', 'ESCROWED']);
+                // Consolidation Logic:
+                // For each group (rootId), decide which one to show to THIS user.
+                const groupMap = new Map<string, Order[]>();
+                data.forEach(o => {
+                    const rootId = o.parent_order_id || o.id;
+                    if (!groupMap.has(rootId)) groupMap.set(rootId, []);
+                    groupMap.get(rootId)!.push(o);
+                });
+
+                const consolidated: Order[] = [];
+                groupMap.forEach((members, rootId) => {
+                    // 1. If user is a buyer in this group, show ONLY the user's order
+                    const myOrder = members.find(m => m.buyer_id === user?.id);
+                    if (myOrder) {
+                        consolidated.push(myOrder);
+                        return;
+                    }
+
+                    // 2. Otherwise, find the root order (the one where id === rootId)
+                    // If root order isn't in this data (e.g. it was COMPLETED or DELISTED), 
+                    // then show the oldest OPEN member as the representative
+                    const rootOrder = members.find(m => m.id === rootId);
+                    if (rootOrder) {
+                        consolidated.push(rootOrder);
+                    } else if (members.length > 0) {
+                        consolidated.push(members[0]);
+                    }
+                });
+
                 // Filter out ESCROWED orders that already have a traveler
-                const openData = data.filter(o => o.status === 'OPEN' || (o.status === 'ESCROWED' && !o.traveler_id));
+                const openData = consolidated.filter(o => o.status === 'OPEN' || (o.status === 'ESCROWED' && !o.traveler_id));
+
                 // Sort by expected_shipping_date (closest first)
                 const sorted = openData.sort((a, b) => {
                     if (!a.expected_shipping_date) return 1;
@@ -72,7 +101,7 @@ function MarketContent() {
         };
 
         loadOrders();
-    }, []);
+    }, [user]);
 
     const availableCountries = Array.from(new Set(orders.map(o => o.country)));
 

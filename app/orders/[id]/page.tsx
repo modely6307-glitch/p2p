@@ -690,7 +690,7 @@ export default function OrderDetails() {
                             {order.payment_notification_sent ? (
                               <span className="flex items-center gap-2">
                                 <CheckCircle className="w-4 h-4" />
-                                {t('order.paid_notified_text') || '已通知管理員'}
+                                {t('order.paid_notified_status')}
                               </span>
                             ) : (
                               t('order.notify_paid_btn')
@@ -1190,17 +1190,15 @@ export default function OrderDetails() {
                       if (!user) return;
                       setIsFollowing(true);
                       try {
-                        const api = await import('@/utils/api');
-                        await api.followOrder(order.id, user.id, {
+                        const result = await followOrder(order.id, user.id, {
                           shipping_method: followMethod,
                           shipping_address: followMethod === 'HOME' ? followAddress : `${followCvsStore.store_name} - ${followCvsStore.store_address}`,
                           cvs_store_info: followMethod === '711' ? followCvsStore : null,
                           recipient_name: followName,
                           recipient_phone: followPhone
                         });
-                        alert('跟單成功！系統已為您建立相同的願望並加入候補，請靜候旅人接單！');
                         setShowFollowModal(false);
-                        loadOrder();
+                        router.push(`/orders/${result.id}`);
                       } catch (e) {
                         console.error(e);
                         alert('跟單失敗');

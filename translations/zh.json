@@ -170,6 +170,7 @@
         "buyer_paid_total": "買家支付總額",
         "notify_paid_btn": "我已完成匯款",
         "notify_paid_success": "已送出付款通知，請靜候管理員確認。",
+        "paid_notified_status": "已通知管理員 (等待入帳確認)",
         "traveler_gross_total": "訂單總額 (含報酬)",
         "delivery_info": "物流資訊",
         "tracking_no": "物流單號",

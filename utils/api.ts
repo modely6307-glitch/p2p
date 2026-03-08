@@ -111,7 +111,8 @@ export const followOrder = async (
     deposit_percentage: dep_pct,
     deposit_amount: parentOrder.deposit_amount,
     parent_order_id: parentOrder.parent_order_id || parentOrderId,
-    ...shippingDetails
+    ...shippingDetails,
+    payment_notification_sent: parentOrder.payment_type === 'PRE_ESCROW',
   };
 
   return createOrder(newOrder);
