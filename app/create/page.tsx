@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { createOrder, fetchProfile, uploadFile, updateProfile } from '@/utils/api';
+import { createOrder, uploadFile, updateProfile } from '@/utils/api';
 import { Profile } from '@/types';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -22,7 +22,7 @@ import { openECPayCVSMap } from '@/lib/ecpay';
 
 export default function CreateWish() {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+  const { user, profile: userProfile, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
   const { t } = useLanguage();
   const [step, setStep] = useState(0); // 0: Country, 1: Method, 2: AI Tiers, 3: Form
@@ -57,7 +57,6 @@ export default function CreateWish() {
 
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [userProfile, setUserProfile] = useState<Profile | null>(null);
   const [settings, setSettings] = useState<import('@/types').SystemSettings | null>(null);
 
   useEffect(() => {
@@ -112,17 +111,16 @@ export default function CreateWish() {
       sessionStorage.removeItem('pendingAiWish');
     }
 
-    if (user) {
-      fetchProfile(user.id).then(data => {
-        setUserProfile(data);
-        if (data.address) {
-          setFormData(prev => ({ ...prev, shipping_address: data.address || '' }));
-        }
-      });
-    }
     const { fetchSystemSettings } = require('@/utils/api');
     fetchSystemSettings().then(setSettings);
-  }, [user]);
+  }, []);
+
+  // Auto-fill address from profile
+  useEffect(() => {
+    if (userProfile?.address) {
+      setFormData(prev => ({ ...prev, shipping_address: userProfile.address || '' }));
+    }
+  }, [userProfile]);
 
   const countries = [
     { name: 'Japan', flag: '🇯🇵', currency: 'JPY', defaultRate: 0.22 },
