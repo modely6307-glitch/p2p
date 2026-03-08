@@ -264,7 +264,12 @@ export default function OrderDetails() {
     try {
       const { delistOrderGroup } = await import('@/utils/api');
       await delistOrderGroup(order.id);
-      await loadOrder();
+      if (isFollowOrder) {
+        // Follow orders: go back to home after cancellation
+        router.push('/');
+      } else {
+        await loadOrder();
+      }
     } catch (error) {
       console.error('Error delisting order:', error);
     }
@@ -728,8 +733,8 @@ export default function OrderDetails() {
                         <p className="text-[10px] text-center text-muted-foreground italic px-2">協助購買並賺取外快</p>
                       </div>
 
-                      {/* Potential Buyer View: Follow (if not original buyer) */}
-                      {user && order.buyer_id !== user.id && (
+                      {/* Potential Buyer View: Follow (only for PRE_ESCROW orders) */}
+                      {user && order.buyer_id !== user.id && order.payment_type === 'PRE_ESCROW' && (
                         <div className="space-y-4 pt-4 border-t border-border/50 animate-in fade-in slide-in-from-top-2">
                           <p className="text-center text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">或者，我也想要買這個：</p>
                           <Button
@@ -1052,7 +1057,7 @@ export default function OrderDetails() {
                 </div>
                 <p className="text-sm text-muted-foreground">{t('order.delisted_hint')}</p>
               </div>
-              {role === 'buyer' && (
+              {role === 'buyer' && !order.parent_order_id && (
                 <Button onClick={handleRelist} fullWidth className="h-12 font-bold rounded-xl bg-primary hover:bg-primary/90">
                   {t('order.relist_btn')}
                 </Button>

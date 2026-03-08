@@ -16,7 +16,7 @@ import { PlusSquare, Trash2 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
 export default function ProfilePage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, profile: authProfile, loading: authLoading } = useAuth();
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -33,6 +33,17 @@ export default function ProfilePage() {
     return (displayPrefix + '***').slice(0, 6).padEnd(6, '*');
   };
 
+  // Use AuthContext profile immediately when available
+  useEffect(() => {
+    if (authProfile && !profile) {
+      setProfile(authProfile);
+      setNewNickname(authProfile.display_name || '');
+      setNewAddress(authProfile.address || '');
+      setLoading(false);
+    }
+  }, [authProfile]);
+
+  // Then also do a fresh fetch for the latest data
   useEffect(() => {
     if (user) {
       loadProfile();

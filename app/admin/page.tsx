@@ -29,8 +29,8 @@ export default function AdminDashboard() {
     const [orderFilter, setOrderFilter] = useState<OrderFilter>('all');
 
     // Safety & Initialization
-    const hasLoaded = useRef(false);
     const isMounted = useRef(true);
+    const [dataLoaded, setDataLoaded] = useState(false);
 
     useEffect(() => {
         return () => { isMounted.current = false; };
@@ -39,10 +39,8 @@ export default function AdminDashboard() {
     const loadData = async () => {
         if (!isMounted.current) return;
         setLoading(true);
-        console.log('Admin: Fetching data components...');
 
         try {
-            // Fetch everything in parallel
             const [ordData, profData, settsData] = await Promise.all([
                 fetchAllOrders().catch(e => { console.error('Orders fail:', e); return [] as Order[]; }),
                 fetchAllProfiles().catch(e => { console.error('Profiles fail:', e); return [] as Profile[]; }),
@@ -53,8 +51,7 @@ export default function AdminDashboard() {
                 setOrders(ordData);
                 setProfiles(profData);
                 if (settsData) setSettings(settsData);
-                hasLoaded.current = true;
-                console.log('Admin: Data loaded successfully');
+                setDataLoaded(true);
             }
         } catch (error) {
             console.error('Admin: Critical data fetch error:', error);
@@ -64,12 +61,9 @@ export default function AdminDashboard() {
     };
 
     useEffect(() => {
-        // Wait for auth to settle
         if (authLoading) return;
 
-        // AUTH CHECK
         if (!user) {
-            console.log('Admin: No user found, redirecting to login');
             router.push('/login');
             return;
         }
@@ -77,16 +71,14 @@ export default function AdminDashboard() {
         if (profile?.level !== 'ADMIN') {
             const bypassKey = localStorage.getItem('admin_bypass');
             if (!bypassKey) {
-                console.log('Admin: Non-admin user detected', profile?.level);
-                return; // Will show the Unauthorized card below
+                return;
             }
         }
 
-        // Only load data if we haven't already
-        if (!hasLoaded.current && !loading) {
+        if (!dataLoaded && !loading) {
             loadData();
         }
-    }, [user, profile, authLoading, router]);
+    }, [user, profile, authLoading, dataLoaded]);
 
     // UI RENDER LOGIC
     if (authLoading) {
@@ -117,7 +109,7 @@ export default function AdminDashboard() {
         );
     }
 
-    if (!hasLoaded.current && loading) {
+    if (!dataLoaded && loading) {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen space-y-4">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />

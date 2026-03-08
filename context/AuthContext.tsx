@@ -1,10 +1,9 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/utils/supabase/client';
 import { User } from '@supabase/supabase-js';
 import { Profile } from '@/types';
-import { useRouter, usePathname } from 'next/navigation';
 
 interface AuthContextType {
     user: User | null;
@@ -24,105 +23,117 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
     const [profile, setProfile] = useState<Profile | null>(null);
     const [loading, setLoading] = useState(true);
-    const hasInitialized = useRef(false);
-    const router = useRouter();
-    const pathname = usePathname();
+    const mountedRef = useRef(true);
+    const initDoneRef = useRef(false);
 
-    const fetchProfile = async (uid: string) => {
+    const loadProfile = useCallback(async (uid: string): Promise<Profile | null> => {
         try {
             const { data, error } = await supabase
                 .from('profiles')
                 .select('*')
                 .eq('id', uid)
                 .maybeSingle();
-            if (error) throw error;
+            if (error) {
+                console.error('AuthContext: Profile fetch error', error);
+                return null;
+            }
             return data;
         } catch (e) {
-            console.error('AuthContext: Profile fetch error', e);
+            console.error('AuthContext: Profile fetch exception', e);
             return null;
         }
-    };
-
-    const initialize = async () => {
-        if (hasInitialized.current) return;
-        hasInitialized.current = true;
-
-        console.log('AuthContext: Initializing...');
-        try {
-            // 1. Instant local session check
-            const { data: { session } } = await supabase.auth.getSession();
-            let currentUser = session?.user ?? null;
-
-            if (currentUser) {
-                setUser(currentUser);
-                const prof = await fetchProfile(currentUser.id);
-                setProfile(prof);
-            }
-
-            // 2. Full network verify (essential for first load or refresh)
-            const { data: { user: verifiedUser } } = await supabase.auth.getUser();
-            if (verifiedUser) {
-                setUser(verifiedUser);
-                const prof = await fetchProfile(verifiedUser.id);
-                setProfile(prof);
-            } else {
-                setUser(null);
-                setProfile(null);
-            }
-        } catch (err) {
-            console.error('AuthContext: Initialization error', err);
-        } finally {
-            setLoading(false);
-            console.log('AuthContext: Initialization complete');
-        }
-    };
-
-    useEffect(() => {
-        initialize();
-
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-            console.log('AuthContext: Auth event:', event);
-            const currentUser = session?.user ?? null;
-            setUser(currentUser);
-
-            if (currentUser) {
-                const prof = await fetchProfile(currentUser.id);
-                setProfile(prof);
-            } else {
-                setProfile(null);
-            }
-
-            if (event === 'SIGNED_OUT' || event === 'SIGNED_IN') {
-                setLoading(false);
-            }
-        });
-
-        return () => {
-            subscription.unsubscribe();
-        };
     }, []);
 
-    // Safety timeout: If something hangs over 3s, unlock UI
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            if (loading) {
-                console.warn('AuthContext: Safety timeout! Forcing loading=false');
-                setLoading(false);
-            }
-        }, 3000);
-        return () => clearTimeout(timer);
-    }, [loading]);
-
-    const refresh = async () => {
-        const { data: { user: authUser } } = await supabase.auth.getUser();
+    // Centralized setter — only updates if still mounted
+    const applyAuth = useCallback(async (authUser: User | null) => {
+        if (!mountedRef.current) return;
         setUser(authUser);
         if (authUser) {
-            const prof = await fetchProfile(authUser.id);
-            setProfile(prof);
+            const prof = await loadProfile(authUser.id);
+            if (mountedRef.current) setProfile(prof);
         } else {
             setProfile(null);
         }
-    };
+    }, [loadProfile]);
+
+    const refresh = useCallback(async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        await applyAuth(session?.user ?? null);
+    }, [applyAuth]);
+
+    useEffect(() => {
+        mountedRef.current = true;
+        initDoneRef.current = false;
+
+        const init = async () => {
+            try {
+                // ONLY use getSession() — fast, reads from localStorage, no network
+                // This is the recommended approach by Supabase for client-side init
+                const { data: { session }, error } = await supabase.auth.getSession();
+
+                if (error) {
+                    console.error('AuthContext: getSession error', error);
+                }
+
+                if (!mountedRef.current) return;
+
+                const sessionUser = session?.user ?? null;
+                await applyAuth(sessionUser);
+            } catch (err) {
+                console.error('AuthContext: Init error', err);
+            } finally {
+                if (mountedRef.current) {
+                    setLoading(false);
+                    initDoneRef.current = true;
+                }
+            }
+        };
+
+        init();
+
+        // onAuthStateChange handles ALL subsequent updates:
+        // - SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED, etc.
+        // - It automatically refreshes expired tokens
+        // This is the correct way to keep auth state in sync
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+            async (event, session) => {
+                if (!mountedRef.current) return;
+
+                const currentUser = session?.user ?? null;
+
+                // Update user immediately
+                setUser(currentUser);
+
+                // Load profile for the user
+                if (currentUser) {
+                    const prof = await loadProfile(currentUser.id);
+                    if (mountedRef.current) setProfile(prof);
+                } else {
+                    setProfile(null);
+                }
+
+                // Ensure loading is false after any auth event
+                if (mountedRef.current) setLoading(false);
+            }
+        );
+
+        return () => {
+            mountedRef.current = false;
+            subscription.unsubscribe();
+        };
+    }, [applyAuth, loadProfile]);
+
+    // Safety net: NEVER stay loading for more than 2 seconds
+    useEffect(() => {
+        if (!loading) return;
+        const timer = setTimeout(() => {
+            if (loading && mountedRef.current) {
+                console.warn('AuthContext: Safety timeout — force unlocking UI');
+                setLoading(false);
+            }
+        }, 2000);
+        return () => clearTimeout(timer);
+    }, [loading]);
 
     return (
         <AuthContext.Provider value={{ user, profile, loading, refresh }}>
