@@ -305,6 +305,42 @@ export async function updateOrderTracking(orderId: string, trackingNumber: strin
     }
 }
 
+export async function batchUpdateTrackingNumbers(updates: { orderId: string, trackingNumber: string }[]) {
+    try {
+        const supabaseClient = await createClient();
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user) throw new Error("您尚未登入");
+
+        const supabaseAdmin = getSupabaseAdmin();
+        const orderIds = updates.map(u => u.orderId);
+
+        // Fetch to ensure authentication/authorization
+        const { data: orders } = await supabaseAdmin
+            .from('orders')
+            .select('id, traveler_id, status')
+            .in('id', orderIds)
+            .eq('traveler_id', user.id)
+            .eq('status', 'BOUGHT');
+
+        if (!orders || orders.length !== updates.length) throw new Error("無權操作或狀態錯誤");
+
+        // Loop array and update each. We use promise.all.
+        const promises = updates.map(update =>
+            supabaseAdmin
+                .from('orders')
+                .update({ tracking_number: update.trackingNumber, status: 'SHIPPED' })
+                .eq('id', update.orderId)
+                .eq('traveler_id', user.id)
+        );
+
+        await Promise.all(promises);
+
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
 export async function updateReceipt(orderId: string, url: string) {
     try {
         const supabaseClient = await createClient();
@@ -370,6 +406,69 @@ export async function updatePurchasePhoto(orderId: string, url: string) {
     }
 }
 
+export async function batchUpdatePurchasePhoto(orderIds: string[], url: string) {
+    try {
+        const supabaseClient = await createClient();
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user) throw new Error("您尚未登入");
+
+        const supabaseAdmin = getSupabaseAdmin();
+        const { error } = await supabaseAdmin
+            .from('orders')
+            .update({ purchase_photo_url: url })
+            .in('id', orderIds)
+            .eq('traveler_id', user.id)
+            .eq('status', 'ESCROWED');
+
+        if (error) throw error;
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+export async function batchUpdateReceipt(orderIds: string[], url: string) {
+    try {
+        const supabaseClient = await createClient();
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user) throw new Error("您尚未登入");
+
+        const supabaseAdmin = getSupabaseAdmin();
+        const { error } = await supabaseAdmin
+            .from('orders')
+            .update({ receipt_url: url })
+            .in('id', orderIds)
+            .eq('traveler_id', user.id)
+            .eq('status', 'ESCROWED');
+
+        if (error) throw error;
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+export async function batchFinishPurchase(orderIds: string[]) {
+    try {
+        const supabaseClient = await createClient();
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user) throw new Error("您尚未登入");
+
+        const supabaseAdmin = getSupabaseAdmin();
+        const { error } = await supabaseAdmin
+            .from('orders')
+            .update({ status: 'BOUGHT' })
+            .in('id', orderIds)
+            .eq('traveler_id', user.id)
+            .eq('status', 'ESCROWED');
+
+        if (error) throw error;
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
 export async function updateModelNumber(orderId: string, modelNumber: string) {
     try {
         const supabaseClient = await createClient();
@@ -426,13 +525,25 @@ export async function relistOrder(orderId: string) {
     }
 }
 
-export async function submitUserRating(targetUserId: string, isPositive: boolean) {
+export async function submitUserRating(orderId: string, targetUserId: string, isPositive: boolean) {
     try {
         const supabaseClient = await createClient();
         const { data: { user } } = await supabaseClient.auth.getUser();
         if (!user) throw new Error("您尚未登入");
 
         const supabaseAdmin = getSupabaseAdmin();
+
+        // 1. Update the order record to mark as rated
+        const { data: order } = await supabaseAdmin.from('orders').select('buyer_id, traveler_id').eq('id', orderId).single();
+        if (!order) throw new Error("找不到訂單");
+
+        if (user.id === order.buyer_id) {
+            await supabaseAdmin.from('orders').update({ rated_by_buyer: true }).eq('id', orderId);
+        } else if (user.id === order.traveler_id) {
+            await supabaseAdmin.from('orders').update({ rated_by_traveler: true }).eq('id', orderId);
+        }
+
+        // 2. Perform the actual rating update on the profile
         const { error } = await supabaseAdmin.rpc('rate_user', {
             user_id: targetUserId,
             is_positive: isPositive

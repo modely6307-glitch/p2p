@@ -14,7 +14,8 @@ import {
   resolveDispute,
   fetchWishGroup,
   batchAssignTraveler,
-  followOrder
+  followOrder,
+  fetchTravelerGroupOrders
 } from '@/utils/api';
 import { Order, OrderStatus } from '@/types';
 import { StepProgressBar } from '@/components/StepProgressBar';
@@ -43,7 +44,7 @@ import { cn } from '@/lib/utils';
 import { useLanguage } from '@/context/LanguageContext';
 import { openECPayCVSMap } from '@/lib/ecpay';
 
-const maskEmail = (email: string | undefined) => {
+const maskEmail = (email: string | null | undefined) => {
   if (!email) return 'User';
   const prefix = email.split('@')[0];
   const displayPrefix = prefix.slice(0, 3);
@@ -78,6 +79,12 @@ export default function OrderDetails() {
   const [followPhone, setFollowPhone] = useState('');
   const [isFollowing, setIsFollowing] = useState(false);
 
+  // Group Buy Fulfillment States
+  const [travelerGroup, setTravelerGroup] = useState<Order[]>([]);
+  const [syncEvidence, setSyncEvidence] = useState(true);
+  const [batchTracking, setBatchTracking] = useState<Record<string, string>>({});
+  const [activeChatTab, setActiveChatTab] = useState<string>('');
+
   // Dispute States
   const [showDisputeModal, setShowDisputeModal] = useState(false);
   const [disputeReason, setDisputeReason] = useState('');
@@ -108,6 +115,12 @@ export default function OrderDetails() {
           setRole('buyer');
         } else if (data.traveler_id === user.id) {
           setRole('traveler');
+          const tGroup = await fetchTravelerGroupOrders(data.parent_order_id || null, data.id, user.id);
+          setTravelerGroup(tGroup);
+          if (tGroup.length > 0 && !activeChatTab) {
+            const currentOrderInGroup = tGroup.find(o => o.id === id);
+            setActiveChatTab(currentOrderInGroup?.id || tGroup[0].id);
+          }
         } else {
           setRole('visitor');
         }
@@ -121,13 +134,14 @@ export default function OrderDetails() {
 
   const handleAcceptOrder = async () => {
     if (!order || !user) return;
-    if (order.status === 'DELISTED') {
+    if (!currentViewOrder || !user) return;
+    if (currentViewOrder.status === 'DELISTED') {
       alert(t('order.delisted_msg'));
       return;
     }
     try {
       const { acceptOrder } = await import('@/app/actions/orders');
-      let orderIds = [order.id];
+      let orderIds = [currentViewOrder.id];
       if (wishGroup.length > 0) {
         orderIds = wishGroup.slice(0, batchAcceptCount).map(o => o.id);
       }
@@ -142,10 +156,10 @@ export default function OrderDetails() {
   };
 
   const handleConfirmEscrow = async () => {
-    if (!order) return;
+    if (!currentViewOrder) return;
     try {
       const { confirmEscrow } = await import('@/app/actions/orders');
-      const result = await confirmEscrow(order.id);
+      const result = await confirmEscrow(currentViewOrder.id);
       if (!result.success) throw new Error(result.error);
       await loadOrder();
     } catch (error: any) {
@@ -155,16 +169,24 @@ export default function OrderDetails() {
   };
 
   const handleUploadReceipt = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!order || !user || !e.target.files || e.target.files.length === 0) return;
+    if (!currentViewOrder || !user || !e.target.files || e.target.files.length === 0) return;
     setUploading(true);
     try {
       const file = e.target.files[0];
-      const path = `${order.id}/receipt-${Date.now()}`;
+      const path = `${currentViewOrder.id}/receipt-${Date.now()}`;
       const url = await uploadFile(file, 'receipts', path);
 
-      const { updateReceipt } = await import('@/app/actions/orders');
-      const result = await updateReceipt(order.id, url);
-      if (!result.success) throw new Error(result.error);
+      const { updateReceipt, batchUpdateReceipt } = await import('@/app/actions/orders');
+
+      if (syncEvidence && travelerGroup.length > 1) {
+        const ids = travelerGroup.filter(o => o.status === 'ESCROWED').map(o => o.id);
+        const result = await batchUpdateReceipt(ids, url);
+        if (!result.success) throw new Error(result.error);
+      } else {
+        const result = await updateReceipt(currentViewOrder.id, url);
+        if (!result.success) throw new Error(result.error);
+      }
+
       await loadOrder();
     } catch (error: any) {
       console.error('Error uploading receipt:', error);
@@ -175,10 +197,10 @@ export default function OrderDetails() {
   };
 
   const handleAddTracking = async () => {
-    if (!order || !trackingNumber) return;
+    if (!currentViewOrder || !trackingNumber) return;
     try {
       const { updateOrderTracking } = await import('@/app/actions/orders');
-      const result = await updateOrderTracking(order.id, trackingNumber);
+      const result = await updateOrderTracking(currentViewOrder.id, trackingNumber);
       if (!result.success) throw new Error(result.error);
       await loadOrder();
     } catch (error: any) {
@@ -188,10 +210,10 @@ export default function OrderDetails() {
   };
 
   const handleNotifyPaid = async () => {
-    if (!order) return;
+    if (!currentViewOrder) return;
     try {
       const { notifyPaid } = await import('@/app/actions/orders');
-      const result = await notifyPaid(order.id);
+      const result = await notifyPaid(currentViewOrder.id);
       if (!result.success) throw new Error(result.error);
       alert(t('order.notify_paid_success'));
       await loadOrder();
@@ -201,17 +223,45 @@ export default function OrderDetails() {
     }
   };
 
+
+  const handleBatchAddTracking = async () => {
+    const updates = Object.entries(batchTracking)
+      .filter(([_, tracking]) => tracking.trim() !== '')
+      .map(([orderId, trackingNumber]) => ({ orderId, trackingNumber: trackingNumber as string }));
+
+    if (updates.length === 0) return;
+
+    try {
+      const { batchUpdateTrackingNumbers } = await import('@/app/actions/orders');
+      const result = await batchUpdateTrackingNumbers(updates);
+      if (!result.success) throw new Error(result.error);
+      await loadOrder();
+      alert('批量出貨成功');
+    } catch (error: any) {
+      console.error('Error batch adding tracking:', error);
+      alert(error.message || t('common.error'));
+    }
+  };
+
   const handleUploadPurchasePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!order || !user || !e.target.files || e.target.files.length === 0) return;
+    if (!currentViewOrder || !user || !e.target.files || e.target.files.length === 0) return;
     setPurchasePhotoUploading(true);
     try {
       const file = e.target.files[0];
-      const path = `${order.id}/purchase-${Date.now()}`;
+      const path = `${currentViewOrder.id}/purchase-${Date.now()}`;
       const url = await uploadFile(file, 'purchase_photos', path);
 
-      const { updatePurchasePhoto } = await import('@/app/actions/orders');
-      const result = await updatePurchasePhoto(order.id, url);
-      if (!result.success) throw new Error(result.error);
+      const { updatePurchasePhoto, batchUpdatePurchasePhoto } = await import('@/app/actions/orders');
+
+      if (syncEvidence && travelerGroup.length > 1) {
+        const ids = travelerGroup.filter(o => o.status === 'ESCROWED').map(o => o.id);
+        const result = await batchUpdatePurchasePhoto(ids, url);
+        if (!result.success) throw new Error(result.error);
+      } else {
+        const result = await updatePurchasePhoto(currentViewOrder.id, url);
+        if (!result.success) throw new Error(result.error);
+      }
+
       await loadOrder();
     } catch (error: any) {
       console.error('Error uploading purchase photo:', error);
@@ -222,10 +272,10 @@ export default function OrderDetails() {
   };
 
   const handleUpdateModelNumber = async () => {
-    if (!order || !modelNumberInput) return;
+    if (!currentViewOrder || !modelNumberInput) return;
     try {
       const { updateModelNumber } = await import('@/app/actions/orders');
-      const result = await updateModelNumber(order.id, modelNumberInput);
+      const result = await updateModelNumber(currentViewOrder.id, modelNumberInput);
       if (!result.success) throw new Error(result.error);
       await loadOrder();
     } catch (error: any) {
@@ -235,10 +285,10 @@ export default function OrderDetails() {
   };
 
   const handleConfirmReceipt = async () => {
-    if (!order || !order.traveler_id) return;
+    if (!currentViewOrder || !currentViewOrder.traveler_id) return;
     try {
       const { confirmReceipt } = await import('@/app/actions/orders');
-      const result = await confirmReceipt(order.id);
+      const result = await confirmReceipt(currentViewOrder.id);
       if (!result.success) {
         throw new Error(result.error);
       }
@@ -249,15 +299,21 @@ export default function OrderDetails() {
     }
   };
 
-  const handleRateUser = async (isPositive: boolean) => {
+  const handleRateUser = async (isPositive: boolean, targetOrderId?: string, targetId?: string) => {
     if (!order) return;
-    const targetUserId = role === 'buyer' ? order.traveler_id : order.buyer_id;
-    if (!targetUserId) return;
+    const finalOrderId = targetOrderId || order.id;
+    const finalTargetUserId = targetId || (role === 'buyer' ? order.traveler_id : order.buyer_id);
+
+    if (!finalTargetUserId) return;
     try {
       const { submitUserRating } = await import('@/app/actions/orders');
-      const result = await submitUserRating(targetUserId, isPositive);
+      const result = await submitUserRating(finalOrderId, finalTargetUserId, isPositive);
       if (!result.success) throw new Error(result.error);
-      setRatingSubmitted(true);
+
+      if (!targetOrderId) {
+        setRatingSubmitted(true);
+      }
+      await loadOrder();
     } catch (error: any) {
       console.error('Error submitting rating:', error);
       alert(error.message || t('common.error'));
@@ -296,16 +352,16 @@ export default function OrderDetails() {
   };
 
   const handleRaiseDispute = async () => {
-    if (!order || !user || !disputeReason) return;
+    if (!currentViewOrder || !user || !disputeReason) return;
     setIsSubmittingDispute(true);
     try {
       let evidenceUrl = null;
       if (disputeEvidence) {
-        const path = `${order.id}/dispute-${Date.now()}`;
+        const path = `${currentViewOrder.id}/dispute-${Date.now()}`;
         evidenceUrl = await uploadFile(disputeEvidence, 'disputes', path);
       }
       const { raiseDispute } = await import('@/app/actions/orders');
-      const result = await raiseDispute(order.id, disputeReason, evidenceUrl);
+      const result = await raiseDispute(currentViewOrder.id, disputeReason, evidenceUrl);
       if (!result.success) throw new Error(result.error);
 
       setShowDisputeModal(false);
@@ -322,12 +378,12 @@ export default function OrderDetails() {
   };
 
   const handleResolveDispute = async (status: OrderStatus) => {
-    if (!order) return;
+    if (!currentViewOrder) return;
     const actionName = status === 'DELISTED' ? '取消訂單退款' : '完成訂單撥款';
     if (!confirm(`確定要將此訂單裁決為：「${actionName}」嗎？這個操作無法還原。`)) return;
     try {
       const { resolveDispute } = await import('@/app/actions/orders');
-      const result = await resolveDispute(order.id, status, adminResolutionNotes);
+      const result = await resolveDispute(currentViewOrder.id, status, adminResolutionNotes);
       if (!result.success) throw new Error(result.error);
 
       await loadOrder();
@@ -352,12 +408,18 @@ export default function OrderDetails() {
   const currencySymbol = getCurrencySymbol(order.currency);
   const countryConfig = getCountryFlag(order.country);
 
-  const partnerProfile = ['buyer', 'visitor'].includes(role) ? order.traveler : order.buyer;
+  const currentViewOrder = (role === 'traveler' && travelerGroup.length > 1 && activeChatTab)
+    ? (travelerGroup.find(o => o.id === activeChatTab) || order)
+    : order;
+
+  const partnerProfile = ['buyer', 'visitor'].includes(role) ? currentViewOrder?.traveler : currentViewOrder?.buyer;
   const partnerRoleName = ['buyer', 'visitor'].includes(role) ? t('order.traveler') : t('order.buyer');
   const partnerDisplayName = partnerProfile?.display_name || maskEmail(partnerProfile?.email || undefined);
   const partnerRating = partnerProfile?.total_rating_count && partnerProfile.total_rating_count > 0
     ? Math.round((partnerProfile.positive_rating_count / partnerProfile.total_rating_count) * 100)
     : null;
+
+  if (!currentViewOrder) return null;
 
   return (
     <div className="p-4 lg:p-8 space-y-6 pb-24 max-w-3xl lg:mx-auto">
@@ -366,12 +428,12 @@ export default function OrderDetails() {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold px-2 py-0.5 rounded bg-secondary text-secondary-foreground flex items-center gap-1">
-                {countryConfig.flag} {t(`countries.${order.country}`)}
+                {countryConfig.flag} {t(`countries.${currentViewOrder.country}`)}
               </span>
-              <StatusBadge status={order.status} />
+              <StatusBadge status={currentViewOrder.status} />
             </div>
-            <h1 className="text-2xl lg:text-3xl font-bold">{order.item_name}</h1>
-            <p className="text-muted-foreground text-xs">{t('order.order_no')} #{order.id.slice(0, 8)}</p>
+            <h1 className="text-2xl lg:text-3xl font-bold">{currentViewOrder.item_name}</h1>
+            <p className="text-muted-foreground text-xs">{t('order.order_no')} #{currentViewOrder.id.slice(0, 8)}</p>
           </div>
         </div>
 
@@ -398,28 +460,27 @@ export default function OrderDetails() {
             )}
           </div>
         )}
-
-        {order.photo_url && (
+        {currentViewOrder.photo_url && (
           <div className="mb-4 rounded-2xl overflow-hidden border border-border shadow-sm">
-            <img src={order.photo_url} alt={order.item_name} className="w-full h-auto max-h-64 object-cover" />
+            <img src={currentViewOrder.photo_url} alt={currentViewOrder.item_name} className="w-full h-auto max-h-64 object-cover" />
           </div>
         )}
 
         <div className="bg-secondary/10 p-4 rounded-2xl border border-border/50 mb-4">
           <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2 text-[10px]">{t('order.wish_notes')}</h3>
-          <p className="text-sm leading-relaxed">{order.description}</p>
+          <p className="text-sm leading-relaxed">{currentViewOrder.description}</p>
         </div>
 
-        {order.shipping_address && (
+        {currentViewOrder.shipping_address && (
           <div className="bg-primary/5 p-4 rounded-2xl border border-primary/20 mb-4">
             <h3 className="text-xs font-bold uppercase tracking-widest text-primary mb-2 text-[10px] flex items-center gap-2">
               <ShieldCheck className="w-3 h-3" />
               {t('order.shipping_info_title')}
             </h3>
             {(() => {
-              const isRevealed = role === 'buyer' || role === 'admin' || (role === 'traveler' && ['ESCROWED', 'BOUGHT', 'SHIPPED', 'COMPLETED'].includes(order.status));
+              const isRevealed = role === 'buyer' || role === 'admin' || (role === 'traveler' && ['ESCROWED', 'BOUGHT', 'SHIPPED', 'COMPLETED'].includes(currentViewOrder.status));
               if (isRevealed) {
-                return <p className="text-sm font-medium">{order.shipping_address}</p>;
+                return <p className="text-sm font-medium">{currentViewOrder.shipping_address}</p>;
               } else {
                 return (
                   <div className="flex items-center gap-2 text-muted-foreground italic">
@@ -432,9 +493,9 @@ export default function OrderDetails() {
         )}
       </header>
 
-      <StepProgressBar currentStatus={order.status} />
+      <StepProgressBar currentStatus={currentViewOrder.status} />
 
-      {order.status === 'DISPUTE' && (
+      {currentViewOrder.status === 'DISPUTE' && (
         <Card className="border-red-500/50 bg-red-500/5 mb-6 shadow-xl shadow-red-500/10">
           <CardContent className="pt-6 space-y-4">
             <div className="flex items-center gap-2">
@@ -444,13 +505,13 @@ export default function OrderDetails() {
             <p className="text-sm font-medium text-red-500">{t('order.dispute_warning')}</p>
             <div className="bg-background/80 p-4 rounded-xl space-y-2 border border-red-500/20">
               <p className="text-xs font-bold text-red-500/70 uppercase tracking-widest">{t('order.dispute_reason')}</p>
-              <p className="text-sm">{order.dispute_reason}</p>
-              {order.dispute_evidence_url && (
+              <p className="text-sm">{currentViewOrder.dispute_reason}</p>
+              {currentViewOrder.dispute_evidence_url && (
                 <div className="mt-3">
                   <p className="text-xs font-bold text-red-500/70 uppercase tracking-widest mb-1">
                     {t('order.dispute_evidence_uploaded')}
                   </p>
-                  <img src={order.dispute_evidence_url} alt="Evidence" className="max-h-48 rounded-lg border border-red-500/20 shadow-sm" />
+                  <img src={currentViewOrder.dispute_evidence_url} alt="Evidence" className="max-h-48 rounded-lg border border-red-500/20 shadow-sm" />
                 </div>
               )}
             </div>
@@ -484,28 +545,28 @@ export default function OrderDetails() {
             <span className="text-muted-foreground">{t('order.target_price')}</span>
             <div className="text-right">
               <div className="font-medium text-sm">
-                {currencySymbol}{order.target_price}
-                <span className="text-[10px] text-muted-foreground ml-1 font-normal">(@ {order.exchange_rate})</span>
+                {currencySymbol}{currentViewOrder.target_price}
+                <span className="text-[10px] text-muted-foreground ml-1 font-normal">(@ {currentViewOrder.exchange_rate})</span>
               </div>
-              <div className="text-[10px] text-muted-foreground">≈ NT${Math.round(order.target_price * (order.exchange_rate || 1)).toLocaleString()}</div>
+              <div className="text-[10px] text-muted-foreground">≈ NT${Math.round(currentViewOrder.target_price * (currentViewOrder.exchange_rate || 1)).toLocaleString()}</div>
             </div>
           </div>
           <div className="flex justify-between py-2 border-b border-border/50">
             <span className="text-muted-foreground">{t('order.reward_fee')}</span>
-            <span className="font-bold text-green-600">NT${order.reward_fee.toLocaleString()}</span>
+            <span className="font-bold text-green-600">NT${currentViewOrder.reward_fee.toLocaleString()}</span>
           </div>
-          {['buyer', 'admin'].includes(role) && order.buyer_platform_fee > 0 && (
+          {['buyer', 'admin'].includes(role) && currentViewOrder.buyer_platform_fee > 0 && (
             <div className="flex justify-between py-2 border-b border-border/50">
               <span className="text-muted-foreground">{t('create.buyer_fee')}</span>
-              <span className="font-medium text-xs text-muted-foreground">NT${order.buyer_platform_fee.toLocaleString()}</span>
+              <span className="font-medium text-xs text-muted-foreground">NT${currentViewOrder.buyer_platform_fee.toLocaleString()}</span>
             </div>
           )}
-          {order.expected_shipping_date && (
+          {currentViewOrder.expected_shipping_date && (
             <div className="flex justify-between py-2 border-b border-border/50">
               <span className="text-muted-foreground">{t('create.return_date_short')}</span>
               <span className="font-bold flex items-center gap-1">
-                📅 {order.expected_shipping_date}
-                {order.auto_extend && <span className="text-[10px] bg-blue-500/10 text-blue-500 px-1 rounded ml-1">Auto-Extend</span>}
+                📅 {currentViewOrder.expected_shipping_date}
+                {currentViewOrder.auto_extend && <span className="text-[10px] bg-blue-500/10 text-blue-500 px-1 rounded ml-1">Auto-Extend</span>}
               </span>
             </div>
           )}
@@ -516,8 +577,8 @@ export default function OrderDetails() {
             <div className="text-right">
               <div className="text-2xl font-black text-primary">
                 NT${(['traveler', 'visitor'].includes(role)
-                  ? Math.round((order.target_price * (order.exchange_rate || 1)) + order.reward_fee)
-                  : order.total_amount_twd || 0
+                  ? Math.round((currentViewOrder.target_price * (currentViewOrder.exchange_rate || 1)) + currentViewOrder.reward_fee)
+                  : currentViewOrder.total_amount_twd || 0
                 ).toLocaleString()}
               </div>
               <p className="text-[10px] text-muted-foreground mt-1">
@@ -528,7 +589,7 @@ export default function OrderDetails() {
         </CardContent>
       </Card>
 
-      {['traveler', 'visitor'].includes(role) && order.traveler_platform_fee > 0 && (
+      {['traveler', 'visitor'].includes(role) && currentViewOrder.traveler_platform_fee > 0 && (
         <div className="space-y-2">
           <div
             className="bg-green-500/5 rounded-2xl p-4 border border-green-500/20 cursor-pointer hover:bg-green-500/10 transition-colors flex justify-between items-center"
@@ -540,12 +601,12 @@ export default function OrderDetails() {
                 <span className="ml-1 opacity-50 underline decoration-dotted">{showFormula ? '▲' : '▼'}</span>
               </p>
               <p className="font-black text-xl text-green-600">
-                NT$ {((order.target_price * (order.exchange_rate || 1)) + order.reward_fee - (order.traveler_platform_fee || 0)).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                NT$ {((currentViewOrder.target_price * (currentViewOrder.exchange_rate || 1)) + currentViewOrder.reward_fee - (currentViewOrder.traveler_platform_fee || 0)).toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </p>
             </div>
             <div className="text-right">
               <p className="text-[9px] text-muted-foreground uppercase font-bold">{t('create.traveler_fee')}</p>
-              <p className="text-xs font-bold text-red-500">-NT${order.traveler_platform_fee}</p>
+              <p className="text-xs font-bold text-red-500">-NT${currentViewOrder.traveler_platform_fee}</p>
             </div>
           </div>
 
@@ -554,20 +615,20 @@ export default function OrderDetails() {
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">{t('create.formula_title')}</p>
               <div className="space-y-1 text-xs font-mono text-muted-foreground">
                 <div className="flex justify-between">
-                  <span>({order.target_price} {order.currency} × {order.exchange_rate})</span>
-                  <span>NT$ {Math.round(order.target_price * (order.exchange_rate || 1))}</span>
+                  <span>({currentViewOrder.target_price} {currentViewOrder.currency} × {currentViewOrder.exchange_rate})</span>
+                  <span>NT$ {Math.round(currentViewOrder.target_price * (currentViewOrder.exchange_rate || 1))}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>+ {t('order.reward_fee')}</span>
-                  <span>NT$ {order.reward_fee}</span>
+                  <span>NT$ {currentViewOrder.reward_fee}</span>
                 </div>
                 <div className="flex justify-between text-red-500/70">
                   <span>- {t('create.traveler_fee')}</span>
-                  <span>NT$ {order.traveler_platform_fee}</span>
+                  <span>NT$ {currentViewOrder.traveler_platform_fee}</span>
                 </div>
                 <div className="pt-1 border-t border-border/30 flex justify-between font-bold text-foreground">
                   <span>{t('order.traveler_net')}</span>
-                  <span>NT$ {Math.round((order.target_price * (order.exchange_rate || 1)) + order.reward_fee - (order.traveler_platform_fee || 0))}</span>
+                  <span>NT$ {Math.round((currentViewOrder.target_price * (currentViewOrder.exchange_rate || 1)) + currentViewOrder.reward_fee - (currentViewOrder.traveler_platform_fee || 0))}</span>
                 </div>
               </div>
             </div>
@@ -575,7 +636,7 @@ export default function OrderDetails() {
         </div>
       )}
 
-      {(order.receipt_url || order.tracking_number) && (
+      {(currentViewOrder.receipt_url || currentViewOrder.tracking_number) && (
         <Card className="border-primary/20 bg-primary/5">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold flex items-center gap-2">
@@ -584,32 +645,32 @@ export default function OrderDetails() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {order.purchase_photo_url && (
+            {currentViewOrder.purchase_photo_url && (
               <div className="space-y-2">
                 <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{t('create.proof_purchase_photo')}</span>
                 <div className="rounded-xl overflow-hidden border border-border shadow-sm bg-background p-1">
-                  <img src={order.purchase_photo_url} alt="Purchase" className="w-full h-auto max-h-48 object-contain rounded-lg" />
+                  <img src={currentViewOrder.purchase_photo_url} alt="Purchase" className="w-full h-auto max-h-48 object-contain rounded-lg" />
                 </div>
               </div>
             )}
-            {order.receipt_url && (
+            {currentViewOrder.receipt_url && (
               <div className="space-y-2">
                 <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{t('create.proof_receipt')}</span>
                 <div className="rounded-xl overflow-hidden border border-border shadow-sm bg-background p-1">
-                  <img src={order.receipt_url} alt="Receipt" className="w-full h-auto max-h-48 object-contain rounded-lg" />
+                  <img src={currentViewOrder.receipt_url} alt="Receipt" className="w-full h-auto max-h-48 object-contain rounded-lg" />
                 </div>
               </div>
             )}
-            {order.model_number && (
+            {currentViewOrder.model_number && (
               <div className="flex justify-between items-center bg-background p-3 rounded-xl border border-border/50">
                 <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{t('create.proof_model')}</span>
-                <span className="font-mono text-sm font-bold bg-muted px-2 py-1 rounded">{order.model_number}</span>
+                <span className="font-mono text-sm font-bold bg-muted px-2 py-1 rounded">{currentViewOrder.model_number}</span>
               </div>
             )}
-            {order.tracking_number && (
+            {currentViewOrder.tracking_number && (
               <div className="flex justify-between items-center bg-background p-3 rounded-xl border border-border/50">
                 <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{t('order.tracking_no')}</span>
-                <span className="font-mono text-sm font-bold bg-muted px-2 py-1 rounded">{order.tracking_number}</span>
+                <span className="font-mono text-sm font-bold bg-muted px-2 py-1 rounded">{currentViewOrder.tracking_number}</span>
               </div>
             )}
           </CardContent>
@@ -618,14 +679,14 @@ export default function OrderDetails() {
 
       <Card className="bg-secondary/20 border-primary/20">
         <CardContent className="pt-6">
-          {!order.traveler_id && (
+          {!currentViewOrder.traveler_id && (
             <div className="space-y-4">
               <div className="flex items-center justify-between gap-2 mb-2">
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                  <CardTitle className="text-base">{order.status === 'ESCROWED' ? '代購金已託管，等待接單' : t('status.OPEN')}</CardTitle>
+                  <CardTitle className="text-base">{currentViewOrder.status === 'ESCROWED' ? '代購金已託管，等待接單' : t('status.OPEN')}</CardTitle>
                 </div>
-                {order.payment_type === 'PRE_ESCROW' && (
+                {currentViewOrder.payment_type === 'PRE_ESCROW' && (
                   <div className="px-2 py-0.5 rounded-md bg-green-500/10 text-green-600 text-[10px] font-black uppercase tracking-tighter border border-green-500/20 animate-pulse flex items-center gap-1">
                     <ShieldCheck className="w-3 h-3" />
                     {t('order.tag_pre_escrow')}
@@ -646,11 +707,11 @@ export default function OrderDetails() {
               </div>
 
               <div className="bg-secondary/10 p-4 rounded-xl space-y-4">
-                {user && (order.buyer_id === user.id || wishGroup.some(o => o.buyer_id === user.id)) ? (
+                {user && (currentViewOrder.buyer_id === user.id || wishGroup.some(o => o.buyer_id === user.id)) ? (
                   <div className="space-y-3">
                     <p className="text-sm font-medium leading-relaxed bg-primary/5 p-4 rounded-xl border border-primary/20 text-center shadow-sm text-primary">
-                      {order.buyer_id === user.id ? (
-                        order.payment_type === 'PRE_ESCROW'
+                      {currentViewOrder.buyer_id === user.id ? (
+                        currentViewOrder.payment_type === 'PRE_ESCROW'
                           ? '您選擇了立即託管，請根據下方資訊完成匯款，後續由管理長確認後，代購接單將立刻生效。'
                           : '這是您的許願單，請靜候旅人接單。'
                       ) : (
@@ -662,7 +723,7 @@ export default function OrderDetails() {
                     </p>
 
                     {/* PRE_ESCROW Buyer Payment Info */}
-                    {order.buyer_id === user.id && order.payment_type === 'PRE_ESCROW' && order.status === 'OPEN' && (
+                    {currentViewOrder.buyer_id === user.id && currentViewOrder.payment_type === 'PRE_ESCROW' && currentViewOrder.status === 'OPEN' && (
                       <div className="space-y-4 mt-6 animate-in fade-in slide-in-from-bottom-2">
                         <div className="bg-background p-4 rounded-2xl border border-primary/10 space-y-3 shadow-inner">
                           <div className="flex items-center gap-2 text-primary">
@@ -696,15 +757,15 @@ export default function OrderDetails() {
                           <Button
                             fullWidth
                             onClick={handleNotifyPaid}
-                            disabled={order.payment_notification_sent}
+                            disabled={currentViewOrder.payment_notification_sent}
                             className={cn(
                               "h-12 font-bold rounded-xl shadow-lg transition-all",
-                              order.payment_notification_sent
+                              currentViewOrder.payment_notification_sent
                                 ? "bg-muted text-muted-foreground border-border/50"
                                 : "bg-primary hover:scale-[1.02] shadow-primary/20"
                             )}
                           >
-                            {order.payment_notification_sent ? (
+                            {currentViewOrder.payment_notification_sent ? (
                               <span className="flex items-center gap-2">
                                 <CheckCircle className="w-4 h-4" />
                                 {t('order.paid_notified_status')}
@@ -717,7 +778,7 @@ export default function OrderDetails() {
                       </div>
                     )}
 
-                    {order.buyer_id !== user.id && wishGroup.some(o => o.buyer_id === user.id) && (
+                    {currentViewOrder.buyer_id !== user.id && wishGroup.some(o => o.buyer_id === user.id) && (
                       <Button onClick={() => {
                         const myOrder = wishGroup.find(o => o.buyer_id === user.id);
                         if (myOrder) window.location.href = `/orders/${myOrder.id}`;
@@ -768,7 +829,7 @@ export default function OrderDetails() {
             </div>
           )}
 
-          {order.status === 'MATCHED' && (
+          {currentViewOrder.status === 'MATCHED' && (
             <div className="space-y-6 text-left">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
@@ -806,20 +867,18 @@ export default function OrderDetails() {
                       </div>
                     </div>
 
-
-
                     <Button
                       fullWidth
                       onClick={handleNotifyPaid}
-                      disabled={order.payment_notification_sent}
+                      disabled={currentViewOrder.payment_notification_sent}
                       className={cn(
                         "h-12 font-bold rounded-xl shadow-lg transition-all",
-                        order.payment_notification_sent
+                        currentViewOrder.payment_notification_sent
                           ? "bg-muted text-muted-foreground border-border/50"
                           : "bg-primary hover:scale-[1.02] shadow-primary/20"
                       )}
                     >
-                      {order.payment_notification_sent ? (
+                      {currentViewOrder.payment_notification_sent ? (
                         <span className="flex items-center gap-2">
                           <CheckCircle className="w-4 h-4" />
                           已通知管理員
@@ -842,7 +901,7 @@ export default function OrderDetails() {
             </div>
           )}
 
-          {order.status === 'ESCROWED' && !!order.traveler_id && (
+          {currentViewOrder.status === 'ESCROWED' && !!currentViewOrder.traveler_id && (
             <div className="space-y-6">
               <div className="flex items-center gap-2 mb-2">
                 <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
@@ -851,9 +910,24 @@ export default function OrderDetails() {
 
               <div className="space-y-6">
                 {role === 'traveler' ? (
-                  <div className="bg-background/50 p-4 rounded-xl border border-border/50 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                  <div className="bg-background/50 p-4 rounded-xl border border-border/50 animate-in fade-in slide-in-from-bottom-2 duration-500 space-y-3">
                     <p className="text-sm font-bold text-primary mb-1">{t('order.traveler_buy_hint')}</p>
                     <p className="text-xs text-muted-foreground leading-relaxed">{t('order.upload_guide')}</p>
+
+                    {travelerGroup.filter(o => o.status === 'ESCROWED' && o.id !== currentViewOrder.id).length > 0 && (
+                      <div className="flex items-center gap-2 pt-2 border-t border-border/10">
+                        <input
+                          type="checkbox"
+                          id="sync-evidence"
+                          checked={syncEvidence}
+                          onChange={(e) => setSyncEvidence(e.target.checked)}
+                          className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+                        />
+                        <label htmlFor="sync-evidence" className="text-xs font-bold text-primary flex items-center gap-1 cursor-pointer">
+                          同時同步採購證明至此願望池的其他 {travelerGroup.filter(o => o.status === 'ESCROWED' && o.id !== currentViewOrder.id).length} 筆訂單
+                        </label>
+                      </div>
+                    )}
                   </div>
                 ) : role === 'buyer' ? (
                   <div className="bg-green-500/5 p-6 rounded-2xl border border-green-500/20 text-center space-y-3 animate-in fade-in zoom-in duration-500">
@@ -872,9 +946,9 @@ export default function OrderDetails() {
                     {/* Mandatory Product Photo */}
                     <div className="space-y-3">
                       <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t('create.proof_purchase_photo')}</p>
-                      {order.purchase_photo_url ? (
+                      {currentViewOrder.purchase_photo_url ? (
                         <div className="relative rounded-xl overflow-hidden border border-border group">
-                          <img src={order.purchase_photo_url} alt="Purchase" className="w-full h-auto max-h-48 object-cover" />
+                          <img src={currentViewOrder.purchase_photo_url} alt="Purchase" className="w-full h-auto max-h-48 object-cover" />
                           <label className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
                             <input type="file" onChange={handleUploadPurchasePhoto} className="hidden" />
                             <span className="text-white text-xs font-bold">{t('order.receipt_update')}</span>
@@ -899,12 +973,12 @@ export default function OrderDetails() {
                     </div>
 
                     {/* Optional Receipt */}
-                    {order.require_receipt && (
+                    {currentViewOrder.require_receipt && (
                       <div className="space-y-3">
                         <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t('create.proof_receipt')}</p>
-                        {order.receipt_url ? (
+                        {currentViewOrder.receipt_url ? (
                           <div className="relative rounded-xl overflow-hidden border border-border group">
-                            <img src={order.receipt_url} alt="Receipt" className="w-full h-auto max-h-48 object-cover" />
+                            <img src={currentViewOrder.receipt_url} alt="Receipt" className="w-full h-auto max-h-48 object-cover" />
                             <label className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
                               <input type="file" onChange={handleUploadReceipt} className="hidden" />
                               <span className="text-white text-xs font-bold">{t('order.receipt_update')}</span>
@@ -930,19 +1004,19 @@ export default function OrderDetails() {
                     )}
 
                     {/* Optional Model Number */}
-                    {order.require_model_number && (
+                    {currentViewOrder.require_model_number && (
                       <div className="space-y-3">
                         <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t('create.proof_model')}</p>
                         <div className="flex gap-2">
                           <Input
                             placeholder={t('order.model_placeholder')}
-                            value={modelNumberInput || order.model_number || ''}
+                            value={modelNumberInput || currentViewOrder.model_number || ''}
                             onChange={(e) => setModelNumberInput(e.target.value)}
                           />
                           <Button
                             size="sm"
                             onClick={handleUpdateModelNumber}
-                            disabled={!modelNumberInput || modelNumberInput === order.model_number}
+                            disabled={!modelNumberInput || modelNumberInput === currentViewOrder.model_number}
                           >
                             {t('common.save')}
                           </Button>
@@ -955,21 +1029,27 @@ export default function OrderDetails() {
                       <Button
                         fullWidth
                         className="h-12 font-bold"
-                        disabled={!order.purchase_photo_url || (order.require_receipt && !order.receipt_url) || (order.require_model_number && !order.model_number)}
+                        disabled={!currentViewOrder.purchase_photo_url || (currentViewOrder.require_receipt && !currentViewOrder.receipt_url) || (currentViewOrder.require_model_number && !currentViewOrder.model_number)}
                         onClick={async () => {
-                          const { finishPurchase } = await import('@/app/actions/orders');
+                          const { finishPurchase, batchFinishPurchase } = await import('@/app/actions/orders');
                           try {
-                            const result = await finishPurchase(order.id);
-                            if (!result.success) throw new Error(result.error);
+                            if (syncEvidence && travelerGroup.length > 1) {
+                              const ids = travelerGroup.filter(o => o.status === 'ESCROWED').map(o => o.id);
+                              const result = await batchFinishPurchase(ids);
+                              if (!result.success) throw new Error(result.error);
+                            } else {
+                              const result = await finishPurchase(currentViewOrder.id);
+                              if (!result.success) throw new Error(result.error);
+                            }
                             await loadOrder();
                           } catch (error: any) {
                             alert(error.message || t('common.error'));
                           }
                         }}
                       >
-                        {t('admin.finish_purchase_btn')}
+                        {syncEvidence && travelerGroup.length > 1 ? `一鍵完成全部採購 (${travelerGroup.length})` : t('admin.finish_purchase_btn')}
                       </Button>
-                      {(!order.purchase_photo_url || (order.require_receipt && !order.receipt_url) || (order.require_model_number && !order.model_number)) && (
+                      {(!currentViewOrder.purchase_photo_url || (currentViewOrder.require_receipt && !currentViewOrder.receipt_url) || (currentViewOrder.require_model_number && !currentViewOrder.model_number)) && (
                         <p className="text-[9px] text-red-500 mt-2 text-center font-bold animate-pulse">請先完成所有要求的證明上傳</p>
                       )}
                     </div>
@@ -979,32 +1059,85 @@ export default function OrderDetails() {
             </div>
           )}
 
-          {order.status === 'BOUGHT' && (
+          {currentViewOrder.status === 'BOUGHT' && (
             <div className="space-y-4">
               <div className="flex items-center gap-2 mb-2">
                 <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
                 <CardTitle className="text-base">{t('status.BOUGHT')}</CardTitle>
               </div>
-              <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 space-y-3">
-                <p className="text-xs font-bold text-primary uppercase tracking-widest text-[10px]">{t('order.shipping_info')}</p>
-                {role === 'traveler' ? (
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder={t('order.tracking_placeholder')}
-                      value={trackingNumber}
-                      onChange={(e) => setTrackingNumber(e.target.value)}
-                      className="bg-background"
-                    />
-                    <Button onClick={handleAddTracking} className="px-6 font-bold">{t('order.ship_btn')}</Button>
+
+              {role === 'traveler' && travelerGroup.length > 1 ? (
+                <div className="bg-background rounded-2xl border border-border overflow-hidden shadow-sm">
+                  <div className="bg-primary/5 p-4 border-b border-primary/10">
+                    <p className="text-xs font-black text-primary uppercase tracking-widest">
+                      {travelerGroup.filter(o => o.status === 'BOUGHT').length > 1 ? (t('order.batch_shipping_title') || '批次填寫出貨資訊') : '填寫出貨資訊'}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      {travelerGroup.filter(o => o.status === 'BOUGHT').length > 1 ? '您可以一次填寫所有買家的單號' : '請輸入此筆訂單的物流單號'}
+                    </p>
                   </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">{t('order.wait_shipping_traveler')}</p>
-                )}
-              </div>
+                  <div className="divide-y divide-border/50">
+                    {travelerGroup.filter(o => o.status === 'BOUGHT').map((groupOrder) => (
+                      <div key={groupOrder.id} className="p-4 space-y-3">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="text-[10px] font-black uppercase text-muted-foreground">買家</p>
+                            <p className="text-sm font-bold">{groupOrder.buyer?.display_name || maskEmail(groupOrder.buyer?.email)}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[10px] font-black uppercase text-muted-foreground">物流方式</p>
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-secondary text-secondary-foreground">
+                              {groupOrder.shipping_method === '711' ? '7-11 取貨' : '宅配到府'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="bg-secondary/20 p-2.5 rounded-lg border border-border/30">
+                          <p className="text-[10px] font-black uppercase text-muted-foreground mb-1">收件資訊</p>
+                          <p className="text-xs leading-relaxed">{groupOrder.shipping_address}</p>
+                        </div>
+                        <Input
+                          placeholder={t('order.tracking_placeholder')}
+                          value={batchTracking[groupOrder.id] || groupOrder.tracking_number || ''}
+                          onChange={(e) => setBatchTracking(prev => ({ ...prev, [groupOrder.id]: e.target.value }))}
+                          className="h-10 text-sm"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="p-4 bg-secondary/10">
+                    <Button
+                      onClick={handleBatchAddTracking}
+                      fullWidth
+                      className="h-12 font-black"
+                      disabled={travelerGroup.filter(o => o.status === 'BOUGHT').every(o => !batchTracking[o.id] && !o.tracking_number)}
+                    >
+                      <Truck className="w-5 h-5 mr-2" />
+                      {travelerGroup.filter(o => o.status === 'BOUGHT').length > 1 ? '確認批量出貨' : '確認出貨'}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 space-y-3">
+                  <p className="text-xs font-bold text-primary uppercase tracking-widest text-[10px]">{t('order.shipping_info')}</p>
+                  {role === 'traveler' ? (
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder={t('order.tracking_placeholder')}
+                        value={trackingNumber}
+                        onChange={(e) => setTrackingNumber(e.target.value)}
+                        className="bg-background"
+                      />
+                      <Button onClick={handleAddTracking} className="px-6 font-bold">{t('order.ship_btn')}</Button>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">{t('order.wait_shipping_traveler')}</p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
-          {order.status === 'SHIPPED' && (
+          {currentViewOrder.status === 'SHIPPED' && (
             <div className="space-y-2">
               <div className="flex items-center gap-2 mb-2">
                 <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
@@ -1014,7 +1147,7 @@ export default function OrderDetails() {
                 <Truck className="w-5 h-5" />
                 <span className="text-sm font-medium">{t('order.shipped_msg')}</span>
               </div>
-              <p className="text-sm">{t('order.tracking_no')}：<span className="font-mono bg-muted px-1 rounded">{order.tracking_number}</span></p>
+              <p className="text-sm">{t('order.tracking_no')}：<span className="font-mono bg-muted px-1 rounded">{currentViewOrder.tracking_number}</span></p>
               {role === 'buyer' && (
                 <Button onClick={handleConfirmReceipt} fullWidth className="bg-green-600 hover:bg-green-700 font-bold h-12 rounded-xl mt-4">
                   {t('order.received_btn')}
@@ -1023,7 +1156,7 @@ export default function OrderDetails() {
             </div>
           )}
 
-          {order.status === 'COMPLETED' && (
+          {currentViewOrder.status === 'COMPLETED' && (
             <div className="space-y-4">
               <div className="flex items-center gap-2 mb-2">
                 <span className="w-2 h-2 rounded-full bg-green-600" />
@@ -1067,7 +1200,7 @@ export default function OrderDetails() {
             </div>
           )}
 
-          {order.status === 'DELISTED' && (
+          {currentViewOrder.status === 'DELISTED' && (
             <div className="space-y-4">
               <div className="flex items-center gap-2 mb-2">
                 <span className="w-2 h-2 rounded-full bg-gray-400" />
@@ -1089,15 +1222,120 @@ export default function OrderDetails() {
         </CardContent>
       </Card>
 
+      {/* Group Management Dashboard for Traveler */}
+      {role === 'traveler' && travelerGroup.length > 1 && (
+        <Card className="border-primary/20 bg-background shadow-sm overflow-hidden mb-6">
+          <CardHeader className="py-2.5 bg-primary/5 border-b border-primary/10">
+            <CardTitle className="text-[10px] font-black flex items-center gap-2 text-primary uppercase tracking-widest">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              群組進度總覽 ({travelerGroup.length})
+            </CardTitle>
+          </CardHeader>
+          <div className="divide-y divide-border/40">
+            {travelerGroup.map((gOrder) => (
+              <div key={gOrder.id} className={cn(
+                "p-3 flex items-center justify-between transition-colors",
+                activeChatTab === gOrder.id ? "bg-primary/5" : "hover:bg-secondary/10"
+              )}>
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-[10px]">
+                    👤
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold">{gOrder.buyer?.display_name || maskEmail(gOrder.buyer?.email)}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <StatusBadge status={gOrder.status} />
+                      {gOrder.status === 'SHIPPED' && (
+                        <span className="text-[9px] text-muted-foreground font-mono">#{gOrder.tracking_number}</span>
+                      )}
+                      {gOrder.status === 'DISPUTE' && (
+                        <span className="text-[9px] text-red-500 font-bold flex items-center gap-0.5 animate-pulse">
+                          <AlertTriangle className="w-2.5 h-2.5" /> 爭議中
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {gOrder.status === 'COMPLETED' && !gOrder.rated_by_traveler && (
+                    <div className="flex gap-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0 rounded-full border border-green-500/20 text-green-500 hover:bg-green-500/10"
+                        onClick={() => handleRateUser(true, gOrder.id, gOrder.buyer_id)}
+                      >
+                        <ThumbsUp className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0 rounded-full border border-red-500/20 text-red-500 hover:bg-red-500/10"
+                        onClick={() => handleRateUser(false, gOrder.id, gOrder.buyer_id)}
+                      >
+                        <ThumbsDown className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  )}
+                  {gOrder.rated_by_traveler && (
+                    <span className="text-[9px] text-green-600 font-bold bg-green-50 px-1.5 py-0.5 rounded border border-green-100 italic">已評價</span>
+                  )}
+                  <Button
+                    size="sm"
+                    variant={activeChatTab === gOrder.id ? "primary" : "outline"}
+                    className="h-7 text-[10px] font-bold px-3 rounded-lg"
+                    onClick={() => setActiveChatTab(gOrder.id)}
+                  >
+                    溝通
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="bg-secondary/5 p-2 text-center border-t border-border/40">
+            <p className="text-[9px] text-muted-foreground italic">
+              點擊「溝通」切換對話與操作目標，或直接在上方進行批次採購/出貨
+            </p>
+          </div>
+        </Card>
+      )}
+
       {/* Order Chat Board */}
       {
-        order.status !== 'OPEN' && order.status !== 'DELISTED' && user && role !== 'visitor' && (
-          <div className="pt-2">
+        currentViewOrder.status !== 'OPEN' && currentViewOrder.status !== 'DELISTED' && user && role !== 'visitor' && (
+          <div className="pt-2 space-y-2">
+            {role === 'traveler' && travelerGroup.length > 1 && (
+              <div className="flex gap-1 overflow-x-auto pb-2 no-scrollbar">
+                {travelerGroup.map((groupOrder) => {
+                  const bName = groupOrder.buyer?.display_name || maskEmail(groupOrder.buyer?.email);
+                  const isActive = activeChatTab === groupOrder.id;
+                  return (
+                    <button
+                      key={groupOrder.id}
+                      onClick={() => setActiveChatTab(groupOrder.id)}
+                      className={cn(
+                        "px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap border",
+                        isActive
+                          ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                          : "bg-secondary/20 text-muted-foreground border-transparent hover:bg-secondary/40"
+                      )}
+                    >
+                      {bName} {order.id === groupOrder.id && "(當前)"}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             <OrderChat
-              orderId={order.id}
+              orderId={activeChatTab || currentViewOrder.id}
               currentUserId={user.id}
               role={role as 'buyer' | 'traveler' | 'admin'}
-              partnerName={partnerDisplayName}
+              partnerName={
+                role === 'traveler' && travelerGroup.length > 1 && activeChatTab
+                  ? (travelerGroup.find(o => o.id === activeChatTab)?.buyer?.display_name || maskEmail(travelerGroup.find(o => o.id === activeChatTab)?.buyer?.email))
+                  : partnerDisplayName
+              }
             />
           </div>
         )
@@ -1105,7 +1343,7 @@ export default function OrderDetails() {
 
       {/* Dispute / Delist buttons */}
       {
-        ['ESCROWED', 'BOUGHT', 'SHIPPED'].includes(order.status) && (
+        ['ESCROWED', 'BOUGHT', 'SHIPPED'].includes(currentViewOrder.status) && (
           <div className="pt-2">
             <Button onClick={() => setShowDisputeModal(true)} variant="outline" fullWidth className="h-10 text-xs font-bold text-red-400 border-red-500/20 hover:bg-red-500/10 rounded-xl flex items-center gap-2">
               <AlertTriangle className="w-4 h-4" />
@@ -1116,10 +1354,10 @@ export default function OrderDetails() {
       }
 
       {
-        order.status === 'OPEN' && (role === 'buyer' || role === 'admin') && (
+        currentViewOrder.status === 'OPEN' && (role === 'buyer' || role === 'admin') && (
           <div className="pt-2">
             <Button onClick={handleDelist} variant="outline" fullWidth className="h-10 text-xs font-bold text-red-400 border-red-500/20 hover:bg-red-500/10 rounded-xl">
-              {order.parent_order_id ? '取消跟單' : t('order.delist_btn')}
+              {currentViewOrder.parent_order_id ? '取消跟單' : t('order.delist_btn')}
             </Button>
           </div>
         )

@@ -132,6 +132,19 @@ export const fetchWishGroup = async (parentOrderId: string | null, orderId: stri
   return data as Order[];
 };
 
+export const fetchTravelerGroupOrders = async (parentOrderId: string | null, orderId: string, travelerId: string) => {
+  const rootId = parentOrderId || orderId;
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*, buyer:profiles!buyer_id(*), traveler:profiles!traveler_id(*)')
+    .or(`id.eq.${rootId},parent_order_id.eq.${rootId}`)
+    .eq('traveler_id', travelerId)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+  return data as Order[];
+};
+
 export const batchAssignTraveler = async (orderIds: string[], travelerId: string, status: OrderStatus = 'MATCHED') => {
   const { data, error } = await supabase
     .from('orders')

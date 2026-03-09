@@ -58,6 +58,8 @@ export interface Order {
   dispute_resolution?: string | null;
   dispute_created_at?: string | null;
   dispute_resolved_at?: string | null;
+  rated_by_buyer?: boolean;
+  rated_by_traveler?: boolean;
 }
 
 export interface SystemSettings {
