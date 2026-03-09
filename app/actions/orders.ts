@@ -217,7 +217,7 @@ export async function resolveDispute(orderId: string, resolutionStatus: OrderSta
     }
 }
 
-export async function acceptOrder(orderIds: string[], nextStatus: OrderStatus) {
+export async function acceptOrder(orderIds: string[]) {
     try {
         const supabaseClient = await createClient();
         const { data: { user } } = await supabaseClient.auth.getUser();
@@ -225,20 +225,32 @@ export async function acceptOrder(orderIds: string[], nextStatus: OrderStatus) {
 
         const supabaseAdmin = getSupabaseAdmin();
 
-        if (nextStatus !== 'MATCHED' && nextStatus !== 'ESCROWED') {
-            throw new Error("不合法的狀態轉換");
-        }
-
-        const { error: updateError } = await supabaseAdmin
+        // 1. Assign traveler and change OPEN -> MATCHED
+        const { error: openError } = await supabaseAdmin
             .from('orders')
             .update({
                 traveler_id: user.id,
-                status: nextStatus
+                status: 'MATCHED'
             })
             .in('id', orderIds)
-            .eq('status', 'OPEN'); // Ensure they are only accepted if currently OPEN
+            .eq('status', 'OPEN')
+            .is('traveler_id', null);
 
-        if (updateError) throw updateError;
+        if (openError) throw openError;
+
+        // 2. Assign traveler and keep ESCROWED -> ESCROWED
+        // (For PRE_ESCROW orders that were already paid and confirmed by admin)
+        const { error: escrowError } = await supabaseAdmin
+            .from('orders')
+            .update({
+                traveler_id: user.id
+            })
+            .in('id', orderIds)
+            .eq('status', 'ESCROWED')
+            .is('traveler_id', null);
+
+        if (escrowError) throw escrowError;
+
         return { success: true };
     } catch (error: any) {
         console.error("Server Action acceptOrder Error:", error);

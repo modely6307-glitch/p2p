@@ -124,7 +124,8 @@ export const fetchWishGroup = async (parentOrderId: string | null, orderId: stri
     .from('orders')
     .select('*, buyer:profiles!buyer_id(*), traveler:profiles!traveler_id(*)')
     .or(`id.eq.${rootId},parent_order_id.eq.${rootId}`)
-    .eq('status', 'OPEN')
+    .in('status', ['OPEN', 'ESCROWED'])
+    .is('traveler_id', null)
     .order('created_at', { ascending: true });
 
   if (error) throw error;

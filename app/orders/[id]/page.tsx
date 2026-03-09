@@ -95,7 +95,7 @@ export default function OrderDetails() {
       const data = await fetchOrderById(id);
       setOrder(data);
 
-      if (data.status === 'OPEN') {
+      if (!data.traveler_id && ['OPEN', 'ESCROWED'].includes(data.status)) {
         const group = await fetchWishGroup(data.parent_order_id || null, data.id);
         setWishGroup(group);
       }
@@ -126,13 +126,12 @@ export default function OrderDetails() {
       return;
     }
     try {
-      const nextStatus = order.payment_type === 'PRE_ESCROW' ? 'ESCROWED' : 'MATCHED';
       const { acceptOrder } = await import('@/app/actions/orders');
       let orderIds = [order.id];
       if (wishGroup.length > 0) {
         orderIds = wishGroup.slice(0, batchAcceptCount).map(o => o.id);
       }
-      const result = await acceptOrder(orderIds, nextStatus);
+      const result = await acceptOrder(orderIds);
       if (!result.success) throw new Error(result.error);
 
       await loadOrder();
