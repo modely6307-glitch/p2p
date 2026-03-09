@@ -39,8 +39,8 @@ export function OrderChat({ orderId, currentUserId, role, partnerName }: OrderCh
                     table: 'order_messages',
                     filter: `order_id=eq.${orderId}`,
                 },
-                (payload) => {
-                    const newMsg = payload.new as OrderMessage;
+                (payload: import('@supabase/supabase-js').RealtimePostgresInsertPayload<OrderMessage>) => {
+                    const newMsg = payload.new;
                     setMessages((prev) => {
                         // Check if exists to prevent duplicates
                         if (prev.find(m => m.id === newMsg.id)) return prev;
