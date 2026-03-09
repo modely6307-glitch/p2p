@@ -81,7 +81,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
             const allOrders = [...(buyerOrders || []), ...(travelerOrders || [])];
 
             // Deduplicate
-            const uniqueOrders = allOrders.filter((o, i, self) =>
+            const uniqueOrders = allOrders.filter((o: any, i: number, self: any[]) =>
                 self.findIndex(x => x.id === o.id) === i
             );
 
@@ -114,7 +114,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
             saveSnapshots(newSnapshots);
 
             // Calculate active task count (as traveler, status not COMPLETED/DELISTED)
-            const ongoingTasks = (travelerOrders || []).filter(o =>
+            const ongoingTasks = (travelerOrders || []).filter((o: any) =>
                 o.status !== 'COMPLETED' && o.status !== 'DELISTED'
             ).length;
             setActiveTaskCount(ongoingTasks);
