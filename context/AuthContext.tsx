@@ -63,33 +63,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     useEffect(() => {
         mountedRef.current = true;
 
-        let isInitial = true;
-
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event, session) => {
                 const currentUser = session?.user ?? null;
+                await updateInternalState(currentUser);
 
-                // If it's the initial check, we want to wait for the profile
-                if (isInitial) {
-                    await updateInternalState(currentUser);
-                    if (mountedRef.current) setLoading(false);
-                    isInitial = false;
-                } else {
-                    // Subsequent changes handle state naturally
-                    updateInternalState(currentUser);
+                // Regardless of whether they are logged in or not, once we get initial session
+                // we should stop loading.
+                if (event === 'INITIAL_SESSION') {
+                    if (mountedRef.current) {
+                        setLoading(false);
+                    }
                 }
             }
         );
-
-        // Backup: explicitly check session if onAuthStateChange is slow or doesn't fire INITIAL_SESSION
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            if (isInitial && mountedRef.current) {
-                updateInternalState(session?.user ?? null).then(() => {
-                    if (mountedRef.current && isInitial) setLoading(false);
-                    isInitial = false;
-                });
-            }
-        });
 
         return () => {
             mountedRef.current = false;
