@@ -59,7 +59,7 @@ export default function OrderDetails() {
 
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
-  const [role, setRole] = useState<'buyer' | 'traveler' | 'admin'>('traveler');
+  const [role, setRole] = useState<'buyer' | 'traveler' | 'admin' | 'visitor'>('visitor');
   const [uploading, setUploading] = useState(false);
   const [purchasePhotoUploading, setPurchasePhotoUploading] = useState(false);
   const [modelNumberInput, setModelNumberInput] = useState('');
@@ -109,8 +109,7 @@ export default function OrderDetails() {
         } else if (data.traveler_id === user.id) {
           setRole('traveler');
         } else {
-          // If not the buyer or the assigned traveler, they are a generic visitor
-          setRole('traveler'); // Keeping 'traveler' for naming consistency but logic will change in UI
+          setRole('visitor');
         }
       }
     } catch (error) {
@@ -354,8 +353,8 @@ export default function OrderDetails() {
   const currencySymbol = getCurrencySymbol(order.currency);
   const countryConfig = getCountryFlag(order.country);
 
-  const partnerProfile = role === 'buyer' ? order.traveler : order.buyer;
-  const partnerRoleName = role === 'buyer' ? t('order.traveler') : t('order.buyer');
+  const partnerProfile = ['buyer', 'visitor'].includes(role) ? order.traveler : order.buyer;
+  const partnerRoleName = ['buyer', 'visitor'].includes(role) ? t('order.traveler') : t('order.buyer');
   const partnerDisplayName = partnerProfile?.display_name || maskEmail(partnerProfile?.email || undefined);
   const partnerRating = partnerProfile?.total_rating_count && partnerProfile.total_rating_count > 0
     ? Math.round((partnerProfile.positive_rating_count / partnerProfile.total_rating_count) * 100)
@@ -419,7 +418,7 @@ export default function OrderDetails() {
               {t('order.shipping_info_title')}
             </h3>
             {(() => {
-              const isRevealed = role === 'buyer' || role === 'admin' || ['ESCROWED', 'BOUGHT', 'SHIPPED', 'COMPLETED'].includes(order.status);
+              const isRevealed = role === 'buyer' || role === 'admin' || (role === 'traveler' && ['ESCROWED', 'BOUGHT', 'SHIPPED', 'COMPLETED'].includes(order.status));
               if (isRevealed) {
                 return <p className="text-sm font-medium">{order.shipping_address}</p>;
               } else {
@@ -496,7 +495,7 @@ export default function OrderDetails() {
             <span className="text-muted-foreground">{t('order.reward_fee')}</span>
             <span className="font-bold text-green-600">NT${order.reward_fee.toLocaleString()}</span>
           </div>
-          {role !== 'traveler' && order.buyer_platform_fee > 0 && (
+          {['buyer', 'admin'].includes(role) && order.buyer_platform_fee > 0 && (
             <div className="flex justify-between py-2 border-b border-border/50">
               <span className="text-muted-foreground">{t('create.buyer_fee')}</span>
               <span className="font-medium text-xs text-muted-foreground">NT${order.buyer_platform_fee.toLocaleString()}</span>
@@ -513,24 +512,24 @@ export default function OrderDetails() {
           )}
           <div className="flex justify-between py-4 items-center">
             <span className="font-black text-foreground">
-              {role === 'traveler' ? t('order.budget_info') : t('order.total_budget')}
+              {['traveler', 'visitor'].includes(role) ? t('order.budget_info') : t('order.total_budget')}
             </span>
             <div className="text-right">
               <div className="text-2xl font-black text-primary">
-                NT${(role === 'traveler'
+                NT${(['traveler', 'visitor'].includes(role)
                   ? Math.round((order.target_price * (order.exchange_rate || 1)) + order.reward_fee)
                   : order.total_amount_twd || 0
                 ).toLocaleString()}
               </div>
               <p className="text-[10px] text-muted-foreground mt-1">
-                {role === 'traveler' ? t('order.traveler_gross_total') : `(${t('order.buyer_paid_total')})`}
+                {['traveler', 'visitor'].includes(role) ? t('order.traveler_gross_total') : `(${t('order.buyer_paid_total')})`}
               </p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {role === 'traveler' && order.traveler_platform_fee > 0 && (
+      {['traveler', 'visitor'].includes(role) && order.traveler_platform_fee > 0 && (
         <div className="space-y-2">
           <div
             className="bg-green-500/5 rounded-2xl p-4 border border-green-500/20 cursor-pointer hover:bg-green-500/10 transition-colors flex justify-between items-center"
@@ -620,12 +619,12 @@ export default function OrderDetails() {
 
       <Card className="bg-secondary/20 border-primary/20">
         <CardContent className="pt-6">
-          {order.status === 'OPEN' && (
+          {!order.traveler_id && (
             <div className="space-y-4">
               <div className="flex items-center justify-between gap-2 mb-2">
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                  <CardTitle className="text-base">{t('status.OPEN')}</CardTitle>
+                  <CardTitle className="text-base">{order.status === 'ESCROWED' ? '代購金已託管，等待接單' : t('status.OPEN')}</CardTitle>
                 </div>
                 {order.payment_type === 'PRE_ESCROW' && (
                   <div className="px-2 py-0.5 rounded-md bg-green-500/10 text-green-600 text-[10px] font-black uppercase tracking-tighter border border-green-500/20 animate-pulse flex items-center gap-1">
@@ -664,7 +663,7 @@ export default function OrderDetails() {
                     </p>
 
                     {/* PRE_ESCROW Buyer Payment Info */}
-                    {order.buyer_id === user.id && order.payment_type === 'PRE_ESCROW' && (
+                    {order.buyer_id === user.id && order.payment_type === 'PRE_ESCROW' && order.status === 'OPEN' && (
                       <div className="space-y-4 mt-6 animate-in fade-in slide-in-from-bottom-2">
                         <div className="bg-background p-4 rounded-2xl border border-primary/10 space-y-3 shadow-inner">
                           <div className="flex items-center gap-2 text-primary">
@@ -844,7 +843,7 @@ export default function OrderDetails() {
             </div>
           )}
 
-          {order.status === 'ESCROWED' && (
+          {order.status === 'ESCROWED' && !!order.traveler_id && (
             <div className="space-y-6">
               <div className="flex items-center gap-2 mb-2">
                 <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
@@ -1093,12 +1092,12 @@ export default function OrderDetails() {
 
       {/* Order Chat Board */}
       {
-        order.status !== 'OPEN' && order.status !== 'DELISTED' && user && (
+        order.status !== 'OPEN' && order.status !== 'DELISTED' && user && role !== 'visitor' && (
           <div className="pt-2">
             <OrderChat
               orderId={order.id}
               currentUserId={user.id}
-              role={role}
+              role={role as 'buyer' | 'traveler' | 'admin'}
               partnerName={partnerDisplayName}
             />
           </div>
