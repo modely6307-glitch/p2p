@@ -282,8 +282,7 @@ export default function CreateWish() {
         deposit_amount: formData.is_partial_payment
           ? Math.round(calculateTotal() * (formData.deposit_percentage / 100))
           : calculateTotal(),
-        // Immediately notify admin if it's a pre-escrow order
-        payment_notification_sent: formData.payment_type === 'PRE_ESCROW',
+        payment_notification_sent: false,
       });
       router.push(`/orders/${result.id}`);
     } catch (error) {
