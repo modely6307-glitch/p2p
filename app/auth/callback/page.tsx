@@ -28,7 +28,7 @@ export default function AuthCallback() {
 
         handleAuthCallback();
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event: import('@supabase/supabase-js').AuthChangeEvent) => {
             if (event === 'SIGNED_IN' && mounted) router.push('/dashboard');
         });
 
