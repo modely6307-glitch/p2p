@@ -125,24 +125,24 @@ export default function AdminDashboard() {
     const handleConfirmPayment = async (orderId: string) => {
         if (!confirm('確認收到款項？')) return;
         try {
-            await updateOrderStatus(orderId, 'ESCROWED');
+            const { confirmEscrow } = await import('@/app/actions/orders');
+            const result = await confirmEscrow(orderId);
+            if (!result.success) throw new Error(result.error);
             loadData();
-        } catch (error) {
-            alert(t('error'));
+        } catch (error: any) {
+            alert(error.message || t('error'));
         }
     };
 
     const handleReleaseFunds = async (order: Order) => {
         if (!confirm('確認撥款給旅人？')) return;
         try {
-            await updateOrderStatus(order.id, 'COMPLETED');
-            if (order.traveler_id) {
-                const amountTwd = Math.round((order.target_price * (order.exchange_rate || 1)) + order.reward_fee);
-                await incrementOrderStats(order.traveler_id, amountTwd);
-            }
+            const { adminReleaseFunds } = await import('@/app/actions/orders');
+            const result = await adminReleaseFunds(order.id);
+            if (!result.success) throw new Error(result.error);
             loadData();
-        } catch (error) {
-            alert(t('error'));
+        } catch (error: any) {
+            alert(error.message || t('error'));
         }
     };
 

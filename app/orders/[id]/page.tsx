@@ -128,25 +128,31 @@ export default function OrderDetails() {
     }
     try {
       const nextStatus = order.payment_type === 'PRE_ESCROW' ? 'ESCROWED' : 'MATCHED';
+      const { acceptOrder } = await import('@/app/actions/orders');
+      let orderIds = [order.id];
       if (wishGroup.length > 0) {
-        const ordersToAccept = wishGroup.slice(0, batchAcceptCount).map(o => o.id);
-        await batchAssignTraveler(ordersToAccept, user.id, nextStatus);
-      } else {
-        await assignTraveler(order.id, user.id, nextStatus);
+        orderIds = wishGroup.slice(0, batchAcceptCount).map(o => o.id);
       }
+      const result = await acceptOrder(orderIds, nextStatus);
+      if (!result.success) throw new Error(result.error);
+
       await loadOrder();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error accepting order:', error);
+      alert(error.message || t('common.error'));
     }
   };
 
   const handleConfirmEscrow = async () => {
     if (!order) return;
     try {
-      await updateOrderStatus(order.id, 'ESCROWED');
+      const { confirmEscrow } = await import('@/app/actions/orders');
+      const result = await confirmEscrow(order.id);
+      if (!result.success) throw new Error(result.error);
       await loadOrder();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error confirming escrow:', error);
+      alert(error.message || t('common.error'));
     }
   };
 
@@ -158,14 +164,13 @@ export default function OrderDetails() {
       const path = `${order.id}/receipt-${Date.now()}`;
       const url = await uploadFile(file, 'receipts', path);
 
-      await updateOrderDetails(order.id, {
-        receipt_url: url,
-        status: 'BOUGHT'
-      });
+      const { updateReceipt } = await import('@/app/actions/orders');
+      const result = await updateReceipt(order.id, url);
+      if (!result.success) throw new Error(result.error);
       await loadOrder();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading receipt:', error);
-      alert(t('error') + ': Firebase Storage');
+      alert(error.message || t('error') + ': Firebase Storage');
     } finally {
       setUploading(false);
     }
@@ -174,26 +179,27 @@ export default function OrderDetails() {
   const handleAddTracking = async () => {
     if (!order || !trackingNumber) return;
     try {
-      await updateOrderDetails(order.id, {
-        tracking_number: trackingNumber,
-        status: 'SHIPPED'
-      });
+      const { updateOrderTracking } = await import('@/app/actions/orders');
+      const result = await updateOrderTracking(order.id, trackingNumber);
+      if (!result.success) throw new Error(result.error);
       await loadOrder();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding tracking:', error);
+      alert(error.message || t('common.error'));
     }
   };
 
   const handleNotifyPaid = async () => {
     if (!order) return;
     try {
-      await updateOrderDetails(order.id, {
-        payment_notification_sent: true
-      });
+      const { notifyPaid } = await import('@/app/actions/orders');
+      const result = await notifyPaid(order.id);
+      if (!result.success) throw new Error(result.error);
       alert(t('order.notify_paid_success'));
       await loadOrder();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sent notification:', error);
+      alert(error.message || t('common.error'));
     }
   };
 
@@ -205,13 +211,13 @@ export default function OrderDetails() {
       const path = `${order.id}/purchase-${Date.now()}`;
       const url = await uploadFile(file, 'purchase_photos', path);
 
-      await updateOrderDetails(order.id, {
-        purchase_photo_url: url
-      });
+      const { updatePurchasePhoto } = await import('@/app/actions/orders');
+      const result = await updatePurchasePhoto(order.id, url);
+      if (!result.success) throw new Error(result.error);
       await loadOrder();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading purchase photo:', error);
-      alert(t('error'));
+      alert(error.message || t('error'));
     } finally {
       setPurchasePhotoUploading(false);
     }
@@ -220,24 +226,28 @@ export default function OrderDetails() {
   const handleUpdateModelNumber = async () => {
     if (!order || !modelNumberInput) return;
     try {
-      await updateOrderDetails(order.id, {
-        model_number: modelNumberInput
-      });
+      const { updateModelNumber } = await import('@/app/actions/orders');
+      const result = await updateModelNumber(order.id, modelNumberInput);
+      if (!result.success) throw new Error(result.error);
       await loadOrder();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating model number:', error);
+      alert(error.message || t('common.error'));
     }
   };
 
   const handleConfirmReceipt = async () => {
     if (!order || !order.traveler_id) return;
     try {
-      await updateOrderStatus(order.id, 'COMPLETED');
-      const amountTwd = Math.round((order.target_price * (order.exchange_rate || 1)) + order.reward_fee);
-      await incrementOrderStats(order.traveler_id, amountTwd);
+      const { confirmReceipt } = await import('@/app/actions/orders');
+      const result = await confirmReceipt(order.id);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
       await loadOrder();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error completing order:', error);
+      alert(error.message || t('common.error'));
     }
   };
 
@@ -246,10 +256,13 @@ export default function OrderDetails() {
     const targetUserId = role === 'buyer' ? order.traveler_id : order.buyer_id;
     if (!targetUserId) return;
     try {
-      await rateUser(targetUserId, isPositive);
+      const { submitUserRating } = await import('@/app/actions/orders');
+      const result = await submitUserRating(targetUserId, isPositive);
+      if (!result.success) throw new Error(result.error);
       setRatingSubmitted(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error submitting rating:', error);
+      alert(error.message || t('common.error'));
     }
   };
 
@@ -260,11 +273,13 @@ export default function OrderDetails() {
 
     if (!confirm(confirmMsg)) return;
     try {
-      const { delistOrderGroup } = await import('@/utils/api');
-      await delistOrderGroup(order.id);
+      const { delistOrderGroup } = await import('@/app/actions/orders');
+      const result = await delistOrderGroup(order.id);
+      if (!result.success) throw new Error(result.error);
       await loadOrder();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error delisting order:', error);
+      alert(error.message || t('common.error'));
     }
   };
 
@@ -272,10 +287,13 @@ export default function OrderDetails() {
     if (!order) return;
     if (!confirm(t('order.relist_confirm'))) return;
     try {
-      await updateOrderStatus(order.id, 'OPEN');
+      const { relistOrder } = await import('@/app/actions/orders');
+      const result = await relistOrder(order.id);
+      if (!result.success) throw new Error(result.error);
       await loadOrder();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error relisting order:', error);
+      alert(error.message || t('common.error'));
     }
   };
 
@@ -288,15 +306,18 @@ export default function OrderDetails() {
         const path = `${order.id}/dispute-${Date.now()}`;
         evidenceUrl = await uploadFile(disputeEvidence, 'disputes', path);
       }
-      await raiseDispute(order.id, user.id, disputeReason, evidenceUrl);
+      const { raiseDispute } = await import('@/app/actions/orders');
+      const result = await raiseDispute(order.id, disputeReason, evidenceUrl);
+      if (!result.success) throw new Error(result.error);
+
       setShowDisputeModal(false);
       setDisputeReason('');
       setDisputeEvidence(null);
       setDisputeEvidencePreview(null);
       await loadOrder();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error raising dispute:', error);
-      alert(t('common.error'));
+      alert(error.message || t('common.error'));
     } finally {
       setIsSubmittingDispute(false);
     }
@@ -307,14 +328,14 @@ export default function OrderDetails() {
     const actionName = status === 'DELISTED' ? '取消訂單退款' : '完成訂單撥款';
     if (!confirm(`確定要將此訂單裁決為：「${actionName}」嗎？這個操作無法還原。`)) return;
     try {
-      if (status === 'COMPLETED' && order.traveler_id) {
-        const amountTwd = Math.round((order.target_price * (order.exchange_rate || 1)) + order.reward_fee);
-        await incrementOrderStats(order.traveler_id, amountTwd);
-      }
-      await resolveDispute(order.id, status, adminResolutionNotes);
+      const { resolveDispute } = await import('@/app/actions/orders');
+      const result = await resolveDispute(order.id, status, adminResolutionNotes);
+      if (!result.success) throw new Error(result.error);
+
       await loadOrder();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error resolving dispute:', error);
+      alert(error.message || t('common.error'));
     }
   };
 
@@ -938,8 +959,14 @@ export default function OrderDetails() {
                         className="h-12 font-bold"
                         disabled={!order.purchase_photo_url || (order.require_receipt && !order.receipt_url) || (order.require_model_number && !order.model_number)}
                         onClick={async () => {
-                          await updateOrderStatus(order.id, 'BOUGHT');
-                          await loadOrder();
+                          const { finishPurchase } = await import('@/app/actions/orders');
+                          try {
+                            const result = await finishPurchase(order.id);
+                            if (!result.success) throw new Error(result.error);
+                            await loadOrder();
+                          } catch (error: any) {
+                            alert(error.message || t('common.error'));
+                          }
                         }}
                       >
                         {t('admin.finish_purchase_btn')}
@@ -962,15 +989,19 @@ export default function OrderDetails() {
               </div>
               <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 space-y-3">
                 <p className="text-xs font-bold text-primary uppercase tracking-widest text-[10px]">{t('order.shipping_info')}</p>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder={t('order.tracking_placeholder')}
-                    value={trackingNumber}
-                    onChange={(e) => setTrackingNumber(e.target.value)}
-                    className="bg-background"
-                  />
-                  <Button onClick={handleAddTracking} className="px-6 font-bold">{t('order.ship_btn')}</Button>
-                </div>
+                {role === 'traveler' ? (
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder={t('order.tracking_placeholder')}
+                      value={trackingNumber}
+                      onChange={(e) => setTrackingNumber(e.target.value)}
+                      className="bg-background"
+                    />
+                    <Button onClick={handleAddTracking} className="px-6 font-bold">{t('order.ship_btn')}</Button>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">{t('order.wait_shipping_traveler')}</p>
+                )}
               </div>
             </div>
           )}

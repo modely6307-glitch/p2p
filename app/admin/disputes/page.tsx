@@ -55,20 +55,19 @@ export default function AdminDisputesPage() {
         if (!confirm(`確定要將此訂單裁決為：「${actionName}」嗎？此操作不可逆。`)) return;
 
         try {
-            if (status === 'COMPLETED' && order.traveler_id) {
-                const amountTwd = Math.round((order.target_price * (order.exchange_rate || 1)) + order.reward_fee);
-                await incrementOrderStats(order.traveler_id, amountTwd);
-            }
-            await resolveDispute(order.id, status, notes);
+            const { resolveDispute } = await import('@/app/actions/orders');
+            const result = await resolveDispute(order.id, status, notes);
+            if (!result.success) throw new Error(result.error);
+
             setResolutionNotes(prev => {
                 const next = { ...prev };
                 delete next[order.id];
                 return next;
             });
             await loadDisputedOrders();
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error resolving dispute:', error);
-            alert('裁決失敗，請稍後再試');
+            alert(error.message || '裁決失敗，請稍後再試');
         }
     };
 
