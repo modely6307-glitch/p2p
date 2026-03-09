@@ -63,18 +63,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     useEffect(() => {
         mountedRef.current = true;
 
+        const initializeAuth = async () => {
+            try {
+                const { data: { session }, error } = await supabase.auth.getSession();
+                if (error) throw error;
+                await updateInternalState(session?.user ?? null);
+            } catch (err) {
+                console.error("AuthContext initialization error:", err);
+            } finally {
+                if (mountedRef.current) {
+                    setLoading(false);
+                }
+            }
+        };
+
+        initializeAuth();
+
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event: import('@supabase/supabase-js').AuthChangeEvent, session: import('@supabase/supabase-js').Session | null) => {
+                if (event === 'INITIAL_SESSION') return;
+
                 const currentUser = session?.user ?? null;
                 await updateInternalState(currentUser);
-
-                // Regardless of whether they are logged in or not, once we get initial session
-                // we should stop loading.
-                if (event === 'INITIAL_SESSION') {
-                    if (mountedRef.current) {
-                        setLoading(false);
-                    }
-                }
             }
         );
 
