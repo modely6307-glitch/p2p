@@ -33,24 +33,36 @@ export default function ProfilePage() {
     return (displayPrefix + '***').slice(0, 6).padEnd(6, '*');
   };
 
-  // Use AuthContext profile immediately when available
+  // Use cached profile immediately, then fetch fresh data in the background.
   useEffect(() => {
-    if (authProfile && !profile) {
-      setProfile(authProfile);
-      setNewNickname(authProfile.display_name || '');
-      setNewAddress(authProfile.address || '');
-      setLoading(false);
-    }
-  }, [authProfile]);
+    console.log('[DEBUG Profile] useEffect fired, user:', user?.id ?? 'null', 'authLoading:', authLoading, 'authProfile:', authProfile ? 'ok' : 'null', 'localProfile:', profile ? 'ok' : 'null');
 
-  // Then also do a fresh fetch for the latest data
-  useEffect(() => {
-    if (user) {
-      loadProfile();
-    } else if (!authLoading) {
+    // If no user yet, wait for auth to finish before deciding
+    if (!user) {
+      if (!authLoading) {
+        console.log('[DEBUG Profile] no user & auth done, setting loading=false');
+        setLoading(false);
+      } else {
+        console.log('[DEBUG Profile] no user, authLoading=true, waiting...');
+      }
+      return;
+    }
+    // user is set — proceed regardless of authLoading
+    console.log('[DEBUG Profile] user is set, proceeding');
+
+    // Show cached data instantly to avoid spinner on navigation
+    if (authProfile) {
+      console.log('[DEBUG Profile] using cached authProfile, setting loading=false');
+      setProfile(authProfile);
+      setNewNickname(prev => prev || authProfile.display_name || '');
+      setNewAddress(prev => prev || authProfile.address || '');
       setLoading(false);
     }
-  }, [user, authLoading]);
+
+    // Always fetch fresh data in the background
+    console.log('[DEBUG Profile] calling loadProfile()');
+    loadProfile();
+  }, [user, authLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -101,15 +113,18 @@ export default function ProfilePage() {
   };
 
   const loadProfile = async () => {
-    if (!user) return;
+    if (!user) { console.log('[DEBUG Profile] loadProfile: no user, skip'); return; }
+    console.log('[DEBUG Profile] loadProfile START');
     try {
       const data = await fetchProfile(user.id);
+      console.log('[DEBUG Profile] loadProfile fetched:', data ? 'ok' : 'null');
       setProfile(data);
       setNewNickname(data.display_name || '');
       setNewAddress(data.address || '');
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      console.error('[DEBUG Profile] loadProfile ERROR:', error);
     } finally {
+      console.log('[DEBUG Profile] loadProfile FINALLY, setting loading=false');
       setLoading(false);
     }
   };

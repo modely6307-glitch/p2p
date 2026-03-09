@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 
 function MarketContent() {
+    console.log('[DEBUG Market] MarketContent RENDER');
     const { user } = useAuth(false);
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -51,9 +52,12 @@ function MarketContent() {
     };
 
     useEffect(() => {
+        console.log('[DEBUG Market] useEffect fired, user:', user?.id ?? 'null', 'loading:', loading);
         const loadOrders = async () => {
+            console.log('[DEBUG Market] loadOrders START');
             try {
                 const data = await fetchOrders(['OPEN', 'ESCROWED']);
+                console.log('[DEBUG Market] fetchOrders returned', data?.length ?? 'null/undefined', 'orders');
                 // Consolidation Logic:
                 // For each group (rootId), decide which one to show to THIS user.
                 const groupMap = new Map<string, Order[]>();
@@ -94,8 +98,9 @@ function MarketContent() {
                 });
                 setOrders(sorted);
             } catch (error) {
-                console.error('Error fetching orders:', error);
+                console.error('[DEBUG Market] loadOrders ERROR:', error);
             } finally {
+                console.log('[DEBUG Market] loadOrders FINALLY, setting loading=false');
                 setLoading(false);
             }
         };

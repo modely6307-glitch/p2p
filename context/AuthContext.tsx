@@ -46,9 +46,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const updateInternalState = useCallback(async (currentUser: User | null) => {
         if (!mountedRef.current) return;
 
+        console.log('[DEBUG AuthContext] updateInternalState called, user:', currentUser?.id ?? 'null');
         setUser(currentUser);
         if (currentUser) {
             const prof = await loadProfile(currentUser.id);
+            console.log('[DEBUG AuthContext] profile fetched:', prof ? 'ok' : 'null');
             if (mountedRef.current) setProfile(prof);
         } else {
             setProfile(null);
@@ -62,16 +64,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     useEffect(() => {
         mountedRef.current = true;
+        let initialized = false;
 
         const initializeAuth = async () => {
+            console.log('[DEBUG AuthContext] initializeAuth START');
             try {
                 const { data: { session }, error } = await supabase.auth.getSession();
+                console.log('[DEBUG AuthContext] getSession done, hasSession:', !!session, 'error:', error);
                 if (error) throw error;
                 await updateInternalState(session?.user ?? null);
             } catch (err) {
                 console.error("AuthContext initialization error:", err);
             } finally {
+                initialized = true;
                 if (mountedRef.current) {
+                    console.log('[DEBUG AuthContext] setLoading(false)');
                     setLoading(false);
                 }
             }
@@ -81,7 +88,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event: import('@supabase/supabase-js').AuthChangeEvent, session: import('@supabase/supabase-js').Session | null) => {
+                console.log('[DEBUG AuthContext] onAuthStateChange event:', event, 'initialized:', initialized);
                 if (event === 'INITIAL_SESSION') return;
+                if (event === 'TOKEN_REFRESHED') return;
+                // During initialization, getSession() already handles the current state.
+                // Reacting to SIGNED_IN here would set `user` before `setLoading(false)`,
+                // causing pages to see user!=null + loading=true and get stuck.
+                if (!initialized) {
+                    console.log('[DEBUG AuthContext] skipping event during init');
+                    return;
+                }
 
                 const currentUser = session?.user ?? null;
                 await updateInternalState(currentUser);
