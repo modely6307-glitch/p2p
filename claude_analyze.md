@@ -123,14 +123,19 @@
 
 | Server Action | Auth | Role Check | FROM Status Check |
 |---|---|---|---|
-| `acceptOrder` | user | - | `.eq('status', 'OPEN')` in query |
-| `confirmEscrow` | user | ADMIN | `.eq('status', 'MATCHED')` in query |
+| `acceptOrder` | user | - | `.eq('status', 'OPEN')` + `.eq('status', 'ESCROWED')` (two-step) |
+| `confirmEscrow` | user | ADMIN | `.in('status', ['MATCHED', 'OPEN'])` in query |
 | `confirmReceipt` | user | buyer_id match | `order.status !== 'SHIPPED'` throws |
 | `updateOrderTracking` | user | traveler_id match | `order.status !== 'BOUGHT'` throws |
 | `updateReceipt` | user | traveler_id match | `order.status !== 'ESCROWED'` throws |
 | `finishPurchase` | user | traveler_id match | `order.status !== 'ESCROWED'` throws |
-| `updatePurchasePhoto` | user | traveler_id match | - (no status change) |
-| `updateModelNumber` | user | traveler_id match | - (no status change) |
+| `updatePurchasePhoto` | user | traveler_id match | `order.status !== 'ESCROWED'` throws |
+| `updateModelNumber` | user | traveler_id match | `order.status !== 'ESCROWED'` throws |
+| `batchUpdatePurchasePhoto` | user | traveler_id in query | `.eq('status', 'ESCROWED')` in query |
+| `batchUpdateReceipt` | user | traveler_id in query | `.eq('status', 'ESCROWED')` in query |
+| `batchFinishPurchase` | user | traveler_id in query | `.eq('status', 'ESCROWED')` in query |
+| `batchUpdateTrackingNumbers` | user | traveler_id in query | `.eq('status', 'BOUGHT')` in query |
+| `adminReleaseFunds` | user | ADMIN | `order.status !== 'SHIPPED'` throws |
 | `delistOrderGroup` | user | buyer_id or ADMIN | `order.status !== 'OPEN'` throws |
 | `relistOrder` | user | buyer_id match | `order.status !== 'DELISTED'` throws |
 | `raiseDispute` | user | buyer_id or traveler_id | checks ESCROWED/BOUGHT/SHIPPED |
@@ -138,7 +143,11 @@
 | `notifyPaid` | user | buyer_id match | - (no status change) |
 | `submitUserRating` | user | - | - (no order status check) |
 
-**殘留問題：** 無。所有 Server Actions 都有完整的 auth / role / status 驗證。
+**殘留問題：**
+- `acceptOrder` 沒有防止 buyer 自己接自己的單（見 P2-7）
+- `confirmEscrow` 放寬為 `.in('status', ['MATCHED', 'OPEN'])`，OPEN 單可直接跳 ESCROWED（見 P2-9）
+- `submitUserRating` 檢查了 `rated_by_buyer/rated_by_traveler` 但沒有先驗證訂單 status 是否為 COMPLETED
+- 單筆操作（如 `updateReceipt`）的 status 檢查僅在 JS 層，update query 沒加 `.eq('status', ...)` 防 race condition（低風險，因為 server action 是短暫操作）
 
 #### 2. ~~No role-based access control on API functions~~ FIXED
 
@@ -150,7 +159,7 @@
 **Server Actions 角色控制完整：**
 | Action | Auth | Role | Status Guard |
 |---|---|---|---|
-| `confirmEscrow` | user | ADMIN only | `.eq('status', 'MATCHED')` |
+| `confirmEscrow` | user | ADMIN only | `.in('status', ['MATCHED', 'OPEN'])` |
 | `adminReleaseFunds` | user | ADMIN only | `status === 'SHIPPED'` |
 | `resolveDispute` | user | ADMIN only | `status === 'DISPUTE'` + 限定 `COMPLETED \| DELISTED` |
 
@@ -195,10 +204,8 @@ Server Action `relistOrder` 只更新 `status: 'OPEN'`，沒有清除 `traveler_
 })
 ```
 
-#### 6. 跟單繼承 `payment_notification_sent` (未修復)
-`followOrder()` 仍在 `utils/api.ts` 中，設定 `payment_notification_sent: parentOrder.payment_type === 'PRE_ESCROW'`。
-
-**Fix:** 永遠設為 `false`，每個 buyer 獨立通知付款。
+#### 6. ~~跟單繼承 `payment_notification_sent`~~ FIXED
+`followOrder()` 已改為 `payment_notification_sent: false`，每個 buyer 獨立通知付款。
 
 ---
 
@@ -209,18 +216,14 @@ Server Action `acceptOrder` 沒有比對 `buyer_id !== user.id`。
 
 **Fix:** 在 `acceptOrder` 中 fetch order 並檢查 `buyer_id`。
 
-#### 8. `resolveDispute` 目標狀態不受限 (未修復)
-Server Action 的 `resolutionStatus` 參數接受任何 `OrderStatus`，理論上 admin 可以把 DISPUTE 轉成 OPEN, MATCHED 等不合理狀態。
+#### 8. ~~`resolveDispute` 目標狀態不受限~~ FIXED
+Server Action 已加上 `resolutionStatus !== 'COMPLETED' && resolutionStatus !== 'DELISTED'` 檢查。
 
-**Fix:**
-```ts
-if (!['COMPLETED', 'DELISTED'].includes(resolutionStatus)) {
-  throw new Error("裁決結果只能是 COMPLETED 或 DELISTED");
-}
-```
+#### 9. OPEN → ESCROWED (no traveler) — 重新開啟
+Server Action `confirmEscrow` 現在用 `.in('status', ['MATCHED', 'OPEN'])`。OPEN 狀態的 PRE_ESCROW 單可被 admin 直接推進到 ESCROWED，但此時可能沒有 `traveler_id`。
 
-#### 9. ~~OPEN → ESCROWED (no traveler)~~ FIXED
-Server Action `confirmEscrow` 已限制 `.eq('status', 'MATCHED')`，不會從 OPEN 直接跳。
+**風險：** ESCROWED 狀態但沒有 traveler，旅人端的操作（上傳購買證明等）無法觸發。
+**Fix:** `confirmEscrow` 應同時檢查 `traveler_id` 不為 null，或限制只能從 MATCHED 轉換。
 
 #### 10. ~~Dispute 無狀態限制~~ FIXED
 Server Action `raiseDispute` 已檢查 `['ESCROWED', 'BOUGHT', 'SHIPPED']`。
@@ -235,8 +238,9 @@ Server Action `raiseDispute` 已檢查 `['ESCROWED', 'BOUGHT', 'SHIPPED']`。
 #### 12. Buyer 不計 stats (未修復)
 `confirmReceipt` Server Action 只呼叫 `incrementOrderStats(order.traveler_id, ...)`，buyer 的 stats 沒更新。
 
-#### 13. Rating 無重複檢查 (未修復)
-`submitUserRating` Server Action 沒有檢查該 user 是否已對此訂單評過分。只有 UI 層的 local state 防護。
+#### 13. ~~Rating 無重複檢查~~ FIXED
+`submitUserRating` 現在接收 `orderId` 參數，並更新 `rated_by_buyer` / `rated_by_traveler` 欄位。
+**殘留：** 沒有先檢查欄位是否已為 `true` 再 rate，理論上重複呼叫會重複 increment `rate_user` RPC。應先查 `rated_by_buyer/rated_by_traveler`，若已為 true 則直接 return。
 
 #### 14. ~~delistOrderGroup 無狀態限制~~ FIXED
 Server Action 已加上 `order.status !== 'OPEN'` 檢查。

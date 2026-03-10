@@ -299,7 +299,7 @@ export default function OrderDetails() {
     }
   };
 
-  const handleRateUser = async (isPositive: boolean, targetOrderId?: string, targetId?: string) => {
+  const handleRateUser = async (isPositive: boolean, targetOrderId?: string, targetId?: string | null) => {
     if (!order) return;
     const finalOrderId = targetOrderId || order.id;
     const finalTargetUserId = targetId || (role === 'buyer' ? order.traveler_id : order.buyer_id);
