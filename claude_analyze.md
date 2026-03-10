@@ -143,11 +143,8 @@
 | `notifyPaid` | user | buyer_id match | - (no status change) |
 | `submitUserRating` | user | - | - (no order status check) |
 
-**殘留問題：**
-- `acceptOrder` 沒有防止 buyer 自己接自己的單（見 P2-7）
-- `confirmEscrow` 放寬為 `.in('status', ['MATCHED', 'OPEN'])`，OPEN 單可直接跳 ESCROWED（見 P2-9）
-- `submitUserRating` 檢查了 `rated_by_buyer/rated_by_traveler` 但沒有先驗證訂單 status 是否為 COMPLETED
-- 單筆操作（如 `updateReceipt`）的 status 檢查僅在 JS 層，update query 沒加 `.eq('status', ...)` 防 race condition（低風險，因為 server action 是短暫操作）
+**所有已知問題均已修復。**
+- 單筆操作（如 `updateReceipt`）的 status 檢查僅在 JS 層，update query 沒加 `.eq('status', ...)` 防 race condition（低風險，因為 server action 是短暫操作，可接受）
 
 #### 2. ~~No role-based access control on API functions~~ FIXED
 
@@ -182,27 +179,8 @@
 #### 4. ~~Buyer can delist MATCHED/ESCROWED~~ FIXED
 Server Action `delistOrderGroup` 已加上 `if (order.status !== 'OPEN') throw`。
 
-#### 5. `relistOrder` 不清除 `traveler_id` (未修復)
-Server Action `relistOrder` 只更新 `status: 'OPEN'`，沒有清除 `traveler_id`, `receipt_url`, `tracking_number` 等。
-
-**Fix:** Relist 時應清除所有交易相關欄位：
-```ts
-.update({
-  status: 'OPEN',
-  traveler_id: null,
-  receipt_url: null,
-  purchase_photo_url: null,
-  tracking_number: null,
-  model_number: null,
-  payment_notification_sent: false,
-  dispute_reason: null,
-  dispute_by_user_id: null,
-  dispute_evidence_url: null,
-  dispute_resolution: null,
-  dispute_created_at: null,
-  dispute_resolved_at: null,
-})
-```
+#### 5. ~~`relistOrder` 不清除 `traveler_id`~~ FIXED
+`relistOrder` 現在清除所有交易相關欄位（`traveler_id`, `receipt_url`, `purchase_photo_url`, `tracking_number`, `model_number`, `payment_notification_sent`, 所有 `dispute_*` 欄位, `previous_status`）。
 
 #### 6. ~~跟單繼承 `payment_notification_sent`~~ FIXED
 `followOrder()` 已改為 `payment_notification_sent: false`，每個 buyer 獨立通知付款。
@@ -211,19 +189,14 @@ Server Action `relistOrder` 只更新 `status: 'OPEN'`，沒有清除 `traveler_
 
 ### P2 - Medium
 
-#### 7. 自己接自己的單 (未修復)
-Server Action `acceptOrder` 沒有比對 `buyer_id !== user.id`。
-
-**Fix:** 在 `acceptOrder` 中 fetch order 並檢查 `buyer_id`。
+#### 7. ~~自己接自己的單~~ FIXED
+`acceptOrder` 現在 fetch 所有 orderIds 的 `buyer_id`，若任一 `buyer_id === user.id` 則直接 throw。
 
 #### 8. ~~`resolveDispute` 目標狀態不受限~~ FIXED
-Server Action 已加上 `resolutionStatus !== 'COMPLETED' && resolutionStatus !== 'DELISTED'` 檢查。
+Server Action 已限制 `resolutionStatus` 只能為 `'COMPLETED'` 或 `'DELISTED'`。
 
-#### 9. OPEN → ESCROWED (no traveler) — 重新開啟
-Server Action `confirmEscrow` 現在用 `.in('status', ['MATCHED', 'OPEN'])`。OPEN 狀態的 PRE_ESCROW 單可被 admin 直接推進到 ESCROWED，但此時可能沒有 `traveler_id`。
-
-**風險：** ESCROWED 狀態但沒有 traveler，旅人端的操作（上傳購買證明等）無法觸發。
-**Fix:** `confirmEscrow` 應同時檢查 `traveler_id` 不為 null，或限制只能從 MATCHED 轉換。
+#### 9. ~~OPEN → ESCROWED 無 payment_type 限制~~ FIXED
+`confirmEscrow` 現在先 fetch 訂單，若 `status === 'OPEN'` 但 `payment_type !== 'PRE_ESCROW'`，則 throw（MATCH_ESCROW 訂單必須先經過 MATCHED）。PRE_ESCROW 訂單無旅人時仍可由 admin 推進到 ESCROWED（設計如此：買家先付款，旅人後接單）。
 
 #### 10. ~~Dispute 無狀態限制~~ FIXED
 Server Action `raiseDispute` 已檢查 `['ESCROWED', 'BOUGHT', 'SHIPPED']`。
@@ -235,12 +208,14 @@ Server Action `raiseDispute` 已檢查 `['ESCROWED', 'BOUGHT', 'SHIPPED']`。
 
 ### P3 - Low / UX
 
-#### 12. Buyer 不計 stats (未修復)
-`confirmReceipt` Server Action 只呼叫 `incrementOrderStats(order.traveler_id, ...)`，buyer 的 stats 沒更新。
+#### 12. ~~Buyer 不計 stats~~ FIXED
+`confirmReceipt`、`adminReleaseFunds`、`resolveDispute`（解決為 COMPLETED）現在都同時 increment traveler 與 buyer 的 stats。
 
 #### 13. ~~Rating 無重複檢查~~ FIXED
-`submitUserRating` 現在接收 `orderId` 參數，並更新 `rated_by_buyer` / `rated_by_traveler` 欄位。
-**殘留：** 沒有先檢查欄位是否已為 `true` 再 rate，理論上重複呼叫會重複 increment `rate_user` RPC。應先查 `rated_by_buyer/rated_by_traveler`，若已為 true 則直接 return。
+`submitUserRating` 現在：
+1. 先驗證 `order.status === 'COMPLETED'`
+2. 若 `rated_by_buyer / rated_by_traveler` 已為 `true`，直接 return（冪等）
+3. 非買家也非旅人則 throw，防止第三者評分
 
 #### 14. ~~delistOrderGroup 無狀態限制~~ FIXED
 Server Action 已加上 `order.status !== 'OPEN'` 檢查。

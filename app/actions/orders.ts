@@ -56,8 +56,15 @@ export async function confirmReceipt(orderId: string) {
                 user_id: order.traveler_id,
                 order_amount: amountTwd
             });
-            if (statsError) console.error("Error incrementing stats:", statsError);
+            if (statsError) console.error("Error incrementing traveler stats:", statsError);
         }
+
+        // Increment buyer stats as well
+        const { error: buyerStatsError } = await supabaseAdmin.rpc('increment_order_stats', {
+            user_id: order.buyer_id,
+            order_amount: amountTwd
+        });
+        if (buyerStatsError) console.error("Error incrementing buyer stats:", buyerStatsError);
 
         return { success: true };
     } catch (error: any) {
@@ -185,9 +192,8 @@ export async function resolveDispute(orderId: string, resolutionStatus: OrderSta
 
         if (fetchError || !order) throw new Error("找不到訂單");
         if (order.status !== 'DISPUTE') throw new Error("此訂單不在爭議中");
-        const validResolutions = ['COMPLETED', 'DELISTED', 'MATCHED', 'ESCROWED', 'BOUGHT', 'SHIPPED'];
-        if (!validResolutions.includes(resolutionStatus)) {
-            throw new Error(`不合法的裁決狀態: ${resolutionStatus}`);
+        if (resolutionStatus !== 'COMPLETED' && resolutionStatus !== 'DELISTED') {
+            throw new Error("爭議只能裁決為『完成訂單 (COMPLETED)』或『取消退款 (DELISTED)』");
         }
 
         const updates: Partial<any> = {
@@ -210,7 +216,14 @@ export async function resolveDispute(orderId: string, resolutionStatus: OrderSta
                 user_id: order.traveler_id,
                 order_amount: amountTwd
             });
-            if (statsError) console.error("Error incrementing stats on resolution:", statsError);
+            if (statsError) console.error("Error incrementing traveler stats on resolution:", statsError);
+
+            // Increment buyer stats as well
+            const { error: buyerStatsError } = await supabaseAdmin.rpc('increment_order_stats', {
+                user_id: order.buyer_id,
+                order_amount: amountTwd
+            });
+            if (buyerStatsError) console.error("Error incrementing buyer stats on resolution:", buyerStatsError);
         }
 
         return { success: true };
@@ -227,6 +240,16 @@ export async function acceptOrder(orderIds: string[]) {
         if (!user) throw new Error("您尚未登入");
 
         const supabaseAdmin = getSupabaseAdmin();
+
+        // Check if the user is trying to accept their own order
+        const { data: openOrders } = await supabaseAdmin
+            .from('orders')
+            .select('buyer_id')
+            .in('id', orderIds);
+
+        if (openOrders && openOrders.some((o: any) => o.buyer_id === user.id)) {
+            throw new Error("不能接自己的訂單");
+        }
 
         // 1. Assign traveler and change OPEN -> MATCHED
         const { error: openError } = await supabaseAdmin
@@ -270,6 +293,15 @@ export async function confirmEscrow(orderId: string) {
         const supabaseAdmin = getSupabaseAdmin();
         const { data: profile } = await supabaseAdmin.from('profiles').select('level').eq('id', user.id).single();
         if (profile?.level !== 'ADMIN') throw new Error("只有管理員可以確認託管款項");
+
+        const { data: orderToConfirm } = await supabaseAdmin.from('orders').select('status, traveler_id, payment_type').eq('id', orderId).single();
+        if (!orderToConfirm) throw new Error("找不到訂單");
+
+        // OPEN → ESCROWED is only valid for PRE_ESCROW orders (buyer pays before traveler accepts).
+        // MATCH_ESCROW orders must go through MATCHED first (traveler accepts → buyer pays → admin confirms).
+        if (orderToConfirm.status === 'OPEN' && orderToConfirm.payment_type !== 'PRE_ESCROW') {
+            throw new Error("此訂單須先由旅人接單（進入 MATCHED 狀態）才能確認款項");
+        }
 
         const { error: updateError } = await supabaseAdmin
             .from('orders')
@@ -520,7 +552,22 @@ export async function relistOrder(orderId: string) {
         if (!order || order.buyer_id !== user.id) throw new Error("無權操作");
         if (order.status !== 'DELISTED') throw new Error("只能將已取消的訂單重新上架");
 
-        const { error } = await supabaseAdmin.from('orders').update({ status: 'OPEN' }).eq('id', orderId);
+        const { error } = await supabaseAdmin.from('orders').update({
+            status: 'OPEN',
+            traveler_id: null,
+            receipt_url: null,
+            purchase_photo_url: null,
+            tracking_number: null,
+            model_number: null,
+            payment_notification_sent: false,
+            dispute_reason: null,
+            dispute_by_user_id: null,
+            dispute_evidence_url: null,
+            dispute_resolution: null,
+            dispute_created_at: null,
+            dispute_resolved_at: null,
+            previous_status: null
+        }).eq('id', orderId);
         if (error) throw error;
         return { success: true };
     } catch (error: any) {
@@ -537,13 +584,18 @@ export async function submitUserRating(orderId: string, targetUserId: string, is
         const supabaseAdmin = getSupabaseAdmin();
 
         // 1. Update the order record to mark as rated
-        const { data: order } = await supabaseAdmin.from('orders').select('buyer_id, traveler_id').eq('id', orderId).single();
+        const { data: order } = await supabaseAdmin.from('orders').select('buyer_id, traveler_id, rated_by_buyer, rated_by_traveler, status').eq('id', orderId).single();
         if (!order) throw new Error("找不到訂單");
+        if (order.status !== 'COMPLETED') throw new Error("訂單必須在『已完成』狀態才能給予評價");
 
         if (user.id === order.buyer_id) {
+            if (order.rated_by_buyer) return { success: true };
             await supabaseAdmin.from('orders').update({ rated_by_buyer: true }).eq('id', orderId);
         } else if (user.id === order.traveler_id) {
+            if (order.rated_by_traveler) return { success: true };
             await supabaseAdmin.from('orders').update({ rated_by_traveler: true }).eq('id', orderId);
+        } else {
+            throw new Error("您無權對此訂單進行評價");
         }
 
         // 2. Perform the actual rating update on the profile
@@ -594,8 +646,15 @@ export async function adminReleaseFunds(orderId: string) {
                 user_id: order.traveler_id,
                 order_amount: amountTwd
             });
-            if (statsError) console.error("Error incrementing stats on admin release:", statsError);
+            if (statsError) console.error("Error incrementing traveler stats on admin release:", statsError);
         }
+
+        // Increment buyer stats as well
+        const { error: buyerStatsError } = await supabaseAdmin.rpc('increment_order_stats', {
+            user_id: order.buyer_id,
+            order_amount: amountTwd
+        });
+        if (buyerStatsError) console.error("Error incrementing buyer stats on admin release:", buyerStatsError);
 
         return { success: true };
     } catch (error: any) {
