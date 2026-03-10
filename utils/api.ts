@@ -401,3 +401,25 @@ export const sendOrderMessage = async (orderId: string, userId: string, content:
   if (error) throw error;
   return data;
 };
+
+export const updateOrderLastReadAt = async (orderId: string, role: 'buyer' | 'traveler' | 'admin') => {
+  const column = role === 'buyer' ? 'buyer_last_read_at' : (role === 'traveler' ? 'traveler_last_read_at' : 'admin_last_read_at');
+  const { error } = await supabase
+    .from('orders')
+    .update({ [column]: new Date().toISOString() })
+    .eq('id', orderId);
+
+  if (error) throw error;
+};
+
+export const fetchUnreadMessagesCount = async (orderId: string, userId: string, lastReadAt: string) => {
+  const { count, error } = await supabase
+    .from('order_messages')
+    .select('id', { count: 'exact', head: true })
+    .eq('order_id', orderId)
+    .neq('user_id', userId)
+    .gt('created_at', lastReadAt);
+
+  if (error) throw error;
+  return count || 0;
+};

@@ -21,11 +21,12 @@ import { Order, OrderStatus } from '@/types';
 import { StepProgressBar } from '@/components/StepProgressBar';
 import { StatusBadge } from '@/components/StatusBadge';
 import { OrderChat } from '@/components/OrderChat';
+import { FloatingChat } from '@/components/FloatingChat';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Upload, Truck, CheckCircle, AlertTriangle, ShieldCheck, ThumbsUp, ThumbsDown, Camera, CreditCard, X, PlusSquare } from 'lucide-react';
+import { Loader2, Upload, Truck, CheckCircle, AlertTriangle, ShieldCheck, ThumbsUp, ThumbsDown, Camera, CreditCard, X, PlusSquare, MessageSquare } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 const getCurrencySymbol = (currency: string) => {
@@ -1136,19 +1137,19 @@ export default function OrderDetails() {
                   )}
                 </div>
 
-                {/* Communication Area */}
-                <div className="p-4 bg-background">
-                  <OrderChat
-                    orderId={activeChatTab || currentViewOrder.id}
-                    currentUserId={user.id}
-                    role={role as 'buyer' | 'traveler' | 'admin'}
-                    partnerName={
-                      role === 'traveler' && travelerGroup.length > 1 && activeChatTab
-                        ? (travelerGroup.find(o => o.id === activeChatTab)?.buyer?.display_name || maskEmail(travelerGroup.find(o => o.id === activeChatTab)?.buyer?.email))
-                        : partnerDisplayName
-                    }
-                  />
-                </div>
+                {/* Communication Area Placeholder */}
+                <button
+                  onClick={() => window.dispatchEvent(new CustomEvent('open-order-chat'))}
+                  className="w-full p-8 bg-secondary/5 text-center space-y-3 hover:bg-secondary/10 transition-colors cursor-pointer block"
+                >
+                  <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto group-hover:scale-110 transition-transform">
+                    <MessageSquare className="w-6 h-6 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold">{t('chat.tip_title')}</p>
+                    <p className="text-[10px] text-muted-foreground">{t('chat.tip_desc')}</p>
+                  </div>
+                </button>
               </CardContent>
             </Card>
           )}
@@ -1406,6 +1407,24 @@ export default function OrderDetails() {
           </div>
         )
       }
+      {/* Floating Chat Button */}
+      {user && role !== 'visitor' && (
+        <FloatingChat
+          orderId={activeChatTab || currentViewOrder.id}
+          currentUserId={user.id}
+          role={role as 'buyer' | 'traveler' | 'admin'}
+          partnerName={
+            role === 'traveler' && travelerGroup.length > 1 && activeChatTab
+              ? (travelerGroup.find(o => o.id === activeChatTab)?.buyer?.display_name || maskEmail(travelerGroup.find(o => o.id === activeChatTab)?.buyer?.email))
+              : partnerDisplayName
+          }
+          lastReadAt={
+            role === 'buyer'
+              ? currentViewOrder.buyer_last_read_at
+              : (role === 'traveler' ? currentViewOrder.traveler_last_read_at : currentViewOrder.admin_last_read_at)
+          }
+        />
+      )}
     </div >
   );
 }

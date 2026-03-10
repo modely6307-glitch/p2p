@@ -307,6 +307,8 @@
         "subtitle": "Securely communicate and keep records",
         "no_messages": "No messages yet. Start the conversation!",
         "placeholder": "Type a message...",
-        "you": "Me"
+        "you": "Me",
+        "tip_title": "Need help?",
+        "tip_desc": "Click the chat button on the bottom right to talk with your partner."
     }
 }

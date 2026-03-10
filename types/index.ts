@@ -62,6 +62,9 @@ export interface Order {
   rated_by_buyer?: boolean;
   rated_by_traveler?: boolean;
   previous_status?: OrderStatus | null;
+  buyer_last_read_at?: string;
+  traveler_last_read_at?: string;
+  admin_last_read_at?: string;
 }
 
 export interface SystemSettings {
