@@ -829,375 +829,303 @@ export default function OrderDetails() {
             </div>
           )}
 
-          {currentViewOrder.status === 'MATCHED' && (
-            <div className="space-y-6 text-left">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
-                <CardTitle className="text-base">{role === 'buyer' ? t('order.action_pay_title') : t('order.wait_payment_traveler')}</CardTitle>
-              </div>
+          {/* Fulfillment & Communication Hub */}
+          {currentViewOrder.status !== 'OPEN' && currentViewOrder.status !== 'DELISTED' && user && role !== 'visitor' && (
+            <Card className="border-primary/20 bg-background shadow-xl shadow-primary/5 overflow-hidden border-t-4 border-t-primary">
+              {/* Header: Buyer Switcher (Traveler Only) */}
+              {role === 'traveler' && travelerGroup.length > 1 && (
+                <div className="bg-primary/5 border-b border-primary/10 overflow-hidden">
+                  <div className="flex overflow-x-auto no-scrollbar p-2 gap-2">
+                    {travelerGroup.map((gOrder) => {
+                      const isActive = activeChatTab === gOrder.id;
+                      const bName = gOrder.buyer?.display_name || maskEmail(gOrder.buyer?.email);
+                      const isCompleted = gOrder.status === 'COMPLETED';
+                      const hasDispute = gOrder.status === 'DISPUTE';
 
-              {role === 'buyer' ? (
-                <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                  <div className="bg-primary/5 p-4 rounded-2xl border border-primary/10 space-y-3">
-                    <div className="flex items-center gap-2 text-primary">
-                      <CreditCard className="w-5 h-5" />
-                      <h4 className="font-bold text-sm tracking-tight">{t('order.remittance_info')}</h4>
-                    </div>
-
-                    <p className="text-[10px] text-muted-foreground leading-relaxed bg-amber-500/5 p-3 rounded-xl border border-amber-500/10 italic">
-                      💡 {t('order.remittance_hint')}
-                    </p>
-
-                    <div className="space-y-2.5">
-                      <div className="flex justify-between items-center bg-background/50 p-2.5 rounded-xl border border-border/40">
-                        <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">{t('order.bank_name')}</span>
-                        <span className="text-sm font-black text-foreground">Gull Bank Taiwan (Mock)</span>
-                      </div>
-                      <div className="flex justify-between items-center bg-background/50 p-2.5 rounded-xl border border-border/40">
-                        <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">{t('order.bank_code')}</span>
-                        <span className="text-sm font-black font-mono text-primary">822</span>
-                      </div>
-                      <div className="flex justify-between items-center bg-background/50 p-2.5 rounded-xl border border-border/40">
-                        <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">{t('order.account_no')}</span>
-                        <span className="text-sm font-black font-mono text-primary">1234-5678-9012-3456</span>
-                      </div>
-                      <div className="flex justify-between items-center bg-background/50 p-2.5 rounded-xl border border-border/40">
-                        <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">{t('order.account_name')}</span>
-                        <span className="text-sm font-black text-foreground">Gull Global Co., Ltd.</span>
-                      </div>
-                    </div>
-
-                    <Button
-                      fullWidth
-                      onClick={handleNotifyPaid}
-                      disabled={currentViewOrder.payment_notification_sent}
-                      className={cn(
-                        "h-12 font-bold rounded-xl shadow-lg transition-all",
-                        currentViewOrder.payment_notification_sent
-                          ? "bg-muted text-muted-foreground border-border/50"
-                          : "bg-primary hover:scale-[1.02] shadow-primary/20"
-                      )}
-                    >
-                      {currentViewOrder.payment_notification_sent ? (
-                        <span className="flex items-center gap-2">
-                          <CheckCircle className="w-4 h-4" />
-                          已通知管理員
-                        </span>
-                      ) : (
-                        t('order.notify_paid_btn')
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">{t('order.buyer_pay_hint')}</p>
-              )}
-
-              {role === 'admin' && (
-                <Button onClick={handleConfirmEscrow} fullWidth variant="outline" className="h-12 font-bold">
-                  {t('order.admin_confirm_escrow')}
-                </Button>
-              )}
-            </div>
-          )}
-
-          {currentViewOrder.status === 'ESCROWED' && !!currentViewOrder.traveler_id && (
-            <div className="space-y-6">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                <CardTitle className="text-base">{role === 'buyer' ? t('order.payment_confirmed') : t('order.next_steps_escrowed')}</CardTitle>
-              </div>
-
-              <div className="space-y-6">
-                {role === 'traveler' ? (
-                  <div className="bg-background/50 p-4 rounded-xl border border-border/50 animate-in fade-in slide-in-from-bottom-2 duration-500 space-y-3">
-                    <p className="text-sm font-bold text-primary mb-1">{t('order.traveler_buy_hint')}</p>
-                    <p className="text-xs text-muted-foreground leading-relaxed">{t('order.upload_guide')}</p>
-
-                    {travelerGroup.filter(o => o.status === 'ESCROWED' && o.id !== currentViewOrder.id).length > 0 && (
-                      <div className="flex items-center gap-2 pt-2 border-t border-border/10">
-                        <input
-                          type="checkbox"
-                          id="sync-evidence"
-                          checked={syncEvidence}
-                          onChange={(e) => setSyncEvidence(e.target.checked)}
-                          className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
-                        />
-                        <label htmlFor="sync-evidence" className="text-xs font-bold text-primary flex items-center gap-1 cursor-pointer">
-                          同時同步採購證明至此願望池的其他 {travelerGroup.filter(o => o.status === 'ESCROWED' && o.id !== currentViewOrder.id).length} 筆訂單
-                        </label>
-                      </div>
-                    )}
-                  </div>
-                ) : role === 'buyer' ? (
-                  <div className="bg-green-500/5 p-6 rounded-2xl border border-green-500/20 text-center space-y-3 animate-in fade-in zoom-in duration-500">
-                    <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center mx-auto">
-                      <ShieldCheck className="w-6 h-6 text-green-500" />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-green-600">您的款項已受平台保護</h4>
-                      <p className="text-sm text-muted-foreground mt-1">{t('order.wait_traveler_buy')}</p>
-                    </div>
-                  </div>
-                ) : null}
-
-                {role === 'traveler' && (
-                  <div className="space-y-6">
-                    {/* Mandatory Product Photo */}
-                    <div className="space-y-3">
-                      <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t('create.proof_purchase_photo')}</p>
-                      {currentViewOrder.purchase_photo_url ? (
-                        <div className="relative rounded-xl overflow-hidden border border-border group">
-                          <img src={currentViewOrder.purchase_photo_url} alt="Purchase" className="w-full h-auto max-h-48 object-cover" />
-                          <label className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
-                            <input type="file" onChange={handleUploadPurchasePhoto} className="hidden" />
-                            <span className="text-white text-xs font-bold">{t('order.receipt_update')}</span>
-                          </label>
-                        </div>
-                      ) : (
-                        <div className="relative group">
-                          <input
-                            type="file"
-                            onChange={handleUploadPurchasePhoto}
-                            disabled={purchasePhotoUploading}
-                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                          />
-                          <div className="h-24 border-2 border-dashed border-primary/30 rounded-xl flex flex-col items-center justify-center bg-primary/5 group-hover:bg-primary/10 transition-colors">
-                            <Camera className={`w-8 h-8 ${purchasePhotoUploading ? 'animate-bounce' : ''} text-primary mb-2`} />
-                            <p className="text-xs font-bold text-primary uppercase tracking-wider">
-                              {purchasePhotoUploading ? t('common.loading') : t('order.upload_purchase_photo')}
+                      return (
+                        <button
+                          key={gOrder.id}
+                          onClick={() => setActiveChatTab(gOrder.id)}
+                          className={cn(
+                            "flex items-center gap-2 px-4 py-2.5 rounded-2xl transition-all border whitespace-nowrap",
+                            isActive
+                              ? "bg-background border-primary shadow-sm ring-2 ring-primary/10 z-10"
+                              : "bg-secondary/10 border-transparent hover:bg-secondary/20 text-muted-foreground"
+                          )}
+                        >
+                          <div className={cn(
+                            "w-6 h-6 rounded-full flex items-center justify-center text-[10px] shrink-0",
+                            isActive ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                          )}>
+                            {isActive ? <ShieldCheck className="w-3.5 h-3.5" /> : "👤"}
+                          </div>
+                          <div className="text-left">
+                            <p className={cn("text-[11px] font-black leading-tight", isActive ? "text-primary" : "text-foreground/70")}>
+                              {bName}
                             </p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Optional Receipt */}
-                    {currentViewOrder.require_receipt && (
-                      <div className="space-y-3">
-                        <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t('create.proof_receipt')}</p>
-                        {currentViewOrder.receipt_url ? (
-                          <div className="relative rounded-xl overflow-hidden border border-border group">
-                            <img src={currentViewOrder.receipt_url} alt="Receipt" className="w-full h-auto max-h-48 object-cover" />
-                            <label className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
-                              <input type="file" onChange={handleUploadReceipt} className="hidden" />
-                              <span className="text-white text-xs font-bold">{t('order.receipt_update')}</span>
-                            </label>
-                          </div>
-                        ) : (
-                          <div className="relative group">
-                            <input
-                              type="file"
-                              onChange={handleUploadReceipt}
-                              disabled={uploading}
-                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                            />
-                            <div className="h-24 border-2 border-dashed border-border/30 rounded-xl flex flex-col items-center justify-center bg-secondary/10 group-hover:bg-secondary/20 transition-colors">
-                              <Upload className={`w-8 h-8 ${uploading ? 'animate-bounce' : ''} text-muted-foreground mb-2`} />
-                              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                                {uploading ? t('common.loading') : t('order.receipt_update')}
-                              </p>
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <div className={cn("w-1.5 h-1.5 rounded-full animate-pulse", gOrder.status === 'ESCROWED' ? "bg-green-500" : "bg-blue-400")} />
+                              <span className="text-[9px] font-bold uppercase tracking-tighter opacity-70">
+                                {t(`status.${gOrder.status}`)}
+                              </span>
                             </div>
                           </div>
-                        )}
-                      </div>
-                    )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
-                    {/* Optional Model Number */}
-                    {currentViewOrder.require_model_number && (
-                      <div className="space-y-3">
-                        <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t('create.proof_model')}</p>
-                        <div className="flex gap-2">
-                          <Input
-                            placeholder={t('order.model_placeholder')}
-                            value={modelNumberInput || currentViewOrder.model_number || ''}
-                            onChange={(e) => setModelNumberInput(e.target.value)}
-                          />
-                          <Button
-                            size="sm"
-                            onClick={handleUpdateModelNumber}
-                            disabled={!modelNumberInput || modelNumberInput === currentViewOrder.model_number}
+              <CardContent className="p-0">
+                {/* Status-Specific Actions Block */}
+                <div className="p-6 border-b border-border/50 bg-gradient-to-b from-transparent to-secondary/5">
+                  {currentViewOrder.status === 'MATCHED' && (
+                    <div className="space-y-6 text-left">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
+                        <CardTitle className="text-base">{role === 'buyer' ? t('order.action_pay_title') : t('order.wait_payment_traveler')}</CardTitle>
+                      </div>
+                      {role === 'buyer' ? (
+                        <div className="space-y-4">
+                          <div className="bg-primary/5 p-4 rounded-2xl border border-primary/10 space-y-3">
+                            <div className="flex items-center gap-2 text-primary">
+                              <CreditCard className="w-5 h-5" />
+                              <h4 className="font-bold text-sm">{t('order.remittance_info')}</h4>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground italic">💡 {t('order.remittance_hint')}</p>
+                            <div className="space-y-2">
+                              <div className="flex justify-between items-center bg-background/50 p-2.5 rounded-xl border border-border/40">
+                                <span className="text-[10px] font-bold text-muted-foreground uppercase">{t('order.bank_name')}</span>
+                                <span className="text-sm font-black">Gull Bank Taiwan (Mock)</span>
+                              </div>
+                              <div className="flex justify-between items-center bg-background/50 p-2.5 rounded-xl border border-border/40">
+                                <span className="text-[10px] font-bold text-muted-foreground uppercase">{t('order.bank_code')}</span>
+                                <span className="text-sm font-black font-mono text-primary">822</span>
+                              </div>
+                              <div className="flex justify-between items-center bg-background/50 p-2.5 rounded-xl border border-border/40">
+                                <span className="text-[10px] font-bold text-muted-foreground uppercase">{t('order.account_no')}</span>
+                                <span className="text-sm font-black font-mono text-primary">1234-5678-9012-3456</span>
+                              </div>
+                            </div>
+                            <Button fullWidth onClick={handleNotifyPaid} disabled={currentViewOrder.payment_notification_sent} className="h-12 font-bold rounded-xl shadow-lg">
+                              {currentViewOrder.payment_notification_sent ? "已通知管理員" : t('order.notify_paid_btn')}
+                            </Button>
+                          </div>
+                        </div>
+                      ) : <p className="text-sm text-muted-foreground">{t('order.buyer_pay_hint')}</p>}
+                    </div>
+                  )}
+
+                  {currentViewOrder.status === 'ESCROWED' && (
+                    <div className="space-y-6">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                        <CardTitle className="text-base">{role === 'buyer' ? t('order.payment_confirmed') : t('order.next_steps_escrowed')}</CardTitle>
+                      </div>
+                      {role === 'traveler' ? (
+                        <div className="space-y-6">
+                          <div className="bg-background/80 p-4 rounded-xl border border-border/50 space-y-3">
+                            <p className="text-xs text-muted-foreground leading-relaxed italic">{t('order.upload_guide')}</p>
+                            {travelerGroup.filter(o => o.status === 'ESCROWED' && o.id !== currentViewOrder.id).length > 0 && (
+                              <div className="flex items-center gap-2 pt-2 border-t border-border/10">
+                                <input type="checkbox" id="sync-evidence" checked={syncEvidence} onChange={(e) => setSyncEvidence(e.target.checked)} className="w-4 h-4 rounded border-gray-300 text-primary" />
+                                <label htmlFor="sync-evidence" className="text-[11px] font-bold text-primary cursor-pointer">
+                                  一鍵同步至其他 {travelerGroup.filter(o => o.status === 'ESCROWED' && o.id !== currentViewOrder.id).length} 個買家
+                                </label>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Product Photo Upload */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">{t('create.proof_purchase_photo')}</p>
+                              {currentViewOrder.purchase_photo_url ? (
+                                <div className="relative rounded-2xl overflow-hidden border border-border aspect-[4/3] group">
+                                  <img src={currentViewOrder.purchase_photo_url} className="w-full h-full object-cover" />
+                                  <label className="absolute inset-0 bg-primary/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer text-white text-xs font-bold uppercase tracking-wider">
+                                    <input type="file" onChange={handleUploadPurchasePhoto} className="hidden" />
+                                    {t('order.receipt_update')}
+                                  </label>
+                                </div>
+                              ) : (
+                                <div className="relative group aspect-[4/3]">
+                                  <input type="file" onChange={handleUploadPurchasePhoto} disabled={purchasePhotoUploading} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                                  <div className="w-full h-full border-2 border-dashed border-primary/20 rounded-2xl flex flex-col items-center justify-center bg-primary/5 hover:bg-primary/10 transition-all">
+                                    <Camera className={cn("w-8 h-8 text-primary mb-2", purchasePhotoUploading && "animate-bounce")} />
+                                    <span className="text-[10px] font-black text-primary uppercase">{t('order.upload_purchase_photo')}</span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+
+                            {currentViewOrder.require_receipt && (
+                              <div className="space-y-2">
+                                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">{t('create.proof_receipt')}</p>
+                                {currentViewOrder.receipt_url ? (
+                                  <div className="relative rounded-2xl overflow-hidden border border-border aspect-[4/3] group">
+                                    <img src={currentViewOrder.receipt_url} className="w-full h-full object-cover" />
+                                    <label className="absolute inset-0 bg-primary/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer text-white text-xs font-bold uppercase tracking-wider">
+                                      <input type="file" onChange={handleUploadReceipt} className="hidden" />
+                                      {t('order.receipt_update')}
+                                    </label>
+                                  </div>
+                                ) : (
+                                  <div className="relative group aspect-[4/3]">
+                                    <input type="file" onChange={handleUploadReceipt} disabled={uploading} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                                    <div className="w-full h-full border-2 border-dashed border-secondary/30 rounded-2xl flex flex-col items-center justify-center bg-secondary/5 hover:bg-secondary/10 transition-all">
+                                      <Upload className={cn("w-8 h-8 text-muted-foreground mb-2", uploading && "animate-bounce")} />
+                                      <span className="text-[10px] font-black text-muted-foreground uppercase">{t('order.receipt_update')}</span>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          <Button fullWidth size="lg" className="h-14 rounded-2xl font-black shadow-xl"
+                            disabled={!currentViewOrder.purchase_photo_url || (currentViewOrder.require_receipt && !currentViewOrder.receipt_url)}
+                            onClick={async () => {
+                              const { finishPurchase, batchFinishPurchase } = await import('@/app/actions/orders');
+                              const ids = syncEvidence ? travelerGroup.filter(o => o.status === 'ESCROWED').map(o => o.id) : [currentViewOrder.id];
+                              const res = ids.length > 1 ? await batchFinishPurchase(ids) : await finishPurchase(currentViewOrder.id);
+                              if (res.success) await loadOrder(); else alert(res.error);
+                            }}
                           >
-                            {t('common.save')}
+                            {syncEvidence && travelerGroup.filter(o => o.status === 'ESCROWED').length > 1 ? `一鍵完成全部採買 (${travelerGroup.filter(o => o.status === 'ESCROWED').length})` : t('admin.finish_purchase_btn')}
                           </Button>
                         </div>
-                        <p className="text-[10px] text-muted-foreground italic">{t('order.proof_guide_model')}</p>
-                      </div>
-                    )}
-
-                    <div className="pt-4 border-t border-border/30">
-                      <Button
-                        fullWidth
-                        className="h-12 font-bold"
-                        disabled={!currentViewOrder.purchase_photo_url || (currentViewOrder.require_receipt && !currentViewOrder.receipt_url) || (currentViewOrder.require_model_number && !currentViewOrder.model_number)}
-                        onClick={async () => {
-                          const { finishPurchase, batchFinishPurchase } = await import('@/app/actions/orders');
-                          try {
-                            if (syncEvidence && travelerGroup.length > 1) {
-                              const ids = travelerGroup.filter(o => o.status === 'ESCROWED').map(o => o.id);
-                              const result = await batchFinishPurchase(ids);
-                              if (!result.success) throw new Error(result.error);
-                            } else {
-                              const result = await finishPurchase(currentViewOrder.id);
-                              if (!result.success) throw new Error(result.error);
-                            }
-                            await loadOrder();
-                          } catch (error: any) {
-                            alert(error.message || t('common.error'));
-                          }
-                        }}
-                      >
-                        {syncEvidence && travelerGroup.length > 1 ? `一鍵完成全部採購 (${travelerGroup.length})` : t('admin.finish_purchase_btn')}
-                      </Button>
-                      {(!currentViewOrder.purchase_photo_url || (currentViewOrder.require_receipt && !currentViewOrder.receipt_url) || (currentViewOrder.require_model_number && !currentViewOrder.model_number)) && (
-                        <p className="text-[9px] text-red-500 mt-2 text-center font-bold animate-pulse">請先完成所有要求的證明上傳</p>
+                      ) : (
+                        <div className="bg-green-500/5 p-6 rounded-2xl border border-green-500/10 text-center space-y-3">
+                          <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center mx-auto ring-4 ring-green-500/5">
+                            <ShieldCheck className="w-6 h-6 text-green-500" />
+                          </div>
+                          <p className="text-sm font-bold text-green-600">您的款項已受平台保護</p>
+                        </div>
                       )}
                     </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+                  )}
 
-          {currentViewOrder.status === 'BOUGHT' && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-                <CardTitle className="text-base">{t('status.BOUGHT')}</CardTitle>
-              </div>
-
-              {role === 'traveler' && travelerGroup.length > 1 ? (
-                <div className="bg-background rounded-2xl border border-border overflow-hidden shadow-sm">
-                  <div className="bg-primary/5 p-4 border-b border-primary/10">
-                    <p className="text-xs font-black text-primary uppercase tracking-widest">
-                      {travelerGroup.filter(o => o.status === 'BOUGHT').length > 1 ? (t('order.batch_shipping_title') || '批次填寫出貨資訊') : '填寫出貨資訊'}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground mt-1">
-                      {travelerGroup.filter(o => o.status === 'BOUGHT').length > 1 ? '您可以一次填寫所有買家的單號' : '請輸入此筆訂單的物流單號'}
-                    </p>
-                  </div>
-                  <div className="divide-y divide-border/50">
-                    {travelerGroup.filter(o => o.status === 'BOUGHT').map((groupOrder) => (
-                      <div key={groupOrder.id} className="p-4 space-y-3">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="text-[10px] font-black uppercase text-muted-foreground">買家</p>
-                            <p className="text-sm font-bold">{groupOrder.buyer?.display_name || maskEmail(groupOrder.buyer?.email)}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-[10px] font-black uppercase text-muted-foreground">物流方式</p>
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-secondary text-secondary-foreground">
-                              {groupOrder.shipping_method === '711' ? '7-11 取貨' : '宅配到府'}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="bg-secondary/20 p-2.5 rounded-lg border border-border/30">
-                          <p className="text-[10px] font-black uppercase text-muted-foreground mb-1">收件資訊</p>
-                          <p className="text-xs leading-relaxed">{groupOrder.shipping_address}</p>
-                        </div>
-                        <Input
-                          placeholder={t('order.tracking_placeholder')}
-                          value={batchTracking[groupOrder.id] || groupOrder.tracking_number || ''}
-                          onChange={(e) => setBatchTracking(prev => ({ ...prev, [groupOrder.id]: e.target.value }))}
-                          className="h-10 text-sm"
-                        />
+                  {currentViewOrder.status === 'BOUGHT' && (
+                    <div className="space-y-6">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+                        <CardTitle className="text-base">{t('status.BOUGHT')}</CardTitle>
                       </div>
-                    ))}
-                  </div>
-                  <div className="p-4 bg-secondary/10">
-                    <Button
-                      onClick={handleBatchAddTracking}
-                      fullWidth
-                      className="h-12 font-black"
-                      disabled={travelerGroup.filter(o => o.status === 'BOUGHT').every(o => !batchTracking[o.id] && !o.tracking_number)}
-                    >
-                      <Truck className="w-5 h-5 mr-2" />
-                      {travelerGroup.filter(o => o.status === 'BOUGHT').length > 1 ? '確認批量出貨' : '確認出貨'}
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 space-y-3">
-                  <p className="text-xs font-bold text-primary uppercase tracking-widest text-[10px]">{t('order.shipping_info')}</p>
-                  {role === 'traveler' ? (
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder={t('order.tracking_placeholder')}
-                        value={trackingNumber}
-                        onChange={(e) => setTrackingNumber(e.target.value)}
-                        className="bg-background"
-                      />
-                      <Button onClick={handleAddTracking} className="px-6 font-bold">{t('order.ship_btn')}</Button>
+                      {role === 'traveler' ? (
+                        <div className="space-y-4">
+                          {travelerGroup.filter(o => o.status === 'BOUGHT').length > 1 ? (
+                            <div className="bg-secondary/10 rounded-2xl border border-border p-4 space-y-4">
+                              <p className="text-xs font-black text-primary uppercase tracking-widest">{t('order.batch_shipping_title') || '批次出貨模式'}</p>
+                              <div className="divide-y divide-border/30">
+                                {travelerGroup.filter(o => o.status === 'BOUGHT').map(go => (
+                                  <div key={go.id} className="py-4 space-y-3 first:pt-0">
+                                    <div className="flex justify-between items-center px-1">
+                                      <p className="text-xs font-bold text-foreground/80">{go.buyer?.display_name || maskEmail(go.buyer?.email)}</p>
+                                      <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-white/60 border border-border/50 uppercase">
+                                        {go.shipping_method === '711' ? '7-11' : 'Home'}
+                                      </span>
+                                    </div>
+                                    <Input placeholder={t('order.tracking_placeholder')} value={batchTracking[go.id] || go.tracking_number || ''}
+                                      onChange={(e) => setBatchTracking(prev => ({ ...prev, [go.id]: e.target.value }))}
+                                      className="h-10 bg-background border-primary/20 focus:ring-primary/20" />
+                                  </div>
+                                ))}
+                              </div>
+                              <Button fullWidth onClick={handleBatchAddTracking} className="h-12 font-black shadow-lg"
+                                disabled={travelerGroup.filter(o => o.status === 'BOUGHT').every(o => !batchTracking[o.id] && !o.tracking_number)}>
+                                <Truck className="w-4 h-4 mr-2" /> 確認批次出貨
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="bg-primary/5 p-4 rounded-2xl border border-primary/10 space-y-3">
+                              <p className="text-[10px] font-black uppercase text-primary tracking-widest">{t('order.shipping_info')}</p>
+                              <div className="flex gap-2">
+                                <Input placeholder={t('order.tracking_placeholder')} value={trackingNumber} onChange={(e) => setTrackingNumber(e.target.value)} />
+                                <Button onClick={handleAddTracking} className="px-6 font-bold">{t('order.ship_btn')}</Button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : <p className="text-sm text-muted-foreground italic text-center py-4">{t('order.buyer_shipping_hint')}</p>}
                     </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">{t('order.wait_shipping_traveler')}</p>
+                  )}
+
+                  {currentViewOrder.status === 'SHIPPED' && (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Truck className="w-5 h-5 text-blue-500" />
+                          <CardTitle className="text-base text-blue-600">{t('status.SHIPPED')}</CardTitle>
+                        </div>
+                        {role === 'buyer' && (
+                          <Button onClick={handleConfirmReceipt} variant="primary" className="h-10 px-6 font-black rounded-xl animate-in fade-in zoom-in duration-500">
+                            {t('order.received_btn')}
+                          </Button>
+                        )}
+                      </div>
+                      <div className="bg-blue-500/5 p-4 rounded-2xl border border-blue-500/10 flex justify-between items-center">
+                        <div>
+                          <p className="text-[9px] font-black uppercase text-blue-500 tracking-widest mb-1">{t('order.tracking_no')}</p>
+                          <p className="text-sm font-black font-mono tracking-tight">{currentViewOrder.tracking_number}</p>
+                        </div>
+                        <Button variant="ghost" size="sm" className="h-8 text-[10px] font-bold text-blue-500 hover:bg-blue-500/10"
+                          onClick={() => window.open(`https://www.google.com/search?q=${currentViewOrder.tracking_number}`, '_blank')}>
+                          追蹤包裹
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {currentViewOrder.status === 'COMPLETED' && (
+                    <div className="space-y-6 text-center">
+                      <div className="w-16 h-16 rounded-full bg-green-500/10 text-green-500 flex items-center justify-center mx-auto ring-8 ring-green-500/5 animate-in zoom-in duration-500">
+                        <CheckCircle className="w-10 h-10" />
+                      </div>
+                      <div className="space-y-1">
+                        <h3 className="text-xl font-black text-green-600 tracking-tight">{t('status.COMPLETED')}</h3>
+                        <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-widest">{t('order.release_hint')}</p>
+                      </div>
+
+                      {((role === 'buyer' && !currentViewOrder.rated_by_buyer) || (role === 'traveler' && !currentViewOrder.rated_by_traveler)) && !ratingSubmitted ? (
+                        <div className="pt-4 border-t border-border/50 space-y-4">
+                          <p className="text-xs font-bold text-foreground/80">給您的交易夥伴一個評價</p>
+                          <div className="flex gap-4">
+                            <Button variant="outline" className="flex-1 h-12 rounded-2xl border-green-500/20 text-green-600 hover:bg-green-50 font-black"
+                              onClick={() => handleRateUser(true, currentViewOrder.id, role === 'buyer' ? currentViewOrder.traveler_id : currentViewOrder.buyer_id)}>
+                              <ThumbsUp className="w-4 h-4 mr-2" /> 正評
+                            </Button>
+                            <Button variant="outline" className="flex-1 h-12 rounded-2xl border-red-500/20 text-red-600 hover:bg-red-50 font-black"
+                              onClick={() => handleRateUser(false, currentViewOrder.id, role === 'buyer' ? currentViewOrder.traveler_id : currentViewOrder.buyer_id)}>
+                              <ThumbsDown className="w-4 h-4 mr-2" /> 負評
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-secondary/10 py-3 rounded-2xl border border-border/50 text-[11px] font-black text-muted-foreground italic">
+                          ✨ {t('order.rating_submitted')}
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
-              )}
-            </div>
-          )}
 
-          {currentViewOrder.status === 'SHIPPED' && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
-                <CardTitle className="text-base">{t('status.SHIPPED')}</CardTitle>
-              </div>
-              <div className="flex items-center gap-2 text-blue-500 mb-2">
-                <Truck className="w-5 h-5" />
-                <span className="text-sm font-medium">{t('order.shipped_msg')}</span>
-              </div>
-              <p className="text-sm">{t('order.tracking_no')}：<span className="font-mono bg-muted px-1 rounded">{currentViewOrder.tracking_number}</span></p>
-              {role === 'buyer' && (
-                <Button onClick={handleConfirmReceipt} fullWidth className="bg-green-600 hover:bg-green-700 font-bold h-12 rounded-xl mt-4">
-                  {t('order.received_btn')}
-                </Button>
-              )}
-            </div>
-          )}
-
-          {currentViewOrder.status === 'COMPLETED' && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-2 h-2 rounded-full bg-green-600" />
-                <CardTitle className="text-base">{t('status.COMPLETED')}</CardTitle>
-              </div>
-              <div className="text-center py-4 bg-green-500/5 rounded-2xl border border-green-500/10">
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-green-500/20 text-green-500 mb-2">
-                  <CheckCircle className="w-6 h-6" />
+                {/* Communication Area */}
+                <div className="p-4 bg-background">
+                  <OrderChat
+                    orderId={activeChatTab || currentViewOrder.id}
+                    currentUserId={user.id}
+                    role={role as 'buyer' | 'traveler' | 'admin'}
+                    partnerName={
+                      role === 'traveler' && travelerGroup.length > 1 && activeChatTab
+                        ? (travelerGroup.find(o => o.id === activeChatTab)?.buyer?.display_name || maskEmail(travelerGroup.find(o => o.id === activeChatTab)?.buyer?.email))
+                        : partnerDisplayName
+                    }
+                  />
                 </div>
-                <h3 className="font-bold text-green-600">{t('order.completed_msg')}</h3>
-                <p className="text-sm text-muted-foreground">{t('order.release_hint')}</p>
-              </div>
-
-              {!ratingSubmitted ? (
-                <div className="bg-background p-4 rounded-xl border border-border shadow-sm">
-                  <p className="text-sm font-bold text-center mb-3">
-                    {t('order.rate_user_prompt', { role: role === 'buyer' ? t('order.traveler') : t('order.buyer') })}
-                  </p>
-                  <div className="flex gap-3">
-                    <Button
-                      variant="outline"
-                      className="flex-1 h-12 border-green-500/30 text-green-600 hover:bg-green-500/10 hover:border-green-500"
-                      onClick={() => handleRateUser(true)}
-                    >
-                      <ThumbsUp className="w-4 h-4 mr-2" /> {t('order.positive')}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="flex-1 h-12 border-red-500/30 text-red-600 hover:bg-red-500/10 hover:border-red-500"
-                      onClick={() => handleRateUser(false)}
-                    >
-                      <ThumbsDown className="w-4 h-4 mr-2" /> {t('order.negative')}
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center text-sm text-muted-foreground bg-background p-3 rounded-xl">
-                  {t('order.rate_thanks')}
-                </div>
-              )}
-            </div>
+              </CardContent>
+            </Card>
           )}
 
           {currentViewOrder.status === 'DELISTED' && (
@@ -1221,125 +1149,6 @@ export default function OrderDetails() {
           )}
         </CardContent>
       </Card>
-
-      {/* Group Management Dashboard for Traveler */}
-      {role === 'traveler' && travelerGroup.length > 1 && (
-        <Card className="border-primary/20 bg-background shadow-sm overflow-hidden mb-6">
-          <CardHeader className="py-2.5 bg-primary/5 border-b border-primary/10">
-            <CardTitle className="text-[10px] font-black flex items-center gap-2 text-primary uppercase tracking-widest">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              群組進度總覽 ({travelerGroup.length})
-            </CardTitle>
-          </CardHeader>
-          <div className="divide-y divide-border/40">
-            {travelerGroup.map((gOrder) => (
-              <div key={gOrder.id} className={cn(
-                "p-3 flex items-center justify-between transition-colors",
-                activeChatTab === gOrder.id ? "bg-primary/5" : "hover:bg-secondary/10"
-              )}>
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-[10px]">
-                    👤
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold">{gOrder.buyer?.display_name || maskEmail(gOrder.buyer?.email)}</p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <StatusBadge status={gOrder.status} />
-                      {gOrder.status === 'SHIPPED' && (
-                        <span className="text-[9px] text-muted-foreground font-mono">#{gOrder.tracking_number}</span>
-                      )}
-                      {gOrder.status === 'DISPUTE' && (
-                        <span className="text-[9px] text-red-500 font-bold flex items-center gap-0.5 animate-pulse">
-                          <AlertTriangle className="w-2.5 h-2.5" /> 爭議中
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {gOrder.status === 'COMPLETED' && !gOrder.rated_by_traveler && (
-                    <div className="flex gap-1">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0 rounded-full border border-green-500/20 text-green-500 hover:bg-green-500/10"
-                        onClick={() => handleRateUser(true, gOrder.id, gOrder.buyer_id)}
-                      >
-                        <ThumbsUp className="w-3.5 h-3.5" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0 rounded-full border border-red-500/20 text-red-500 hover:bg-red-500/10"
-                        onClick={() => handleRateUser(false, gOrder.id, gOrder.buyer_id)}
-                      >
-                        <ThumbsDown className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  )}
-                  {gOrder.rated_by_traveler && (
-                    <span className="text-[9px] text-green-600 font-bold bg-green-50 px-1.5 py-0.5 rounded border border-green-100 italic">已評價</span>
-                  )}
-                  <Button
-                    size="sm"
-                    variant={activeChatTab === gOrder.id ? "primary" : "outline"}
-                    className="h-7 text-[10px] font-bold px-3 rounded-lg"
-                    onClick={() => setActiveChatTab(gOrder.id)}
-                  >
-                    溝通
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="bg-secondary/5 p-2 text-center border-t border-border/40">
-            <p className="text-[9px] text-muted-foreground italic">
-              點擊「溝通」切換對話與操作目標，或直接在上方進行批次採購/出貨
-            </p>
-          </div>
-        </Card>
-      )}
-
-      {/* Order Chat Board */}
-      {
-        currentViewOrder.status !== 'OPEN' && currentViewOrder.status !== 'DELISTED' && user && role !== 'visitor' && (
-          <div className="pt-2 space-y-2">
-            {role === 'traveler' && travelerGroup.length > 1 && (
-              <div className="flex gap-1 overflow-x-auto pb-2 no-scrollbar">
-                {travelerGroup.map((groupOrder) => {
-                  const bName = groupOrder.buyer?.display_name || maskEmail(groupOrder.buyer?.email);
-                  const isActive = activeChatTab === groupOrder.id;
-                  return (
-                    <button
-                      key={groupOrder.id}
-                      onClick={() => setActiveChatTab(groupOrder.id)}
-                      className={cn(
-                        "px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap border",
-                        isActive
-                          ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                          : "bg-secondary/20 text-muted-foreground border-transparent hover:bg-secondary/40"
-                      )}
-                    >
-                      {bName} {order.id === groupOrder.id && "(當前)"}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-            <OrderChat
-              orderId={activeChatTab || currentViewOrder.id}
-              currentUserId={user.id}
-              role={role as 'buyer' | 'traveler' | 'admin'}
-              partnerName={
-                role === 'traveler' && travelerGroup.length > 1 && activeChatTab
-                  ? (travelerGroup.find(o => o.id === activeChatTab)?.buyer?.display_name || maskEmail(travelerGroup.find(o => o.id === activeChatTab)?.buyer?.email))
-                  : partnerDisplayName
-              }
-            />
-          </div>
-        )
-      }
 
       {/* Dispute / Delist buttons */}
       {
