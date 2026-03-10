@@ -11,6 +11,7 @@ import { supabase } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import { Textarea } from '@/components/ui/textarea';
 import { openECPayCVSMap } from '@/lib/ecpay';
+import { getURL } from '@/utils/get-url';
 import { PlusSquare, Trash2 } from 'lucide-react';
 
 import { useLanguage } from '@/context/LanguageContext';
@@ -288,7 +289,7 @@ export default function ProfilePage() {
               size="sm"
               onClick={() => openECPayCVSMap({
                 IsCollection: 'N',
-                ServerReplyURL: `${window.location.origin}/api/ecpay/cvs-callback`,
+                ServerReplyURL: `${getURL()}api/ecpay/cvs-callback`,
                 Device: window.innerWidth < 768 ? '1' : '0'
               })}
               className="text-xs text-[#008134] h-auto p-0 hover:bg-transparent"

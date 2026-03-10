@@ -4,6 +4,22 @@
 
 ---
 
+## [1.3.8] - 2026-03-10
+### Added
+- **動態 URL 管理系統 (Dynamic URL Utility)**: 
+    - 新增 `getURL` 工具函式，集中管理平台跳轉邏輯。
+    - 解決 Google 登入與綠界 (ECPay) 回傳連結在開發環境 (`localhost`) 與生產環境切換時的痛點。
+    - 支援透過 `NEXT_PUBLIC_SITE_URL` 與 `NEXT_PUBLIC_VERCEL_URL` 環境變數精確控制回傳路徑，並在未設定時自動回退至當前瀏覽器 origin。
+
+## [1.3.7] - 2026-03-10
+### Added
+- **爭議裁決回溯機制 (Dispute State Rewind)**:
+    - 管理員在裁處爭議時，現在可以選擇將訂單「還原」至進入爭議前的快照狀態。
+    - 資料庫層級新增 `previous_status` 欄位，自動捕捉 `DISPUTE` 發生前的進度（如 `ESCROWED`, `BOUGHT`），有效解決因誤會或文件不齊導致訂單卡死的僵局。
+- **後端強制安全校驗 (Backend Security Enforcement)**:
+    - 全面排除前端直接操作狀態機與統計數據的風險。
+    - 核心權限邏輯遷移至 Server Actions，並實施嚴格的狀態切換校驗，確保統計數據（累計金額、訂單數）受後端鎖定保護。
+
 ## [1.3.6] - 2026-03-10
 ### Added
 - **群組接單履約儀表板 (Group Order Fulfillment Dashboard)**:

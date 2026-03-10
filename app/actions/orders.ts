@@ -145,6 +145,7 @@ export async function raiseDispute(orderId: string, reason: string, evidenceUrl?
 
         const updates: Partial<any> = {
             status: 'DISPUTE',
+            previous_status: order.status,
             dispute_reason: reason,
             dispute_by_user_id: user.id,
             dispute_evidence_url: evidenceUrl,
@@ -184,12 +185,14 @@ export async function resolveDispute(orderId: string, resolutionStatus: OrderSta
 
         if (fetchError || !order) throw new Error("找不到訂單");
         if (order.status !== 'DISPUTE') throw new Error("此訂單不在爭議中");
-        if (resolutionStatus !== 'COMPLETED' && resolutionStatus !== 'DELISTED') {
-            throw new Error("爭議只能裁決為『完成訂單 (COMPLETED)』或『取消退款 (DELISTED)』");
+        const validResolutions = ['COMPLETED', 'DELISTED', 'MATCHED', 'ESCROWED', 'BOUGHT', 'SHIPPED'];
+        if (!validResolutions.includes(resolutionStatus)) {
+            throw new Error(`不合法的裁決狀態: ${resolutionStatus}`);
         }
 
         const updates: Partial<any> = {
             status: resolutionStatus,
+            previous_status: null, // Clear after resolution
             dispute_resolution: notes,
             dispute_resolved_at: new Date().toISOString()
         };

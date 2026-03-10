@@ -68,6 +68,9 @@ stateDiagram-v2
    - **原本問題**: 狂按「確認收貨」按鈕可能多次送出 API 請求，導致旅人的業績統計數據被重複計算。
    - **✅ 修復結果**: 改呼叫 `confirmReceipt` Server Action 後，由於此動作有 `status === 'SHIPPED'` 的前置條件，當第一筆請求改為 `COMPLETED` 後，其他連點的請求會因為不符合 `SHIPPED` 條件而在 Server 端拋出阻擋。
 
-7. **爭議解決機制的去向僵化 (State Rewind Missing) [⚠️ 待修復]**
+7. **爭議解決機制的去向僵化 (State Rewind Missing) [✅ 已修復]**
    - **問題**: 當管理員點擊 `handleResolveDispute`，只能被迫選擇「完成訂單撥款 (`COMPLETED`)」或「取消訂單退款 (`DELISTED`)」。如果在剛進入 `ESCROWED` 或 `BOUGHT` 時雙方發生誤會或需補件而進入爭議，管理員無法將訂單狀態「退回」先前的作業階段（例如退回 `ESCROWED` 讓旅人補上傳清晰收據）。
-   - **對策**: 在資料庫增加 `previous_status` 紀錄進入 `DISPUTE` 前的狀態，或在管理頁面開放手動將訂單切換回原始狀態的功能。
+   - **✅ 修復結果**: 
+     - 資料庫新增 `previous_status` 欄位以記錄進入 `DISPUTE` 前的快照。
+     - `resolveDispute` Server Action 現在支援將訂單「還原」至任何先前的有效狀態（如 `MATCHED`, `ESCROWED`, `BOUGHT`, `SHIPPED`）。
+     - 管理頁面新增「退回先前狀態」按鈕，讓管理員在裁決時有更靈活的選擇。

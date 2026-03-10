@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 
 import { useLanguage } from '@/context/LanguageContext';
+import { getURL } from '@/utils/get-url';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -89,7 +90,7 @@ export default function LoginPage() {
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
-                    redirectTo: `${window.location.origin}/auth/callback`,
+                    redirectTo: `${getURL()}auth/callback`,
                 },
             });
             if (error) throw error;

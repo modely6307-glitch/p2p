@@ -60,6 +60,7 @@ export interface Order {
   dispute_resolved_at?: string | null;
   rated_by_buyer?: boolean;
   rated_by_traveler?: boolean;
+  previous_status?: OrderStatus | null;
 }
 
 export interface SystemSettings {

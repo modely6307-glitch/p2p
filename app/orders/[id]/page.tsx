@@ -43,6 +43,7 @@ import { getCountryFlag } from '@/utils/countries';
 import { cn } from '@/lib/utils';
 import { useLanguage } from '@/context/LanguageContext';
 import { openECPayCVSMap } from '@/lib/ecpay';
+import { getURL } from '@/utils/get-url';
 
 const maskEmail = (email: string | null | undefined) => {
   if (!email) return 'User';
@@ -379,8 +380,8 @@ export default function OrderDetails() {
 
   const handleResolveDispute = async (status: OrderStatus) => {
     if (!currentViewOrder) return;
-    const actionName = status === 'DELISTED' ? '取消訂單退款' : '完成訂單撥款';
-    if (!confirm(`確定要將此訂單裁決為：「${actionName}」嗎？這個操作無法還原。`)) return;
+    const actionName = status === 'DELISTED' ? '取消訂單退款' : (status === 'COMPLETED' ? '完成訂單撥款' : `退回：${t(`status.${status}`)}`);
+    if (!confirm(`確定要將此訂單裁決為：「${actionName}」嗎？`)) return;
     try {
       const { resolveDispute } = await import('@/app/actions/orders');
       const result = await resolveDispute(currentViewOrder.id, status, adminResolutionNotes);
@@ -525,13 +526,24 @@ export default function OrderDetails() {
                   onChange={(e) => setAdminResolutionNotes(e.target.value)}
                   className="bg-background min-h-[60px]"
                 />
-                <div className="flex gap-2">
-                  <Button onClick={() => handleResolveDispute('DELISTED')} variant="outline" className="flex-1 border-red-500 text-red-600 hover:bg-red-500/10 hover:text-red-700">
-                    取消訂單退款
-                  </Button>
-                  <Button onClick={() => handleResolveDispute('COMPLETED')} className="flex-1 bg-green-600 hover:bg-green-700">
-                    完成訂單撥款
-                  </Button>
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-2">
+                    <Button onClick={() => handleResolveDispute('DELISTED')} variant="outline" className="flex-1 border-red-500 text-red-600 hover:bg-red-500/10 hover:text-red-700">
+                      取消訂單退款
+                    </Button>
+                    <Button onClick={() => handleResolveDispute('COMPLETED')} className="flex-1 bg-green-600 hover:bg-green-700">
+                      完成訂單撥款
+                    </Button>
+                  </div>
+                  {currentViewOrder.previous_status && (
+                    <Button
+                      onClick={() => handleResolveDispute(currentViewOrder.previous_status!)}
+                      variant="outline"
+                      className="border-primary text-primary hover:bg-primary/10"
+                    >
+                      退回先前狀態 ({t(`status.${currentViewOrder.previous_status}`)})
+                    </Button>
+                  )}
                 </div>
               </div>
             )}
@@ -1231,13 +1243,13 @@ export default function OrderDetails() {
                             </p>
                             <p className="text-[10px] text-muted-foreground mt-1">{followCvsStore.store_address}</p>
                           </div>
-                          <Button type="button" variant="ghost" size="sm" onClick={() => openECPayCVSMap({ IsCollection: 'N', ServerReplyURL: `${window.location.origin}/api/ecpay/cvs-callback`, Device: window.innerWidth < 768 ? '1' : '0' })} className="h-7 text-[10px] text-[#008134] hover:bg-[#008134]/10">
+                          <Button type="button" variant="ghost" size="sm" onClick={() => openECPayCVSMap({ IsCollection: 'N', ServerReplyURL: `${getURL()}api/ecpay/cvs-callback`, Device: window.innerWidth < 768 ? '1' : '0' })} className="h-7 text-[10px] text-[#008134] hover:bg-[#008134]/10">
                             {t('common.edit')}
                           </Button>
                         </div>
                       ) : (
                         <div className="flex gap-2">
-                          <Button type="button" onClick={() => openECPayCVSMap({ IsCollection: 'N', ServerReplyURL: `${window.location.origin}/api/ecpay/cvs-callback`, Device: window.innerWidth < 768 ? '1' : '0' })} className="flex-1 h-12 rounded-2xl border-dashed border-2 bg-secondary/5 hover:bg-secondary/10 hover:border-[#008134]/50 text-muted-foreground hover:text-[#008134] transition-all flex items-center justify-center gap-2">
+                          <Button type="button" onClick={() => openECPayCVSMap({ IsCollection: 'N', ServerReplyURL: `${getURL()}api/ecpay/cvs-callback`, Device: window.innerWidth < 768 ? '1' : '0' })} className="flex-1 h-12 rounded-2xl border-dashed border-2 bg-secondary/5 hover:bg-secondary/10 hover:border-[#008134]/50 text-muted-foreground hover:text-[#008134] transition-all flex items-center justify-center gap-2">
                             <PlusSquare className="w-5 h-5" />
                             <span className="font-bold">{t('create.select_store')}</span>
                           </Button>

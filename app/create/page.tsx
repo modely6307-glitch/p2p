@@ -19,6 +19,7 @@ import { Calendar as CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AiRecommendation } from '@/components/AiRecommendation';
 import { openECPayCVSMap } from '@/lib/ecpay';
+import { getURL } from '@/utils/get-url';
 
 export default function CreateWish() {
   const router = useRouter();
@@ -577,7 +578,7 @@ export default function CreateWish() {
                             size="sm"
                             onClick={() => openECPayCVSMap({
                               IsCollection: 'N',
-                              ServerReplyURL: `${window.location.origin}/api/ecpay/cvs-callback`,
+                              ServerReplyURL: `${getURL()}api/ecpay/cvs-callback`,
                               Device: window.innerWidth < 768 ? '1' : '0'
                             })}
                             className="text-[10px] h-7 px-2 hover:bg-[#008134]/10 hover:text-[#008134]"
@@ -593,7 +594,7 @@ export default function CreateWish() {
                             type="button"
                             onClick={() => openECPayCVSMap({
                               IsCollection: 'N',
-                              ServerReplyURL: `${window.location.origin}/api/ecpay/cvs-callback`,
+                              ServerReplyURL: `${getURL()}api/ecpay/cvs-callback`,
                               Device: window.innerWidth < 768 ? '1' : '0'
                             })}
                             className="flex-1 h-12 rounded-2xl border-dashed border-2 bg-secondary/5 hover:bg-secondary/10 hover:border-[#008134]/50 text-muted-foreground hover:text-[#008134] transition-all flex items-center justify-center gap-2"
