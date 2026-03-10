@@ -90,7 +90,7 @@
         "total_est": "Estimated Total (TWD)",
         "submit": "Post Wish",
         "formula_title": "Budget Formula",
-        "formula_help": "Total = (Price [FX] × Rate [TWD]) + Reward [TWD] + Platform Fee [TWD]",
+        "formula_help": "Total = (Price [FX] × Rate [TWD]) + Reward [TWD] + Shipping Fee [TWD] + Platform Fee [TWD]",
         "platform_fee": "Platform Fee",
         "buyer_fee": "Wisher Fee",
         "traveler_fee": "Platform Fee",
@@ -127,7 +127,8 @@
         "btn_next": "Next",
         "btn_back": "Back",
         "pick_date": "Pick a date",
-        "recommendation_hint": "Select an item to auto-fill details"
+        "recommendation_hint": "Select an item to auto-fill details",
+        "shipping_fee": "Shipping Fee"
     },
     "dashboard": {
         "title": "My Dashboard",
@@ -167,6 +168,7 @@
         "target_price": "Target Price",
         "reward_fee": "Reward Fee",
         "total_budget": "Total Budget",
+        "shipping_fee": "Shipping Fee",
         "buyer_paid_total": "Wisher Paid Total",
         "notify_paid_btn": "I've Completed the Transfer",
         "notify_paid_success": "Payment notification sent. Please wait for admin verification.",

@@ -78,6 +78,7 @@ export default function OrderDetails() {
   const [followCvsStore, setFollowCvsStore] = useState<any>(null);
   const [followName, setFollowName] = useState('');
   const [followPhone, setFollowPhone] = useState('');
+  const [followFee, setFollowFee] = useState('0');
   const [isFollowing, setIsFollowing] = useState(false);
 
   // Group Buy Fulfillment States
@@ -567,6 +568,12 @@ export default function OrderDetails() {
             <span className="text-muted-foreground">{t('order.reward_fee')}</span>
             <span className="font-bold text-green-600">NT${currentViewOrder.reward_fee.toLocaleString()}</span>
           </div>
+          {currentViewOrder.shipping_fee > 0 && (
+            <div className="flex justify-between py-2 border-b border-border/50">
+              <span className="text-muted-foreground">{t('order.shipping_fee')}</span>
+              <span className="font-bold text-blue-600">NT${currentViewOrder.shipping_fee.toLocaleString()}</span>
+            </div>
+          )}
           {['buyer', 'admin'].includes(role) && currentViewOrder.buyer_platform_fee > 0 && (
             <div className="flex justify-between py-2 border-b border-border/50">
               <span className="text-muted-foreground">{t('create.buyer_fee')}</span>
@@ -589,7 +596,7 @@ export default function OrderDetails() {
             <div className="text-right">
               <div className="text-2xl font-black text-primary">
                 NT${(['traveler', 'visitor'].includes(role)
-                  ? Math.round((currentViewOrder.target_price * (currentViewOrder.exchange_rate || 1)) + currentViewOrder.reward_fee)
+                  ? Math.round((currentViewOrder.target_price * (currentViewOrder.exchange_rate || 1)) + currentViewOrder.reward_fee + (currentViewOrder.shipping_fee || 0))
                   : currentViewOrder.total_amount_twd || 0
                 ).toLocaleString()}
               </div>
@@ -613,7 +620,7 @@ export default function OrderDetails() {
                 <span className="ml-1 opacity-50 underline decoration-dotted">{showFormula ? '▲' : '▼'}</span>
               </p>
               <p className="font-black text-xl text-green-600">
-                NT$ {((currentViewOrder.target_price * (currentViewOrder.exchange_rate || 1)) + currentViewOrder.reward_fee - (currentViewOrder.traveler_platform_fee || 0)).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                NT$ {((currentViewOrder.target_price * (currentViewOrder.exchange_rate || 1)) + currentViewOrder.reward_fee + (currentViewOrder.shipping_fee || 0) - (currentViewOrder.traveler_platform_fee || 0)).toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </p>
             </div>
             <div className="text-right">
@@ -634,13 +641,19 @@ export default function OrderDetails() {
                   <span>+ {t('order.reward_fee')}</span>
                   <span>NT$ {currentViewOrder.reward_fee}</span>
                 </div>
+                {currentViewOrder.shipping_fee > 0 && (
+                  <div className="flex justify-between">
+                    <span>+ {t('order.shipping_fee')}</span>
+                    <span>NT$ {currentViewOrder.shipping_fee}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-red-500/70">
                   <span>- {t('create.traveler_fee')}</span>
                   <span>NT$ {currentViewOrder.traveler_platform_fee}</span>
                 </div>
                 <div className="pt-1 border-t border-border/30 flex justify-between font-bold text-foreground">
                   <span>{t('order.traveler_net')}</span>
-                  <span>NT$ {Math.round((currentViewOrder.target_price * (currentViewOrder.exchange_rate || 1)) + currentViewOrder.reward_fee - (currentViewOrder.traveler_platform_fee || 0))}</span>
+                  <span>NT$ {Math.round((currentViewOrder.target_price * (currentViewOrder.exchange_rate || 1)) + currentViewOrder.reward_fee + (currentViewOrder.shipping_fee || 0) - (currentViewOrder.traveler_platform_fee || 0))}</span>
                 </div>
               </div>
             </div>
@@ -1206,7 +1219,7 @@ export default function OrderDetails() {
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       type="button"
-                      onClick={() => setFollowMethod('HOME')}
+                      onClick={() => { setFollowMethod('HOME'); setFollowFee('0'); }}
                       className={cn(
                         "flex flex-col items-center justify-center p-4 rounded-2xl border transition-all gap-2",
                         followMethod === 'HOME' ? "bg-primary/5 border-primary ring-1 ring-primary/20" : "bg-secondary/10 border-border/50"
@@ -1217,7 +1230,7 @@ export default function OrderDetails() {
 
                     <button
                       type="button"
-                      onClick={() => setFollowMethod('711')}
+                      onClick={() => { setFollowMethod('711'); setFollowFee('60'); }}
                       className={cn(
                         "flex flex-col items-center justify-center p-4 rounded-2xl border transition-all gap-2",
                         followMethod === '711' ? "bg-[#008134]/5 border-[#008134] ring-1 ring-[#008134]/20" : "bg-secondary/10 border-border/50"
@@ -1225,6 +1238,18 @@ export default function OrderDetails() {
                     >
                       <span className="text-xs font-bold">{t('create.cvs_pickup')}</span>
                     </button>
+                  </div>
+
+                  <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                    <Input
+                      label={t('create.shipping_fee')}
+                      type="number"
+                      value={followFee}
+                      onChange={(e) => setFollowFee(e.target.value)}
+                      disabled={followMethod === '711'}
+                      className={cn(followMethod === '711' && "bg-secondary/20")}
+                      hint={followMethod === '711' ? "7-11 運費固定為 60" : "請輸入物流預估運費"}
+                    />
                   </div>
 
                   {followMethod === 'HOME' ? (
@@ -1281,7 +1306,8 @@ export default function OrderDetails() {
                           shipping_address: followMethod === 'HOME' ? followAddress : `${followCvsStore.store_name} - ${followCvsStore.store_address}`,
                           cvs_store_info: followMethod === '711' ? followCvsStore : null,
                           recipient_name: followName,
-                          recipient_phone: followPhone
+                          recipient_phone: followPhone,
+                          shipping_fee: parseFloat(followFee || '0')
                         });
                         setShowFollowModal(false);
                         router.push(`/orders/${result.id}`);

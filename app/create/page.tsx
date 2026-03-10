@@ -54,6 +54,7 @@ export default function CreateWish() {
     recipient_phone: '',
     is_partial_payment: false,
     deposit_percentage: 100,
+    shipping_fee: '0',
   });
 
   const [photo, setPhoto] = useState<File | null>(null);
@@ -68,7 +69,9 @@ export default function CreateWish() {
         setFormData(prev => ({
           ...prev,
           cvs_store_info: payload,
-          shipping_address: `${payload.store_name} (${payload.store_id}) - ${payload.store_address}`
+          shipping_address: `${payload.store_name} (${payload.store_id}) - ${payload.store_address}`,
+          shipping_method: '711',
+          shipping_fee: '60'
         }));
       }
     };
@@ -87,7 +90,9 @@ export default function CreateWish() {
     setFormData(prev => ({
       ...prev,
       cvs_store_info: mockStore,
-      shipping_address: `${mockStore.store_name} (${mockStore.store_id}) - ${mockStore.store_address}`
+      shipping_address: `${mockStore.store_name} (${mockStore.store_id}) - ${mockStore.store_address}`,
+      shipping_method: '711',
+      shipping_fee: '60'
     }));
   };
 
@@ -170,7 +175,8 @@ export default function CreateWish() {
     const price = parseFloat(formData.target_price || '0');
     const rate = parseFloat(formData.exchange_rate || '1');
     const reward = parseFloat(formData.reward_fee || '0');
-    return (price * rate) + reward;
+    const shipping = parseFloat(formData.shipping_fee || '0');
+    return (price * rate) + reward + shipping;
   };
 
   const calculateTotal = () => {
@@ -278,6 +284,7 @@ export default function CreateWish() {
         cvs_store_info: formData.cvs_store_info,
         recipient_name: formData.recipient_name,
         recipient_phone: formData.recipient_phone,
+        shipping_fee: parseFloat(formData.shipping_fee || '0'),
         is_partial_payment: formData.is_partial_payment,
         deposit_percentage: formData.is_partial_payment ? formData.deposit_percentage : 100,
         deposit_amount: formData.is_partial_payment
@@ -509,7 +516,7 @@ export default function CreateWish() {
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
-                    onClick={() => setFormData(p => ({ ...p, shipping_method: 'HOME' }))}
+                    onClick={() => setFormData(p => ({ ...p, shipping_method: 'HOME', shipping_fee: p.shipping_method === '711' ? '0' : p.shipping_fee }))}
                     className={cn(
                       "flex flex-col items-center justify-center p-4 rounded-2xl border transition-all gap-2",
                       formData.shipping_method === 'HOME'
@@ -523,7 +530,7 @@ export default function CreateWish() {
 
                   <button
                     type="button"
-                    onClick={() => setFormData(p => ({ ...p, shipping_method: '711' }))}
+                    onClick={() => setFormData(p => ({ ...p, shipping_method: '711', shipping_fee: '60' }))}
                     className={cn(
                       "flex flex-col items-center justify-center p-4 rounded-2xl border transition-all gap-2",
                       formData.shipping_method === '711'
@@ -638,6 +645,21 @@ export default function CreateWish() {
                     <p className="text-[10px] text-muted-foreground italic px-1">{t('create.address_privacy_hint')}</p>
                   </div>
                 )}
+
+                {/* Shipping Fee Input for non-711 methods */}
+                <div className="animate-in fade-in slide-in-from-top-2">
+                  <Input
+                    label={t('create.shipping_fee') || '運費 (TWD)'}
+                    name="shipping_fee"
+                    type="number"
+                    placeholder="0"
+                    value={formData.shipping_fee}
+                    onChange={handleChange}
+                    disabled={formData.shipping_method === '711'}
+                    className={cn(formData.shipping_method === '711' && "bg-secondary/20 opacity-70")}
+                    hint={formData.shipping_method === '711' ? "7-11 運費固定為 60" : "請輸入物流預估運費"}
+                  />
+                </div>
 
                 {/* Recipient Information (Always required for logistics tracking) */}
                 <div className="grid grid-cols-2 gap-3 pt-2">
@@ -924,13 +946,10 @@ export default function CreateWish() {
                         <p className="text-xs font-mono text-muted-foreground leading-relaxed">
                           ({formData.target_price || 0} {formData.currency} × {formData.exchange_rate} <span className="text-[10px] text-primary/60 italic">{t('create.ex_rate')}</span>)
                           <br />+ NT$ {formData.reward_fee || 0} <span className="text-[10px] text-green-600/60 italic">{t('order.reward_fee')}</span>
+                          <br />+ NT$ {formData.shipping_fee || 0} <span className="text-[10px] text-blue-600/60 italic">{t('create.shipping_fee')}</span>
                           <br />+ NT$ {calculateFee(calculateSubtotal())} <span className="text-[10px] text-red-500/60 italic">{t('create.platform_fee')}</span>
                         </p>
-                        <div className="mt-2 pt-2 border-t border-border/30">
-                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">{t('create.platform_fee')}</p>
-                          <p className="text-xs">NT$ {calculateFee(calculateSubtotal())}</p>
-                        </div>
-                        <p className="text-[10px] text-muted-foreground mt-1 opacity-70 italic">{t('create.formula_help')}</p>
+                        <p className="text-[10px] text-muted-foreground mt-2 opacity-70 italic border-t border-border/30 pt-2">{t('create.formula_help')}</p>
                       </div>
                     )}
 

@@ -101,6 +101,11 @@ export const WishCard = ({ order }: WishCardProps) => {
                 <span className="text-xs font-bold px-2.5 py-1 rounded-md bg-green-50 text-green-700 border border-green-100 shadow-sm">
                   +NT$ {order.reward_fee.toLocaleString()} {t('order.reward_fee')}
                 </span>
+                {order.shipping_fee > 0 && (
+                  <span className="text-[10px] font-bold px-2 py-1 rounded-md bg-blue-50 text-blue-700 border border-blue-100 flex items-center gap-1 shadow-sm">
+                    🚚 {t('order.shipping_fee')} NT$ {order.shipping_fee}
+                  </span>
+                )}
                 {order.expected_shipping_date && (
                   <span className="text-[10px] font-bold px-2 py-1 rounded-md bg-blue-50 text-blue-700 border border-blue-100 flex items-center gap-1 shadow-sm">
                     📅 {t('create.return_date_short')} {order.expected_shipping_date}
@@ -118,7 +123,7 @@ export const WishCard = ({ order }: WishCardProps) => {
             </div>
             <div className="flex flex-col text-right">
               <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-0.5">{t('order.total_budget')}</span>
-              <span className="text-base font-black text-primary">NT${(order.total_amount_twd || Math.round(order.target_price * (order.exchange_rate || 1) + order.reward_fee)).toLocaleString()}</span>
+              <span className="text-base font-black text-primary">NT${(order.total_amount_twd || Math.round(order.target_price * (order.exchange_rate || 1) + order.reward_fee + (order.shipping_fee || 0))).toLocaleString()}</span>
             </div>
           </div>
         </CardContent>

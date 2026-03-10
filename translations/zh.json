@@ -73,7 +73,7 @@
         "total_est": "預計總支付額 (TWD)",
         "submit": "發布願望",
         "formula_title": "預算計算公式",
-        "formula_help": "總支出 = (物品原價 [外幣] × 匯率 [TWD]) + 補貼報酬 [TWD] + 平台服務費 [TWD]",
+        "formula_help": "總支出 = (物品原價 [外幣] × 匯率 [TWD]) + 補貼報酬 [TWD] + 物流運費 [TWD] + 平台服務費 [TWD]",
         "platform_fee": "平台服務費",
         "buyer_fee": "買家服務費",
         "traveler_fee": "平台服務費",
@@ -127,7 +127,8 @@
         "btn_next": "下一步",
         "btn_back": "上一步",
         "pick_date": "選擇日期",
-        "recommendation_hint": "點擊商品可直接代入願望詳情"
+        "recommendation_hint": "點擊商品可直接代入願望詳情",
+        "shipping_fee": "物流運費"
     },
     "dashboard": {
         "title": "個人控制台",
@@ -167,6 +168,7 @@
         "target_price": "物品原價",
         "reward_fee": "給予補貼/報酬",
         "total_budget": "總計預算",
+        "shipping_fee": "寄送運費",
         "buyer_paid_total": "買家支付總額",
         "notify_paid_btn": "我已完成匯款",
         "notify_paid_success": "已送出付款通知，請靜候管理員確認。",

@@ -53,7 +53,7 @@ export const fetchOrderById = async (id: string) => {
 
 export const createOrder = async (order: Omit<Order, 'id' | 'status' | 'created_at' | 'total_amount' | 'total_amount_twd'>) => {
   const base_amount_twd = (order.target_price * order.exchange_rate) + order.reward_fee;
-  const total_amount_twd = base_amount_twd + (order.buyer_platform_fee || 0);
+  const total_amount_twd = base_amount_twd + (order.buyer_platform_fee || 0) + (order.shipping_fee || 0);
   const total_amount = total_amount_twd;
 
   const { data, error } = await supabase
@@ -82,6 +82,7 @@ export const followOrder = async (
     cvs_store_info?: any;
     recipient_name: string;
     recipient_phone: string;
+    shipping_fee: number;
   }
 ) => {
   const parentOrder = await fetchOrderById(parentOrderId);

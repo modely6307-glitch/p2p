@@ -50,6 +50,7 @@ export interface Order {
   is_partial_payment?: boolean;
   deposit_amount?: number | null;
   deposit_percentage?: number | null;
+  shipping_fee: number;
   buyer?: Profile;
   traveler?: Profile;
   dispute_reason?: string | null;
