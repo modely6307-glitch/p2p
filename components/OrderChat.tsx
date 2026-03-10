@@ -117,28 +117,18 @@ export function OrderChat({ orderId, currentUserId, role, partnerName }: OrderCh
     };
 
     return (
-        <div className="flex flex-col bg-card rounded-2xl border border-border shadow-sm overflow-hidden h-[500px]">
-            {/* Header */}
-            <div className="bg-secondary/30 border-b border-border/50 p-4 shrink-0 flex items-center gap-3">
-                <MessageSquare className="w-5 h-5 text-primary" />
-                <div>
-                    <h3 className="font-bold text-sm tracking-wide">{t('chat.title') || 'Order Message Board'}</h3>
-                    <p className="text-[10px] text-muted-foreground">
-                        {partnerName ? `${t('chat.chat_with') || 'Chat with'} ${partnerName}` : (t('chat.subtitle') || 'Communicate securely')}
-                    </p>
-                </div>
-            </div>
+        <div className="flex flex-col bg-background overflow-hidden h-full w-full relative">
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-background/50">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {loading ? (
                     <div className="flex justify-center items-center h-full">
                         <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
                     </div>
                 ) : messages.length === 0 ? (
-                    <div className="flex flex-col justify-center items-center h-full space-y-2 opacity-50">
-                        <MessageSquare className="w-8 h-8 text-muted-foreground" />
-                        <p className="text-sm text-muted-foreground">{t('chat.no_messages') || 'No messages yet. Start the conversation!'}</p>
+                    <div className="flex flex-col justify-center items-center h-full space-y-3 opacity-40">
+                        <MessageSquare className="w-12 h-12 text-muted-foreground" />
+                        <p className="text-sm font-medium">{t('chat.no_messages') || 'No messages yet. Start the conversation!'}</p>
                     </div>
                 ) : (
                     messages.map((msg) => {
@@ -180,7 +170,7 @@ export function OrderChat({ orderId, currentUserId, role, partnerName }: OrderCh
             </div>
 
             {/* Input Area */}
-            <div className="border-t border-border/50 shrink-0 bg-card p-3 flex flex-col gap-2">
+            <div className="border-t border-border/50 shrink-0 bg-background pb-safe p-3 md:p-4 flex flex-col gap-2 relative z-10">
                 {imagePreview && (
                     <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-border">
                         <img src={imagePreview} className="w-full h-full object-cover bg-secondary" alt="Preview" />

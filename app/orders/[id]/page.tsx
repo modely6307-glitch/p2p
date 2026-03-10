@@ -380,6 +380,20 @@ export default function OrderDetails() {
     }
   };
 
+  const handleCancelDispute = async () => {
+    if (!currentViewOrder) return;
+    if (!confirm('確定要取消申訴嗎？訂單將回到先前的狀態。')) return;
+    try {
+      const { cancelDispute } = await import('@/app/actions/orders');
+      const result = await cancelDispute(currentViewOrder.id);
+      if (!result.success) throw new Error(result.error);
+      await loadOrder();
+    } catch (error: any) {
+      console.error('Error canceling dispute:', error);
+      alert(error.message || t('common.error'));
+    }
+  };
+
   const handleResolveDispute = async (status: OrderStatus) => {
     if (!currentViewOrder) return;
     const actionName = status === 'DELISTED' ? '取消訂單退款' : (status === 'COMPLETED' ? '完成訂單撥款' : `退回：${t(`status.${status}`)}`);
@@ -519,6 +533,15 @@ export default function OrderDetails() {
               )}
             </div>
 
+            {user && currentViewOrder.dispute_by_user_id === user.id && (
+              <div className="pt-4 border-t border-red-500/20">
+                <Button onClick={handleCancelDispute} variant="outline" className="w-full border-red-500 text-red-600 hover:bg-red-500/10">
+                  取消申訴
+                </Button>
+                <p className="text-xs text-center text-red-500/70 mt-2">如果您已與對方達成共識，可以取消申訴以繼續流程。</p>
+              </div>
+            )}
+
             {role === 'admin' && (
               <div className="pt-4 border-t border-red-500/20 space-y-3">
                 <p className="text-xs font-bold text-red-500/70 uppercase tracking-widest">管理員裁決</p>
@@ -551,6 +574,34 @@ export default function OrderDetails() {
             )}
           </CardContent>
         </Card>
+      )}
+
+      {currentViewOrder.status !== 'DISPUTE' && currentViewOrder.dispute_reason && (
+        <details className="mb-6 group bg-secondary/5 rounded-2xl border border-border/50 overflow-hidden transition-all duration-300">
+          <summary className="flex items-center gap-2 p-4 cursor-pointer select-none font-bold text-muted-foreground group-hover:text-foreground">
+            <AlertTriangle className="w-5 h-5 opacity-50 transition-colors group-hover:text-red-500/70" />
+            歷史申訴紀錄
+            <span className="text-[10px] bg-secondary px-2 py-0.5 rounded-full ml-auto group-open:hidden">點擊展開</span>
+          </summary>
+          <div className="p-4 pt-0 space-y-4 border-t border-border/10">
+            <div className="bg-background/50 p-4 rounded-xl space-y-2">
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{t('order.dispute_reason')}</p>
+              <p className="text-sm">{currentViewOrder.dispute_reason}</p>
+              {currentViewOrder.dispute_evidence_url && (
+                <div className="mt-3">
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1">{t('order.dispute_evidence_uploaded')}</p>
+                  <img src={currentViewOrder.dispute_evidence_url} alt="Evidence" className="max-h-48 rounded-lg border shadow-sm opacity-80" />
+                </div>
+              )}
+            </div>
+            {currentViewOrder.dispute_resolution && (
+              <div className="pt-2 border-t border-border/10">
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1">申訴裁決/備註狀態</p>
+                <p className="text-sm text-foreground/80">{currentViewOrder.dispute_resolution}</p>
+              </div>
+            )}
+          </div>
+        </details>
       )}
 
       <Card>

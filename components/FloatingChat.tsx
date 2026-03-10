@@ -89,66 +89,71 @@ export function FloatingChat({ orderId, currentUserId, role, partnerName, lastRe
     };
 
     return (
-        <div className="fixed bottom-24 md:bottom-6 right-6 z-50 flex flex-col items-end gap-4 pointer-events-none">
-            {/* Chat Window */}
-            <div
-                className={cn(
-                    "bg-card shadow-2xl border border-primary/10 overflow-hidden flex flex-col transition-all duration-500 ease-in-out pointer-events-auto",
-                    isOpen
-                        ? "fixed inset-0 z-[60] opacity-100 translate-y-0 rounded-none md:absolute md:inset-auto md:bottom-0 md:right-0 md:w-[450px] md:h-[700px] md:rounded-3xl md:translate-y-0"
-                        : "opacity-0 translate-y-full pointer-events-none absolute bottom-0 right-0 w-0 h-0"
-                )}
-            >
-                {/* Header for the window */}
-                <div className="bg-primary p-4 md:p-3 flex justify-between items-center text-primary-foreground shrink-0 shadow-md">
-                    <div className="flex items-center gap-3 pl-2">
-                        <MessageSquare className="w-5 h-5" />
-                        <div className="flex flex-col">
-                            <span className="text-xs font-black uppercase tracking-widest leading-none">
-                                {partnerName || 'Order Chat'}
-                            </span>
-                            <span className="text-[10px] opacity-70 font-medium">Message Board</span>
+        <div className="fixed inset-0 z-[100] pointer-events-none flex justify-center">
+            {/* Inner responsive container matching <main> layout */}
+            <div className="w-full h-full max-w-md mx-auto lg:max-w-none relative pointer-events-none">
+                {/* Chat Window */}
+                <div
+                    className={cn(
+                        "bg-background shadow-2xl overflow-hidden flex flex-col transition-all duration-300 ease-in-out pointer-events-auto",
+                        isOpen
+                            ? "absolute inset-0 opacity-100 translate-y-0 rounded-none lg:inset-auto lg:bottom-[88px] lg:right-6 lg:w-[450px] lg:h-[700px] lg:border lg:border-border lg:rounded-3xl"
+                            : "absolute bottom-24 lg:bottom-6 right-6 w-0 h-0 opacity-0 translate-y-10"
+                    )}
+                >
+                    {/* Header for the window */}
+                    <div className="bg-primary p-4 lg:p-3 flex justify-between items-center text-primary-foreground shrink-0 shadow-md">
+                        <div className="flex items-center gap-3 pl-2">
+                            <MessageSquare className="w-5 h-5" />
+                            <div className="flex flex-col">
+                                <span className="text-xs font-black uppercase tracking-widest leading-none">
+                                    {partnerName || 'Order Chat'}
+                                </span>
+                                <span className="text-[10px] opacity-70 font-medium">Message Board</span>
+                            </div>
                         </div>
+                        <button
+                            onClick={() => setIsOpen(false)}
+                            className="p-3 lg:p-2 hover:bg-white/20 rounded-full transition-colors"
+                        >
+                            <X className="w-6 h-6 lg:w-5 lg:h-5" />
+                        </button>
                     </div>
-                    <button
-                        onClick={() => setIsOpen(false)}
-                        className="p-2 hover:bg-white/20 rounded-full transition-colors"
-                    >
-                        <X className="w-6 h-6 md:w-5 md:h-5" />
-                    </button>
+
+                    <div className="flex-1 overflow-hidden relative bg-background">
+                        <OrderChat
+                            orderId={orderId}
+                            currentUserId={currentUserId}
+                            role={role}
+                            partnerName={partnerName}
+                        />
+                    </div>
                 </div>
 
-                <div className="flex-1 overflow-hidden relative bg-background">
-                    <OrderChat
-                        orderId={orderId}
-                        currentUserId={currentUserId}
-                        role={role}
-                        partnerName={partnerName}
-                    />
-                </div>
+                {/* Toggle Button */}
+                <button
+                    onClick={toggleChat}
+                    className={cn(
+                        "absolute right-6 pointer-events-auto shadow-xl items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 w-14 h-14 rounded-full",
+                        isOpen
+                            ? "hidden lg:flex bg-secondary text-secondary-foreground rotate-90 bottom-6"
+                            : "flex bg-primary text-primary-foreground rotate-0 bottom-24 lg:bottom-6"
+                    )}
+                >
+                    {isOpen ? (
+                        <X className="w-7 h-7" />
+                    ) : (
+                        <>
+                            <MessageSquare className="w-7 h-7" />
+                            {unreadCount > 0 && (
+                                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-6 h-6 rounded-full flex items-center justify-center border-2 border-background animate-bounce shadow-lg">
+                                    {unreadCount > 99 ? '99+' : unreadCount}
+                                </span>
+                            )}
+                        </>
+                    )}
+                </button>
             </div>
-
-            {/* Toggle Button */}
-            <button
-                onClick={toggleChat}
-                className={cn(
-                    "w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 pointer-events-auto relative",
-                    isOpen ? "bg-secondary text-secondary-foreground rotate-90" : "bg-primary text-primary-foreground rotate-0"
-                )}
-            >
-                {isOpen ? (
-                    <X className="w-7 h-7" />
-                ) : (
-                    <>
-                        <MessageSquare className="w-7 h-7" />
-                        {unreadCount > 0 && (
-                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-6 h-6 rounded-full flex items-center justify-center border-2 border-background animate-bounce shadow-lg">
-                                {unreadCount > 99 ? '99+' : unreadCount}
-                            </span>
-                        )}
-                    </>
-                )}
-            </button>
         </div>
     );
 }

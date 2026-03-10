@@ -17,6 +17,7 @@ export default function AdminDisputesPage() {
     const router = useRouter();
     const { t } = useLanguage();
     const [orders, setOrders] = useState<Order[]>([]);
+    const [pastOrders, setPastOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
     const [resolutionNotes, setResolutionNotes] = useState<Record<string, string>>({});
 
@@ -40,7 +41,9 @@ export default function AdminDisputesPage() {
         try {
             const allOrders = await fetchAllOrders();
             const disputed = allOrders.filter(o => o.status === 'DISPUTE');
+            const pastDisputed = allOrders.filter(o => o.status !== 'DISPUTE' && o.dispute_reason);
             setOrders(disputed);
+            setPastOrders(pastDisputed);
         } catch (error) {
             console.error('Error loading disputed orders:', error);
         } finally {
@@ -186,10 +189,51 @@ export default function AdminDisputesPage() {
                             <CheckCircle2 className="w-8 h-8" />
                         </div>
                         <div>
-                            <p className="text-lg font-bold text-foreground">目前沒有任何爭議案件</p>
+                            <p className="text-lg font-bold text-foreground">目前沒有任何活動中的爭議案件</p>
                             <p className="text-sm text-muted-foreground">所有的交易都進行得很順利！</p>
                         </div>
                     </div>
+                )}
+
+                {pastOrders.length > 0 && (
+                    <details className="mt-12 group bg-white/50 rounded-2xl border border-gray-200 overflow-hidden">
+                        <summary className="flex items-center gap-2 p-4 cursor-pointer select-none font-bold text-gray-500 hover:text-gray-800">
+                            <AlertTriangle className="w-5 h-5 opacity-50" />
+                            歷史申訴紀錄 ({pastOrders.length})
+                        </summary>
+                        <div className="p-4 space-y-6 bg-gray-50">
+                            {pastOrders.map(order => (
+                                <Card key={order.id} className="overflow-hidden border-gray-200 shadow-sm opacity-80 hover:opacity-100 transition-opacity">
+                                    <CardHeader className="pb-2 border-b border-gray-100 bg-gray-100/30">
+                                        <div className="flex justify-between items-start">
+                                            <div className="space-y-1">
+                                                <div className="flex items-center gap-2">
+                                                    <CardTitle className="text-sm font-bold truncate max-w-sm">{order.item_name}</CardTitle>
+                                                    <StatusBadge status={order.status} />
+                                                </div>
+                                                <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Order ID: {order.id}</p>
+                                            </div>
+                                            <Button variant="outline" size="sm" onClick={() => router.push(`/orders/${order.id}`)} className="h-7 text-[10px] font-bold">
+                                                <ExternalLink className="w-3 h-3 mr-1" /> 查看
+                                            </Button>
+                                        </div>
+                                    </CardHeader>
+                                    <CardContent className="pt-3 text-xs space-y-3">
+                                        <div>
+                                            <span className="font-bold text-gray-500 mr-2">申訴理由:</span>
+                                            {order.dispute_reason}
+                                        </div>
+                                        {order.dispute_resolution && (
+                                            <div>
+                                                <span className="font-bold text-gray-500 mr-2">處理結果:</span>
+                                                <span className="text-gray-700 font-medium">{order.dispute_resolution}</span>
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    </details>
                 )}
             </div>
         </div>

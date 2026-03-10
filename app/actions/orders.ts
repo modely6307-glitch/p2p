@@ -172,6 +172,51 @@ export async function raiseDispute(orderId: string, reason: string, evidenceUrl?
     }
 }
 
+export async function cancelDispute(orderId: string) {
+    try {
+        const supabaseClient = await createClient();
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user) throw new Error("您尚未登入");
+
+        const supabaseAdmin = getSupabaseAdmin();
+
+        const { data: order, error: fetchError } = await supabaseAdmin
+            .from('orders')
+            .select('*')
+            .eq('id', orderId)
+            .single();
+
+        if (fetchError || !order) throw new Error("找不到訂單");
+
+        if (order.status !== 'DISPUTE') throw new Error("此訂單不在爭議中");
+        if (order.dispute_by_user_id !== user.id) {
+            throw new Error("只有申訴人可以取消申訴");
+        }
+
+        if (!order.previous_status) {
+            throw new Error("無法取消申訴（缺少先前的狀態記錄）");
+        }
+
+        const updates: Partial<any> = {
+            status: order.previous_status,
+            previous_status: null,
+            dispute_resolution: '申訴已由發起人自行取消',
+            dispute_resolved_at: new Date().toISOString()
+        };
+
+        const { error: updateError } = await supabaseAdmin
+            .from('orders')
+            .update(updates)
+            .eq('id', orderId);
+
+        if (updateError) throw updateError;
+        return { success: true };
+    } catch (error: any) {
+        console.error("Server Action cancelDispute Error:", error);
+        return { success: false, error: error.message };
+    }
+}
+
 export async function resolveDispute(orderId: string, resolutionStatus: OrderStatus, notes: string) {
     try {
         const supabaseClient = await createClient();
@@ -192,8 +237,9 @@ export async function resolveDispute(orderId: string, resolutionStatus: OrderSta
 
         if (fetchError || !order) throw new Error("找不到訂單");
         if (order.status !== 'DISPUTE') throw new Error("此訂單不在爭議中");
-        if (resolutionStatus !== 'COMPLETED' && resolutionStatus !== 'DELISTED') {
-            throw new Error("爭議只能裁決為『完成訂單 (COMPLETED)』或『取消退款 (DELISTED)』");
+        const validResolutions = ['COMPLETED', 'DELISTED', 'MATCHED', 'ESCROWED', 'BOUGHT', 'SHIPPED'];
+        if (!validResolutions.includes(resolutionStatus)) {
+            throw new Error(`不合法的裁決狀態: ${resolutionStatus}`);
         }
 
         const updates: Partial<any> = {
