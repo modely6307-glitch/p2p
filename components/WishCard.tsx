@@ -80,10 +80,12 @@ export const WishCard = ({ order }: WishCardProps) => {
               </div>
 
               <div className="flex items-center gap-1.5 mb-2.5 text-gray-600">
-                <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200">
-                  <span className="text-[10px] font-bold">👤</span>
-                </div>
-                <span className="text-xs font-semibold truncate max-w-[80px]">{displayName}</span>
+                <Link href={`/profile/${order.buyer_id}`} className="flex items-center gap-1.5 hover:text-primary transition-colors group/user">
+                  <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200 group-hover/user:border-primary/30 group-hover/user:bg-primary/5 transition-colors">
+                    <span className="text-[10px] font-bold">👤</span>
+                  </div>
+                  <span className="text-xs font-semibold truncate max-w-[80px]">{displayName}</span>
+                </Link>
                 {successRate !== null && (
                   <span className="text-[10px] bg-yellow-50 text-yellow-700 px-1.5 py-0.5 rounded-md font-medium flex items-center gap-1 border border-yellow-100">
                     ⭐ {successRate}%

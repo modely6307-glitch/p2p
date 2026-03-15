@@ -53,6 +53,8 @@ const maskEmail = (email: string | null | undefined) => {
   return (displayPrefix + '***').slice(0, 6).padEnd(6, '*');
 };
 
+import Link from 'next/link';
+
 export default function OrderDetails() {
   const params = useParams();
   const router = useRouter();
@@ -456,26 +458,28 @@ export default function OrderDetails() {
 
         {/* Partner Profile Display */}
         {partnerProfile && (
-          <div className="bg-primary/5 rounded-2xl p-4 border border-primary/10 mb-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
-                <span className="text-lg">👤</span>
-              </div>
-              <div>
-                <p className="text-[10px] font-bold text-primary uppercase tracking-widest">{partnerRoleName}</p>
-                <div className="flex items-center gap-2">
-                  <p className="font-bold text-sm">{partnerDisplayName}</p>
-                  {partnerProfile.is_verified && <ShieldCheck className="w-4 h-4 text-blue-500 fill-blue-500/10" />}
+          <Link href={`/profile/${partnerProfile.id}`} className="block group/partner">
+            <div className="bg-primary/5 rounded-2xl p-4 border border-primary/10 mb-4 flex items-center justify-between group-hover/partner:bg-primary/10 group-hover/partner:border-primary/20 transition-all">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center group-hover/partner:bg-background transition-colors">
+                  <span className="text-lg">👤</span>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-primary uppercase tracking-widest">{partnerRoleName}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-bold text-sm group-hover/partner:text-primary transition-colors">{partnerDisplayName}</p>
+                    {partnerProfile.is_verified && <ShieldCheck className="w-4 h-4 text-blue-500 fill-blue-500/10" />}
+                  </div>
                 </div>
               </div>
+              {partnerRating !== null && (
+                <div className="text-right">
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold">{t('profile.reputation')}</p>
+                  <p className="text-sm font-black text-yellow-600">⭐ {partnerRating}%</p>
+                </div>
+              )}
             </div>
-            {partnerRating !== null && (
-              <div className="text-right">
-                <p className="text-[10px] text-muted-foreground uppercase font-bold">{t('profile.reputation')}</p>
-                <p className="text-sm font-black text-yellow-600">⭐ {partnerRating}%</p>
-              </div>
-            )}
-          </div>
+          </Link>
         )}
         {currentViewOrder.photo_url && (
           <div className="mb-4 rounded-2xl overflow-hidden border border-border shadow-sm">
@@ -884,7 +888,7 @@ export default function OrderDetails() {
                       </div>
 
                       {/* Potential Buyer View: Follow (if not original buyer) */}
-                      {user && order.buyer_id !== user.id && (
+                      {user && currentViewOrder.buyer_id !== user.id && (
                         <div className="space-y-4 pt-4 border-t border-border/50 animate-in fade-in slide-in-from-top-2">
                           <p className="text-center text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">或者，我也想要買這個：</p>
                           <Button
