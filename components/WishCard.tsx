@@ -7,6 +7,7 @@ import { Order } from '@/types';
 import { cn } from '@/lib/utils';
 import { Gift, ShieldCheck } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
+import { useRouter } from 'next/navigation';
 
 interface WishCardProps {
   order: Order;
@@ -34,6 +35,7 @@ const maskEmail = (email: string | undefined) => {
 
 export const WishCard = ({ order }: WishCardProps) => {
   const { t } = useLanguage();
+  const router = useRouter();
   const currencySymbol = getCurrencySymbol(order.currency);
   const countryConfig = getCountryFlag(order.country);
 
@@ -79,18 +81,25 @@ export const WishCard = ({ order }: WishCardProps) => {
                 <h3 className="text-base font-bold truncate leading-tight">{order.item_name}</h3>
               </div>
 
-              <div className="flex items-center gap-1.5 mb-2.5 text-gray-600">
-                <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200">
+              <div 
+                className="flex items-center gap-1.5 mb-2.5 text-gray-600 cursor-pointer hover:bg-gray-100/50 p-1 -ml-1 rounded-md transition-colors"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  router.push(`/profile/${order.buyer_id}`);
+                }}
+              >
+                <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200 shrink-0">
                   <span className="text-[10px] font-bold">👤</span>
                 </div>
                 <span className="text-xs font-semibold truncate max-w-[80px]">{displayName}</span>
                 {successRate !== null && (
-                  <span className="text-[10px] bg-yellow-50 text-yellow-700 px-1.5 py-0.5 rounded-md font-medium flex items-center gap-1 border border-yellow-100">
+                  <span className="text-[10px] bg-yellow-50 text-yellow-700 px-1.5 py-0.5 rounded-md font-medium flex items-center gap-1 border border-yellow-100 shrink-0">
                     ⭐ {successRate}%
                   </span>
                 )}
                 {order.buyer?.is_verified && (
-                  <ShieldCheck className="w-3.5 h-3.5 text-blue-500 fill-blue-500/10" />
+                  <ShieldCheck className="w-3.5 h-3.5 text-blue-500 fill-blue-500/10 shrink-0" />
                 )}
               </div>
 
