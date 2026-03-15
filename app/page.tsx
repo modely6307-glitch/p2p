@@ -30,6 +30,7 @@ export default function LandingPage() {
   const [departureDate, setDepartureDate] = useState('');
   const [returnDate, setReturnDate] = useState('');
   const [showAI, setShowAI] = useState(false);
+  const [activeLandingFilter, setActiveLandingFilter] = useState('Global');
 
   const navigateToMarket = () => {
     let params = new URLSearchParams();
@@ -57,15 +58,23 @@ export default function LandingPage() {
 
   const { object: japanData, submit: fetchJapan } = useObject({
     api: '/api/recommend',
-    schema: z.object({
-      items: z.array(z.object({ name: z.string() }))
-    })
+    schema: z.object({ items: z.array(z.object({ name: z.string(), flag: z.string().optional() })) })
+  });
+  const { object: koreaData, submit: fetchKorea } = useObject({
+    api: '/api/recommend',
+    schema: z.object({ items: z.array(z.object({ name: z.string(), flag: z.string().optional() })) })
+  });
+  const { object: thailandData, submit: fetchThailand } = useObject({
+    api: '/api/recommend',
+    schema: z.object({ items: z.array(z.object({ name: z.string(), flag: z.string().optional() })) })
   });
 
   useEffect(() => {
     // 預加載主動顯示的第一個國家以在卡片上展示
     const timer1 = setTimeout(() => {
       fetchJapan({ country: 'Japan', startDate, endDate, attempt: 1 });
+      fetchKorea({ country: 'Korea', startDate, endDate, attempt: 1 });
+      fetchThailand({ country: 'Thailand', startDate, endDate, attempt: 1 });
     }, 500);
 
     // 其他國家則背景抓取，建立後台 Cache (無感載入)
@@ -319,19 +328,67 @@ export default function LandingPage() {
                 </div>
               </div>
 
-              {/* Align items with the text block for better hierarchy */}
-              <div className="w-full md:pl-[104px] flex gap-4 overflow-x-auto no-scrollbar py-2">
-                {japanData?.items ? japanData.items.slice(0, 3).map((item, idx) => (
-                  <div key={idx} className="flex-shrink-0 flex items-center gap-2 px-5 py-2.5 bg-white/70 backdrop-blur-md rounded-2xl border border-white group-hover:border-blue-200 shadow-sm transition-all hover:shadow-md hover:translate-y-[-2px]">
-                    <span className="text-sm font-bold text-gray-800">{item?.name || '...'}</span>
-                  </div>
-                )) : (
-                  <>
-                    <div className="h-10 w-24 bg-white/40 rounded-xl animate-pulse" />
-                    <div className="h-10 w-24 bg-white/40 rounded-xl animate-pulse" />
-                    <div className="h-10 w-24 bg-white/40 rounded-xl animate-pulse" />
-                  </>
-                )}
+              {/* Country Selection Pills for quick preview filter */}
+              <div className="w-full md:pl-[104px] flex gap-3 overflow-x-auto no-scrollbar pb-2">
+                 {['Global', 'Japan', 'Korea', 'Thailand'].map((c) => (
+                   <button
+                     key={c}
+                     onClick={(e) => {
+                       e.stopPropagation();
+                       setActiveLandingFilter(c);
+                     }}
+                     className={cn(
+                       "px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all duration-300 border shadow-sm flex items-center gap-2",
+                       activeLandingFilter === c 
+                         ? "bg-primary text-white border-primary shadow-primary/20 scale-105" 
+                         : "bg-white/80 backdrop-blur-md text-gray-500 border-white hover:border-primary/30"
+                     )}
+                   >
+                     {c === 'Global' ? '全球' : t(`countries.${c}`)}
+                   </button>
+                 ))}
+              </div>
+
+              {/* Vertical mixed list optimized for visuals */}
+              <div className="w-full md:pl-[104px] grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
+                {(() => {
+                  let displayItems: any[] = [];
+                  const defaultFlag: Record<string, string> = { 'Japan': '🇯🇵', 'Korea': '🇰🇷', 'Thailand': '🇹🇭' };
+                  
+                  if (activeLandingFilter === 'Global') {
+                    displayItems = [
+                      ...(japanData?.items?.slice(0, 2).filter(Boolean).map(i => ({ ...i, flag: i.flag || '🇯🇵' })) || []),
+                      ...(koreaData?.items?.slice(0, 2).filter(Boolean).map(i => ({ ...i, flag: i.flag || '🇰🇷' })) || []),
+                      ...(thailandData?.items?.slice(0, 2).filter(Boolean).map(i => ({ ...i, flag: i.flag || '🇹🇭' })) || [])
+                    ];
+                  } else {
+                    const data: any = activeLandingFilter === 'Japan' ? japanData 
+                                 : activeLandingFilter === 'Korea' ? koreaData 
+                                 : thailandData;
+                    displayItems = data?.items?.slice(0, 6).filter(Boolean).map((i: any) => ({ ...i, flag: i.flag || defaultFlag[activeLandingFilter] })) || [];
+                  }
+
+                  if (displayItems.length === 0) {
+                    return [1, 2, 3, 4, 5, 6].map(i => (
+                      <div key={i} className="h-16 w-full bg-white/40 rounded-2xl animate-pulse border border-white/50" />
+                    ));
+                  }
+
+                  return displayItems.map((item, idx) => (
+                    <div 
+                      key={idx} 
+                      className="group/item flex items-center gap-4 px-5 py-4 bg-white/60 backdrop-blur-xl rounded-2xl border border-white/80 hover:border-primary/40 shadow-[0_4px_20px_rgba(0,0,0,0.03)] transition-all hover:shadow-lg hover:translate-y-[-2px] relative overflow-hidden"
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full group-hover/item:animate-shimmer" />
+                      <div className="w-10 h-10 rounded-xl bg-white shadow-inner flex items-center justify-center text-2xl shrink-0 border border-gray-50">
+                        {item?.flag}
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-sm font-black text-gray-800 truncate">{item?.name}</span>
+                      </div>
+                    </div>
+                  ));
+                })()}
               </div>
             </CardContent>
           </Card>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createOrder, uploadFile, updateProfile } from '@/utils/api';
 import { Profile } from '@/types';
@@ -25,6 +25,7 @@ export default function CreateWish() {
   const router = useRouter();
   const { user, profile: userProfile, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
+  const processingRef = useRef(false);
   const { t } = useLanguage();
   const [step, setStep] = useState(0); // 0: Country, 1: Method, 2: AI Tiers, 3: Form
   const [method, setMethod] = useState<'custom' | 'ai' | null>(null);
@@ -32,7 +33,13 @@ export default function CreateWish() {
   const [showFormula, setShowFormula] = useState(false);
   const [rememberAddress, setRememberAddress] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const dateInputRef = useRef<HTMLDivElement>(null);
+
+  const showAlert = (msg: string) => {
+    setAlertMessage(msg);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const [formData, setFormData] = useState({
     item_name: '',
@@ -186,81 +193,93 @@ export default function CreateWish() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) { alert('請先登入'); return; }
-    if (!userProfile) { alert('個人資料載入中，請稍後再試'); return; }
-
-    // Explicit field validation with visible feedback
-    const missingFields: string[] = [];
-    if (!formData.item_name.trim()) missingFields.push('物品名稱');
-    if (!formData.description.trim()) missingFields.push('描述/備註');
-    if (!formData.recipient_name.trim()) missingFields.push('收件人姓名');
-    if (!formData.recipient_phone.trim()) missingFields.push('收件人電話');
-    if (!parseFloat(formData.target_price)) missingFields.push('物品原價');
-    if (!parseFloat(formData.reward_fee) && parseFloat(formData.reward_fee) !== 0) missingFields.push('補貼/報酬');
-    if (formData.shipping_method === 'HOME' && !formData.shipping_address.trim()) missingFields.push('收件地址');
-
-    if (missingFields.length > 0) {
-      alert(`請填寫以下必填欄位：\n${missingFields.join('、')}`);
-      return;
-    }
-
-    if (rememberAddress && formData.shipping_address) {
-      await updateProfile(user.id, {
-        address: formData.shipping_address,
-        phone: formData.recipient_phone,
-        display_name: formData.recipient_name
-      });
-    }
-
-    if (formData.shipping_method === '711' && !formData.cvs_store_info) {
-      alert(t('create.select_store'));
-      return;
-    }
-
-    const subtotal = calculateSubtotal();
-    const fee = calculateFee(subtotal);
-    const travelerFee = calculateTravelerFee(subtotal);
-
-    // Date Validation
-    if (!formData.expected_shipping_date) {
-      setErrors(prev => ({ ...prev, expected_shipping_date: t('create.err_date_required') }));
-      dateInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      alert('請選擇預期回國日期');
-      return;
-    }
-
-    const selectedDate = new Date(formData.expected_shipping_date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    if (selectedDate < today) {
-      alert(t('create.err_past_date'));
-      return;
-    }
-
-    const threeDaysLater = new Date();
-    threeDaysLater.setHours(0, 0, 0, 0);
-    threeDaysLater.setDate(threeDaysLater.getDate() + 3);
-
-    if (userProfile.level === 'STANDARD' && selectedDate < threeDaysLater) {
-      alert(t('create.err_verified_only_3days'));
-      return;
-    }
-
-    // Enforcement: Standard users limit 5000 TWD
-    if (userProfile.level === 'STANDARD' && (subtotal + fee) > 5000) {
-      alert(t('create.limit_alert', { total: (subtotal + fee).toFixed(0) }));
-      return;
-    }
-
-    setLoading(true);
-
+    if (processingRef.current) return;
+    processingRef.current = true;
+    
     try {
+      if (!user) { showAlert('請先登入'); return; }
+      if (!userProfile) { showAlert('個人資料載入中，請稍後再試'); return; }
+
+      console.log('[Debug] User Verification Status:', userProfile.is_verified);
+      console.log('[Debug] Current Total Amount:', (calculateSubtotal() + calculateFee(calculateSubtotal())));
+
+      // Explicit field validation with visible feedback
+      const missingFields: string[] = [];
+      if (!formData.item_name.trim()) missingFields.push('物品名稱');
+      if (!formData.description.trim()) missingFields.push('描述/備註');
+      if (!formData.recipient_name.trim()) missingFields.push('收件人姓名');
+      if (!formData.recipient_phone.trim()) missingFields.push('收件人電話');
+      if (!parseFloat(formData.target_price)) missingFields.push('物品原價');
+      if (!parseFloat(formData.reward_fee) && parseFloat(formData.reward_fee) !== 0) missingFields.push('補貼/報酬');
+      if (formData.shipping_method === 'HOME' && !formData.shipping_address.trim()) missingFields.push('收件地址');
+
+      if (missingFields.length > 0) {
+        showAlert(`請填寫以下必填欄位：${missingFields.join('、')}`);
+        return;
+      }
+
+      if (rememberAddress && formData.shipping_address) {
+        await updateProfile(user.id, {
+          address: formData.shipping_address,
+          phone: formData.recipient_phone,
+          display_name: formData.recipient_name
+        });
+      }
+
+      if (formData.shipping_method === '711' && !formData.cvs_store_info) {
+        showAlert(t('create.select_store'));
+        return;
+      }
+
+      const subtotal = calculateSubtotal();
+      const fee = calculateFee(subtotal);
+      const travelerFee = calculateTravelerFee(subtotal);
+
+      // Date Validation
+      if (!formData.expected_shipping_date) {
+        setErrors(prev => ({ ...prev, expected_shipping_date: t('create.err_date_required') }));
+        dateInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        showAlert('請選擇預期回國日期');
+        return;
+      }
+
+      const selectedDate = new Date(formData.expected_shipping_date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const diffDays = Math.ceil((selectedDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (selectedDate < today) {
+        showAlert(t('create.err_past_date'));
+        return;
+      }
+
+      const threeDaysLater = new Date();
+      threeDaysLater.setHours(0, 0, 0, 0);
+      threeDaysLater.setDate(threeDaysLater.getDate() + 3);
+
+      if (!userProfile.is_verified && selectedDate < threeDaysLater) {
+        showAlert(t('create.err_verified_only_3days'));
+        return;
+      }
+
+      // Enforcement: Standard users limit 5000 TWD
+      if (!userProfile.is_verified && (subtotal + fee) > 5000) {
+        showAlert(t('create.limit_alert', { total: (subtotal + fee).toFixed(0) }));
+        return;
+      }
+
+      setLoading(true);
+
       let photo_url = null;
       if (photo) {
         const path = `${user.id}/${Date.now()}-${photo.name}`;
         photo_url = await uploadFile(photo, 'wishes', path);
       }
+
+      // Check AI Search eligibility
+      const isUrgent = diffDays <= 7;
+      const isHighValue = (subtotal + fee) > 10000;
+      const isEligibleForAi = userProfile.is_verified && (isUrgent || isHighValue);
 
       const result = await createOrder({
         buyer_id: user.id,
@@ -291,13 +310,29 @@ export default function CreateWish() {
           ? Math.round(calculateTotal() * (formData.deposit_percentage / 100))
           : calculateTotal(),
         payment_notification_sent: false,
+        ai_search_status: isEligibleForAi ? 'PENDING' : null,
       });
+
+      if (isEligibleForAi) {
+        fetch('/api/ai-search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orderId: result.id,
+            itemName: formData.item_name,
+            country: formData.country
+          }),
+          keepalive: true,
+        }).catch(e => console.error('Failed to trigger AI Search:', e));
+      }
+
       router.push(`/orders/${result.id}`);
     } catch (error) {
       console.error('Error creating wish:', error);
-      alert(t('create.fail'));
+      showAlert(t('create.fail'));
     } finally {
       setLoading(false);
+      processingRef.current = false;
     }
   };
 
@@ -361,6 +396,14 @@ export default function CreateWish() {
   return (
     <div className="min-h-screen bg-background pb-20 lg:p-8 pt-8 px-4 lg:px-0">
       <div className="max-w-xl mx-auto space-y-6">
+        {/* Inline alert (replaces native alert()) */}
+        {alertMessage && (
+          <div className="mx-4 lg:mx-0 flex items-start gap-3 bg-red-50 border border-red-200 text-red-700 rounded-2xl px-4 py-3 text-sm font-medium">
+            <span className="flex-1">{alertMessage}</span>
+            <button onClick={() => setAlertMessage(null)} className="shrink-0 hover:text-red-900">✕</button>
+          </div>
+        )}
+
         <header className="flex items-center gap-4 px-4 lg:px-0">
           <button
             onClick={() => step > 0 ? setStep(step - 1) : router.back()}
@@ -748,9 +791,9 @@ export default function CreateWish() {
                   const selectedDate = new Date(formData.expected_shipping_date);
                   const today = new Date();
                   today.setHours(0, 0, 0, 0);
-                  const diffDays = Math.ceil((selectedDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                  const partialDiffDays = Math.ceil((selectedDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-                  if (diffDays <= (settings.deposit_threshold_days || 30)) return null;
+                  if (partialDiffDays <= (settings.deposit_threshold_days || 30)) return null;
 
                   return (
                     <div className="space-y-4 animate-in fade-in slide-in-from-top-2">

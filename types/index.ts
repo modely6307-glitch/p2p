@@ -65,6 +65,8 @@ export interface Order {
   buyer_last_read_at?: string;
   traveler_last_read_at?: string;
   admin_last_read_at?: string;
+  ai_search_status?: 'PENDING' | 'COMPLETED' | 'FAILED' | null;
+  ai_search_results?: { name: string; address: string; mapUrl?: string; }[] | null;
 }
 
 export interface SystemSettings {

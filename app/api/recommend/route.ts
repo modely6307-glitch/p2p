@@ -5,17 +5,18 @@ import { getSupabaseAdmin } from '@/utils/supabase/admin';
 
 // Recommendation Schema for internal use
 const recommendationSchema = z.object({
-    title: z.string().describe('推薦精選指南標題'),
-    description: z.string().describe('這三個月內該國的代購重點趨勢簡短介紹'),
+    title: z.string().describe('推薦精選指南標題 (e.g., 2024 日本賞櫻季必買清單)'),
+    description: z.string().describe('這三個月內該國的代購重點趨勢簡短介紹，請鎖定目前最夯話題 (如：某某動漫聯名、某某網美推薦)'),
     items: z.array(z.object({
         name: z.string().describe('商品名稱'),
+        flag: z.string().describe('對應國家的國旗 Emoji (如：🇯🇵)'),
         tier: z.enum(['low', 'mid', 'high']).describe('價格區間'),
         category: z.string().describe('商品分類，例如：藥妝、零食、家電'),
         price: z.number().describe('當地預估售價純數字'),
         currency: z.string().describe('幣別，例如 JPY, USD'),
         url: z.string().describe('商品網址。優先提供官網商品連結，但如果您不確定連結是否為死鏈 (404)，請一律防禦性降級，使用 Google 搜尋該項目的 URL (例如: https://www.google.com/search?q=商品名稱 + 品牌)'),
         reason: z.string().describe('推薦理由與近期網友評價 (約50字內)')
-    })).describe('推薦商品清單(6-9樣)'),
+    })).describe('推薦商品清單(8-12樣，品項要夠豐富)'),
     tip: z.string().describe('該國代購注意事項')
 });
 
@@ -94,21 +95,20 @@ export async function POST(req: Request) {
             : `針對大眾口味進行主流推薦`;
 
         const prompt = `
-你是一位專業的「跨國代購購物顧問系統」。你的任務是為使用者推薦當前最熱門的代購商品。
+你是一位專業的「跨國代購購物顧問系統」。你的任務是為使用者推薦當前最熱門、最夯的代購商品。
 
 【任務流程】
-1. 搜尋網路趨勢：針對指定的「目標國家」，搜尋台灣各大論壇（如 PTT、Dcard、Mobile01）及最新社群討論。**請務必將搜尋範圍限制在 ${startDate} 到 ${endDate} 這三個月內的最新討論**，找出該國當前最熱門、鄉民最推薦的必買代購商品。
-2. 結合使用者偏好：${personalizationContext}。如果提供了「使用者偏好」或「歷史購買數據」，請提高符合該偏好（如：美妝控、科技迷、零食愛好者）商品的推薦權重。
-3. 篩選與分類：挑選出 6-9 樣最具代表性的商品，並依據價格分類為 low(平價好物), mid(人氣精選), high(奢華名品) 三個區區。
-4. 提供詳細資訊：包含當地價格(純數字)、幣別、官方連結、生動的推薦理由。
-5. **連結嚴格要求**：保證每個商品都必須有「url」欄位。提供連結的優先順序為：(1) 官網商品連結 (2) 品牌官網 (3) Google 搜尋商品關鍵字的連結。除非你「非常確定」該官網連結能夠正常存取且不是死鏈(404)，否則請一律防禦性降級，直接提供第(3)種 Google 搜尋連結（例如: https://www.google.com/search?q=商品名稱+品牌）！不要冒險給出無效的官方連結。
-${attempt > 1 ? `6. **特別指示**：這是第 ${attempt} 次推薦請求，請務必提供與常規熱門推薦**完全不同**的商品選項，確保推薦的多樣性，不要重複常見的大眾商品！` : ''}
+1. 搜尋網路趨勢：針對指定的「目標國家」，搜尋台灣各大論壇（如 PTT、Dcard、Mobile01）及最新社群討論（如 Threads, IG 爆紅商品）。**請務必鎖定 ${startDate} 到 ${endDate} 這段時間內最熱門、鄉民瘋搶的必買商品**。
+2. 結合使用者偏好：${personalizationContext}。
+3. 篩選與分類：挑選出 8-12 樣最具代表性、最夯的商品。
+4. 提供詳細資訊：包含國旗 Emoji、當地價格(純數字)、幣別、官方連結、生動的推薦理由。
+5. **連結嚴格要求**：保證每樣商品皆有 url，優先提供 Google 搜尋連結。
+${attempt > 1 ? `6. **特別指示**：這是第 ${attempt} 次推薦請求，請務必提供更冷門但高需求的「掃貨」名單，確保推薦的多樣性！` : ''}
 
 【輸入變數】
 - 🌍 目標國家: ${country}
 - 📅 搜尋時間範圍: ${startDate} 至 ${endDate} (僅參考此期間的資訊)
 - 👤 使用者偏好: ${userPreferences || '無'}
-- 🛒 歷史購買紀錄: ${purchaseHistory || '無'} 
 
 請按照 JSON Schema 格式輸出。
 `;

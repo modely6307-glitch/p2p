@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   fetchOrderById,
@@ -53,6 +53,15 @@ const maskEmail = (email: string | null | undefined) => {
   return (displayPrefix + '***').slice(0, 6).padEnd(6, '*');
 };
 
+const citySuggestions: Record<string, string[]> = {
+  'Japan': ['東京', '大阪', '京都'],
+  'USA': ['紐約', '洛杉磯', '舊金山'],
+  'Korea': ['首爾', '釜山'],
+  'Thailand': ['曼谷', '清邁'],
+  'France': ['巴黎'],
+  'Taiwan': ['台北', '台中', '高雄'],
+};
+
 export default function OrderDetails() {
   const params = useParams();
   const router = useRouter();
@@ -95,39 +104,88 @@ export default function OrderDetails() {
   const [disputeEvidencePreview, setDisputeEvidencePreview] = useState<string | null>(null);
   const [isSubmittingDispute, setIsSubmittingDispute] = useState(false);
   const [adminResolutionNotes, setAdminResolutionNotes] = useState('');
+  const [targetCity, setTargetCity] = useState('');
+  const [localSearchData, setLocalSearchData] = useState<{ city: string, results: any[] } | null>(null);
+  const [isLocalLoading, setIsLocalLoading] = useState(false);
+  const processingRef = useRef(false);
+  const confirmResolveRef = useRef<((val: boolean) => void) | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; message: string }>({ open: false, message: '' });
+
+  const showConfirm = (message: string): Promise<boolean> => {
+    return new Promise((resolve) => {
+      confirmResolveRef.current = resolve;
+      setConfirmDialog({ open: true, message });
+    });
+  };
 
   useEffect(() => {
     loadOrder();
-  }, [id, user, profile]);
+
+    // Load personal city cache
+    try {
+      const cached = localStorage.getItem(`ai_search_${id}`);
+      if (cached) {
+        setLocalSearchData(JSON.parse(cached));
+      }
+    } catch (e) {
+      console.error('Failed to load local AI cache', e);
+    }
+  }, [id, user?.id, profile?.id]);
+
+  // Polling for AI search status
+  useEffect(() => {
+    if (!order || order.ai_search_status !== 'PENDING') return;
+
+    const interval = setInterval(() => {
+      // Only refresh if we are not in the middle of a manual action
+      if (!processingRef.current) {
+        console.log('[OrderDetails] polling loadOrder()');
+        loadOrder();
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [order?.ai_search_status, id]);
 
   const loadOrder = async () => {
+    console.log('[loadOrder] called, showFollowModal=', showFollowModal, 'showDisputeModal=', showDisputeModal);
     try {
+      // Fetch all async data first before any setState calls.
+      // This ensures all state updates are batched into a single re-render,
+      // preventing dialogs from flickering due to intermediate renders.
       const data = await fetchOrderById(id);
-      setOrder(data);
 
+      let newWishGroup = wishGroup;
       if (!data.traveler_id && ['OPEN', 'ESCROWED'].includes(data.status)) {
-        const group = await fetchWishGroup(data.parent_order_id || null, data.id);
-        setWishGroup(group);
+        newWishGroup = await fetchWishGroup(data.parent_order_id || null, data.id);
       }
 
-      // Auto-set role based on current user or profile
+      let newRole: 'buyer' | 'traveler' | 'admin' | 'visitor' = 'visitor';
+      let newTravelerGroup = travelerGroup;
+      let newActiveChatTab = activeChatTab;
+
       if (profile?.level === 'ADMIN') {
-        setRole('admin');
+        newRole = 'admin';
       } else if (user) {
         if (data.buyer_id === user.id) {
-          setRole('buyer');
+          newRole = 'buyer';
         } else if (data.traveler_id === user.id) {
-          setRole('traveler');
-          const tGroup = await fetchTravelerGroupOrders(data.parent_order_id || null, data.id, user.id);
-          setTravelerGroup(tGroup);
-          if (tGroup.length > 0 && !activeChatTab) {
-            const currentOrderInGroup = tGroup.find(o => o.id === id);
-            setActiveChatTab(currentOrderInGroup?.id || tGroup[0].id);
+          newRole = 'traveler';
+          newTravelerGroup = await fetchTravelerGroupOrders(data.parent_order_id || null, data.id, user.id);
+          if (newTravelerGroup.length > 0 && !activeChatTab) {
+            const currentOrderInGroup = newTravelerGroup.find(o => o.id === id);
+            newActiveChatTab = currentOrderInGroup?.id || newTravelerGroup[0].id;
           }
-        } else {
-          setRole('visitor');
         }
       }
+
+      console.log('[loadOrder] setting state: role=', newRole, 'order.id=', data.id);
+      // Apply all state updates synchronously — React 18 batches these into one render.
+      setOrder(data);
+      setWishGroup(newWishGroup);
+      setRole(newRole);
+      setTravelerGroup(newTravelerGroup);
+      setActiveChatTab(newActiveChatTab);
     } catch (error) {
       console.error('Error fetching order:', error);
     } finally {
@@ -287,6 +345,47 @@ export default function OrderDetails() {
     }
   };
 
+  const handleCityReSearch = async (cityOverride?: string) => {
+    if (!order || processingRef.current) return;
+    const city = cityOverride || targetCity;
+    if (!city) {
+        alert('請輸入或選擇一個城市');
+        return;
+    }
+
+    try {
+      setIsLocalLoading(true);
+      processingRef.current = true;
+      
+      const response = await fetch('/api/ai-search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: order.id,
+          itemName: order.item_name,
+          country: order.country,
+          city: city,
+          persist: false // <--- Important: Don't affect others
+        }),
+      });
+
+      const data = await response.json();
+      if (!data.success) throw new Error(data.error);
+
+      // Save to local state and storage
+      const localData = { city, results: data.results };
+      setLocalSearchData(localData);
+      localStorage.setItem(`ai_search_${id}`, JSON.stringify(localData));
+      setTargetCity(''); // Clear input
+    } catch (error) {
+      console.error('Error refreshing AI search:', error);
+      alert('重新整理地點失敗');
+    } finally {
+      setIsLocalLoading(false);
+      processingRef.current = false;
+    }
+  };
+
   const handleConfirmReceipt = async () => {
     if (!currentViewOrder || !currentViewOrder.traveler_id) return;
     try {
@@ -324,11 +423,14 @@ export default function OrderDetails() {
   };
 
   const handleDelist = async () => {
-    if (!order) return;
+    if (!order || processingRef.current) return;
     const isFollowOrder = !!order.parent_order_id;
     const confirmMsg = isFollowOrder ? '確定要取消跟單嗎？' : t('order.delist_confirm');
 
-    if (!confirm(confirmMsg)) return;
+    const confirmed = await showConfirm(confirmMsg);
+    if (!confirmed) return;
+
+    processingRef.current = true;
     try {
       const { delistOrderGroup } = await import('@/app/actions/orders');
       const result = await delistOrderGroup(order.id);
@@ -337,12 +439,14 @@ export default function OrderDetails() {
     } catch (error: any) {
       console.error('Error delisting order:', error);
       alert(error.message || t('common.error'));
+    } finally {
+      processingRef.current = false;
     }
   };
 
   const handleRelist = async () => {
     if (!order) return;
-    if (!confirm(t('order.relist_confirm'))) return;
+    if (!await showConfirm(t('order.relist_confirm'))) return;
     try {
       const { relistOrder } = await import('@/app/actions/orders');
       const result = await relistOrder(order.id);
@@ -382,7 +486,7 @@ export default function OrderDetails() {
 
   const handleCancelDispute = async () => {
     if (!currentViewOrder) return;
-    if (!confirm('確定要取消申訴嗎？訂單將回到先前的狀態。')) return;
+    if (!await showConfirm('確定要取消申訴嗎？訂單將回到先前的狀態。')) return;
     try {
       const { cancelDispute } = await import('@/app/actions/orders');
       const result = await cancelDispute(currentViewOrder.id);
@@ -397,7 +501,7 @@ export default function OrderDetails() {
   const handleResolveDispute = async (status: OrderStatus) => {
     if (!currentViewOrder) return;
     const actionName = status === 'DELISTED' ? '取消訂單退款' : (status === 'COMPLETED' ? '完成訂單撥款' : `退回：${t(`status.${status}`)}`);
-    if (!confirm(`確定要將此訂單裁決為：「${actionName}」嗎？`)) return;
+    if (!await showConfirm(`確定要將此訂單裁決為：「${actionName}」嗎？`)) return;
     try {
       const { resolveDispute } = await import('@/app/actions/orders');
       const result = await resolveDispute(currentViewOrder.id, status, adminResolutionNotes);
@@ -713,8 +817,8 @@ export default function OrderDetails() {
         </div>
       )}
 
-      {(currentViewOrder.receipt_url || currentViewOrder.tracking_number) && (
-        <Card className="border-primary/20 bg-primary/5">
+      {(currentViewOrder.receipt_url || currentViewOrder.tracking_number || currentViewOrder.purchase_photo_url) && (
+        <Card className="border-primary/20 bg-primary/5 mb-4">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold flex items-center gap-2">
               <Truck className="w-4 h-4 text-primary" />
@@ -738,17 +842,118 @@ export default function OrderDetails() {
                 </div>
               </div>
             )}
-            {currentViewOrder.model_number && (
-              <div className="flex justify-between items-center bg-background p-3 rounded-xl border border-border/50">
-                <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{t('create.proof_model')}</span>
-                <span className="font-mono text-sm font-bold bg-muted px-2 py-1 rounded">{currentViewOrder.model_number}</span>
-              </div>
-            )}
             {currentViewOrder.tracking_number && (
               <div className="flex justify-between items-center bg-background p-3 rounded-xl border border-border/50">
                 <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{t('order.tracking_no')}</span>
                 <span className="font-mono text-sm font-bold bg-muted px-2 py-1 rounded">{currentViewOrder.tracking_number}</span>
               </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {currentViewOrder.ai_search_status && currentViewOrder.status === 'OPEN' && !currentViewOrder.traveler_id && (
+        <Card className="border-indigo-500/30 bg-indigo-50/50 mb-4 shadow-sm shadow-indigo-500/5 overflow-hidden">
+          <CardHeader className="pb-3 border-b border-indigo-500/10 bg-indigo-500/5 flex flex-row items-center justify-between gap-3 space-y-0">
+             <div className="flex items-center gap-3">
+               <div className="w-8 h-8 rounded-xl bg-indigo-500 text-white flex items-center justify-center font-bold text-lg shadow-inner">
+                 <span className="text-sm">✨</span>
+               </div>
+               <div>
+                 <CardTitle className="text-sm text-indigo-800 font-black tracking-tight mb-0.5">AI 尋寶助手</CardTitle>
+                 <p className="text-[10px] text-indigo-600/80 font-bold uppercase tracking-widest">
+                   {isLocalLoading || currentViewOrder.ai_search_status === 'PENDING' 
+                     ? '正在精確搜尋位置...' 
+                     : localSearchData 
+                       ? `目前的對象區域：${localSearchData.city} (您的私有搜尋)` 
+                       : `目前的對象區域：${currentViewOrder.country}`}
+                 </p>
+               </div>
+             </div>
+             
+             {currentViewOrder.ai_search_status !== 'PENDING' && (
+               <div className="flex items-center gap-2">
+                 <div className="hidden sm:flex bg-white/50 border border-indigo-500/20 rounded-lg overflow-hidden h-8">
+                    <input 
+                      type="text" 
+                      placeholder="輸入具體城市/商圈..." 
+                      className="bg-transparent text-[10px] px-2 w-24 outline-none border-none font-bold"
+                      value={targetCity}
+                      onChange={(e) => setTargetCity(e.target.value)}
+                    />
+                    <button 
+                      onClick={() => handleCityReSearch()}
+                      className="bg-indigo-500 text-white px-2 flex items-center justify-center"
+                    >
+                      <PlusSquare className="w-3 h-3" />
+                    </button>
+                 </div>
+               </div>
+             )}
+          </CardHeader>
+          <CardContent className="pt-4">
+            {currentViewOrder.ai_search_status !== 'PENDING' && citySuggestions[currentViewOrder.country] && (
+               <div className="mb-4 space-y-2">
+                 <p className="text-[9px] font-black text-indigo-800/50 uppercase tracking-tighter">縮小範圍至熱門區域：</p>
+                 <div className="flex flex-wrap gap-2">
+                    {citySuggestions[currentViewOrder.country].map(city => (
+                      <button 
+                        key={city}
+                        onClick={() => handleCityReSearch(city)}
+                        disabled={isLocalLoading || currentViewOrder.ai_search_status === 'PENDING'}
+                        className="px-3 py-1 bg-white border border-indigo-500/20 hover:border-indigo-500/50 hover:bg-indigo-50 rounded-full text-[10px] font-bold text-indigo-700 transition-all shadow-sm"
+                      >
+                        {city}
+                      </button>
+                    ))}
+                    {localSearchData && (
+                      <button 
+                        onClick={() => {
+                          setLocalSearchData(null);
+                          localStorage.removeItem(`ai_search_${id}`);
+                        }}
+                        className="px-3 py-1 bg-red-50 border border-red-500/20 hover:bg-red-100 rounded-full text-[10px] font-bold text-red-700 transition-all shadow-sm"
+                      >
+                        重設為默認
+                      </button>
+                    )}
+                 </div>
+               </div>
+            )}
+
+            {isLocalLoading || currentViewOrder.ai_search_status === 'PENDING' ? (
+              <div className="flex flex-col items-center justify-center py-6 animate-pulse">
+                <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+                <p className="text-sm font-bold text-indigo-800">我們正在地圖上探索可能購買的店家...</p>
+              </div>
+            ) : (localSearchData?.results || (currentViewOrder.ai_search_status === 'COMPLETED' && currentViewOrder.ai_search_results && currentViewOrder.ai_search_results.length > 0)) ? (
+              <div className="space-y-4">
+                 <div className="w-full h-48 rounded-xl overflow-hidden shadow-inner border border-indigo-500/20 bg-indigo-200">
+                   <iframe 
+                      width="100%" 
+                      height="100%" 
+                      style={{ border: 0 }} 
+                      loading="lazy" 
+                      allowFullScreen 
+                      src={`https://maps.google.com/maps?q=${encodeURIComponent((localSearchData?.results?.[0] || currentViewOrder.ai_search_results[0]).name)}&t=&z=14&ie=UTF8&iwloc=&output=embed`}
+                   ></iframe>
+                 </div>
+                 <div className="grid grid-cols-1 gap-2">
+                    {(localSearchData?.results || currentViewOrder.ai_search_results).map((res: any, idx: number) => (
+                      <a key={idx} href={res.mapUrl} target="_blank" rel="noreferrer" className="p-3 bg-white hover:bg-indigo-50/50 rounded-xl border border-indigo-500/20 text-left transition-all group flex items-center gap-3 justify-between shadow-sm">
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-indigo-900 group-hover:text-indigo-600 transition-colors truncate">{res.name}</p>
+                          <p className="text-[10px] text-indigo-600/70 truncate mt-0.5">{res.address}</p>
+                        </div>
+                        <div className="shrink-0 w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-xs ring-2 ring-transparent group-hover:ring-indigo-200 transition-all shadow-sm">
+                          導航
+                        </div>
+                      </a>
+                    ))}
+                 </div>
+              </div>
+            ) : (
+                <p className="text-sm text-center text-indigo-500 py-4 font-medium tracking-tight">無法找到相關實體商店資訊，可能為限定或網路商品。</p>
             )}
           </CardContent>
         </Card>
@@ -1249,11 +1454,45 @@ export default function OrderDetails() {
         )
       }
 
+      {/* Confirm Dialog (replaces native browser confirm()) */}
+      {confirmDialog.open && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+          <Card className="w-full max-w-sm shadow-2xl border-border/50 bg-background animate-in fade-in fill-mode-both duration-150">
+            <CardContent className="p-6 space-y-4">
+              <p className="text-sm font-medium leading-relaxed">{confirmDialog.message}</p>
+              <div className="flex gap-3 pt-2">
+                <Button
+                  variant="outline"
+                  fullWidth
+                  className="h-10"
+                  onClick={() => {
+                    setConfirmDialog({ open: false, message: '' });
+                    confirmResolveRef.current?.(false);
+                  }}
+                >
+                  {t('common.cancel')}
+                </Button>
+                <Button
+                  fullWidth
+                  className="h-10 bg-red-600 hover:bg-red-700 text-white"
+                  onClick={() => {
+                    setConfirmDialog({ open: false, message: '' });
+                    confirmResolveRef.current?.(true);
+                  }}
+                >
+                  {t('common.confirm')}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Follow Modal */}
       {
         showFollowModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in">
-            <Card className="w-full max-w-lg shadow-2xl border-primary/20 bg-background max-h-[90vh] overflow-y-auto">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+            <Card className="w-full max-w-lg shadow-2xl border-primary/20 bg-background max-h-[90vh] overflow-y-auto animate-in fade-in fill-mode-both duration-200">
               <CardHeader className="border-b border-border/50 pb-4 sticky top-0 bg-background z-10">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg font-bold flex items-center gap-2 text-primary">
@@ -1383,8 +1622,8 @@ export default function OrderDetails() {
       {/* Dispute Modal */}
       {
         showDisputeModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in">
-            <Card className="w-full max-w-md shadow-2xl border-red-500/20 bg-background">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+            <Card className="w-full max-w-md shadow-2xl border-red-500/20 bg-background animate-in fade-in fill-mode-both duration-200">
               <CardHeader className="border-b border-border/50 pb-4">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg font-bold text-red-500 flex items-center gap-2">

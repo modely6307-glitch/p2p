@@ -11,6 +11,7 @@ import { useLanguage } from '@/context/LanguageContext';
 
 const itemSchema = z.object({
     name: z.string(),
+    flag: z.string().optional(),
     tier: z.enum(['low', 'mid', 'high']),
     category: z.string(),
     price: z.number(),
@@ -131,7 +132,8 @@ export function AiRecommendation({ country, onProceed, onSelectRecommendation }:
                                 <div className="p-4 flex flex-col gap-4 mt-1">
                                     <div className="flex justify-between items-start gap-4">
                                         <div className="flex-1">
-                                            <h4 className="font-bold text-base text-foreground leading-tight">
+                                            <h4 className="font-bold text-base text-foreground leading-tight flex items-center gap-2">
+                                                <span className="text-xl shrink-0">{item?.flag}</span>
                                                 {item?.name}
                                             </h4>
                                             <span className="text-[10px] bg-secondary text-secondary-foreground px-2 py-0.5 rounded-full font-medium uppercase tracking-widest mt-2 inline-block">
@@ -143,9 +145,15 @@ export function AiRecommendation({ country, onProceed, onSelectRecommendation }:
                                                 {item?.price ? `${item.currency || ''} ${item.price.toLocaleString()}` : '...'}
                                             </div>
                                             {item?.url && (
-                                                <div className="text-[10px] text-muted-foreground flex items-center gap-1 mt-1 font-medium">
+                                                <a 
+                                                    href={item.url} 
+                                                    target="_blank" 
+                                                    rel="noreferrer" 
+                                                    onClick={(e) => e.stopPropagation()} 
+                                                    className="text-[10px] text-primary hover:text-primary/70 flex items-center gap-1 mt-1 font-black underline decoration-dotted"
+                                                >
                                                     {item.url.includes('google.com/search') ? 'Google 搜尋' : '官網'} <ExternalLink className="w-3 h-3" />
-                                                </div>
+                                                </a>
                                             )}
                                         </div>
                                     </div>
