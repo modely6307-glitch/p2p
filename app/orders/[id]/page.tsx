@@ -941,11 +941,11 @@ export default function OrderDetails() {
                       style={{ border: 0 }} 
                       loading="lazy" 
                       allowFullScreen 
-                      src={`https://maps.google.com/maps?q=${encodeURIComponent((localSearchData?.results?.[0] || currentViewOrder.ai_search_results[0]).name)}&t=&z=14&ie=UTF8&iwloc=&output=embed`}
+                      src={`https://maps.google.com/maps?q=${encodeURIComponent((localSearchData?.results?.[0] || currentViewOrder.ai_search_results?.[0])?.name ?? '')}&t=&z=14&ie=UTF8&iwloc=&output=embed`}
                    ></iframe>
                  </div>
                  <div className="grid grid-cols-1 gap-2">
-                    {(localSearchData?.results || currentViewOrder.ai_search_results).map((res: any, idx: number) => (
+                    {(localSearchData?.results || currentViewOrder.ai_search_results || []).map((res: any, idx: number) => (
                       <a key={idx} href={res.mapUrl} target="_blank" rel="noreferrer" className="p-3 bg-white hover:bg-indigo-50/50 rounded-xl border border-indigo-500/20 text-left transition-all group flex items-center gap-3 justify-between shadow-sm">
                         <div className="min-w-0">
                           <p className="text-sm font-bold text-indigo-900 group-hover:text-indigo-600 transition-colors truncate">{res.name}</p>
