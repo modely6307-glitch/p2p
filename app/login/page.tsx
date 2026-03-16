@@ -18,6 +18,7 @@ export default function LoginPage() {
     const [password, setPassword] = useState('');
     const [isSignUp, setIsSignUp] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
     const { t } = useLanguage();
 
     // AUTO-REDIRECT if already logged in
@@ -53,7 +54,7 @@ export default function LoginPage() {
                     password,
                 });
                 if (error) throw error;
-                alert(t('login.check_email'));
+                setSuccessMessage(t('login.check_email'));
             } else {
                 const { data: { user }, error } = await supabase.auth.signInWithPassword({
                     email,
@@ -134,6 +135,12 @@ export default function LoginPage() {
                     </div>
 
                     {error && <p className="text-red-500 text-xs font-medium italic animate-shake">{error}</p>}
+                    {successMessage && (
+                      <div className="flex items-start gap-2 bg-green-50 border border-green-200 text-green-800 rounded-xl px-3 py-2.5 text-sm font-medium">
+                        <span>✓</span>
+                        <span>{successMessage}</span>
+                      </div>
+                    )}
 
                     <Button type="submit" fullWidth disabled={loading} className="h-12 rounded-xl font-bold text-base shadow-lg shadow-primary/20">
                         {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : isSignUp ? t('login.signup_btn') : t('login.login_btn')}

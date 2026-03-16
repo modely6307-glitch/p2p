@@ -4,7 +4,7 @@ import React, { useEffect, useState, Suspense } from 'react';
 import { fetchOrders } from '@/utils/api';
 import { Order } from '@/types';
 import { WishCard } from '@/components/WishCard';
-import { Loader2, Calendar, LayoutGrid } from 'lucide-react';
+import { Search, Calendar } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/context/LanguageContext';
@@ -17,7 +17,6 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 
 function MarketContent() {
-    console.log('[DEBUG Market] MarketContent RENDER');
     const { user } = useAuth(false);
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -52,12 +51,9 @@ function MarketContent() {
     };
 
     useEffect(() => {
-        console.log('[DEBUG Market] useEffect fired, user:', user?.id ?? 'null', 'loading:', loading);
         const loadOrders = async () => {
-            console.log('[DEBUG Market] loadOrders START');
             try {
                 const data = await fetchOrders(['OPEN', 'ESCROWED']);
-                console.log('[DEBUG Market] fetchOrders returned', data?.length ?? 'null/undefined', 'orders');
                 // Consolidation Logic:
                 // For each group (rootId), decide which one to show to THIS user.
                 const groupMap = new Map<string, Order[]>();
@@ -98,9 +94,8 @@ function MarketContent() {
                 });
                 setOrders(sorted);
             } catch (error) {
-                console.error('[DEBUG Market] loadOrders ERROR:', error);
+                console.error('Error loading market orders:', error);
             } finally {
-                console.log('[DEBUG Market] loadOrders FINALLY, setting loading=false');
                 setLoading(false);
             }
         };
@@ -242,22 +237,47 @@ function MarketContent() {
             </div>
 
             {loading ? (
-                <div className="flex justify-center items-center py-24">
-                    <div className="flex flex-col items-center gap-4">
-                        <Loader2 className="w-10 h-10 animate-spin text-primary opacity-50" />
-                        <p className="text-xs font-bold text-muted-foreground animate-pulse uppercase tracking-widest">{t('common.loading')}</p>
-                    </div>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                        <div key={i} className="rounded-2xl overflow-hidden border border-border/50 bg-card">
+                            <div className="p-4 pb-2">
+                                <div className="flex gap-4">
+                                    <div className="w-20 h-20 rounded-lg skeleton shrink-0" />
+                                    <div className="flex-1 space-y-2 py-1">
+                                        <div className="h-4 skeleton rounded-lg w-3/4" />
+                                        <div className="h-3 skeleton rounded-lg w-1/2" />
+                                        <div className="flex gap-2 mt-3">
+                                            <div className="h-6 skeleton rounded-md w-16" />
+                                            <div className="h-6 skeleton rounded-md w-20" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="px-4 pb-4 pt-2">
+                                <div className="flex justify-between pt-3 border-t border-border/50">
+                                    <div className="space-y-1">
+                                        <div className="h-2.5 skeleton rounded w-14" />
+                                        <div className="h-4 skeleton rounded w-20" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <div className="h-2.5 skeleton rounded w-14" />
+                                        <div className="h-5 skeleton rounded w-24" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
                 </div>
             ) : filteredOrders.length > 0 ? (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {filteredOrders.map((order) => (
-                        <WishCard key={order.id} order={order} />
+                        <WishCard key={order.id} order={order} currentUserId={user?.id} />
                     ))}
                 </div>
             ) : (
                 <div className="text-center py-24 text-muted-foreground animate-in fade-in zoom-in-95 fill-mode-both">
                     <div className="w-20 h-20 bg-secondary/20 rounded-3xl flex items-center justify-center mx-auto mb-6 rotate-12">
-                        <span className="text-4xl">🔍</span>
+                        <Search className="w-9 h-9 text-muted-foreground/40" />
                     </div>
                     <h3 className="text-lg font-black text-foreground mb-2">{t('home.no_wishes')}</h3>
                     <p className="text-sm font-medium mb-6">嘗試調整篩選條件或搜尋關鍵字</p>
@@ -279,8 +299,10 @@ function MarketContent() {
 export default function Market() {
     return (
         <Suspense fallback={
-            <div className="flex justify-center items-center py-24">
-                <Loader2 className="w-10 h-10 animate-spin text-primary opacity-50" />
+            <div className="p-4 pt-8 lg:p-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="rounded-2xl overflow-hidden border border-border/50 bg-card h-40 skeleton" />
+                ))}
             </div>
         }>
             <MarketContent />

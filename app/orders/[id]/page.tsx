@@ -26,7 +26,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Upload, Truck, CheckCircle, AlertTriangle, ShieldCheck, ThumbsUp, ThumbsDown, Camera, CreditCard, X, PlusSquare, MessageSquare } from 'lucide-react';
+import { Loader2, Upload, Truck, CheckCircle, AlertTriangle, ShieldCheck, ThumbsUp, ThumbsDown, Camera, CreditCard, X, PlusSquare, MessageSquare, AlertCircle, Info } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 const getCurrencySymbol = (currency: string) => {
@@ -109,13 +109,19 @@ export default function OrderDetails() {
   const [isLocalLoading, setIsLocalLoading] = useState(false);
   const processingRef = useRef(false);
   const confirmResolveRef = useRef<((val: boolean) => void) | null>(null);
-  const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; message: string }>({ open: false, message: '' });
+  const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; title: string; message: string; type?: 'danger' | 'info' }>({ open: false, title: '', message: '' });
+  const [alertMessage, setAlertMessage] = useState<{ text: string; type: 'error' | 'success' | 'info' } | null>(null);
 
-  const showConfirm = (message: string): Promise<boolean> => {
+  const showConfirm = (message: string, title = '確認操作', type: 'danger' | 'info' = 'danger'): Promise<boolean> => {
     return new Promise((resolve) => {
       confirmResolveRef.current = resolve;
-      setConfirmDialog({ open: true, message });
+      setConfirmDialog({ open: true, title, message, type });
     });
+  };
+
+  const showAlert = (text: string, type: 'error' | 'success' | 'info' = 'error') => {
+    setAlertMessage({ text, type });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   useEffect(() => {
@@ -197,7 +203,7 @@ export default function OrderDetails() {
     if (!order || !user) return;
     if (!currentViewOrder || !user) return;
     if (currentViewOrder.status === 'DELISTED') {
-      alert(t('order.delisted_msg'));
+      showAlert(t('order.delisted_msg'), 'info');
       return;
     }
     try {
@@ -212,7 +218,7 @@ export default function OrderDetails() {
       await loadOrder();
     } catch (error: any) {
       console.error('Error accepting order:', error);
-      alert(error.message || t('common.error'));
+      showAlert(error.message || t('common.error'));
     }
   };
 
@@ -225,7 +231,7 @@ export default function OrderDetails() {
       await loadOrder();
     } catch (error: any) {
       console.error('Error confirming escrow:', error);
-      alert(error.message || t('common.error'));
+      showAlert(error.message || t('common.error'));
     }
   };
 
@@ -251,7 +257,7 @@ export default function OrderDetails() {
       await loadOrder();
     } catch (error: any) {
       console.error('Error uploading receipt:', error);
-      alert(error.message || t('error') + ': Firebase Storage');
+      showAlert(error.message || t('error') + ': Firebase Storage');
     } finally {
       setUploading(false);
     }
@@ -266,7 +272,7 @@ export default function OrderDetails() {
       await loadOrder();
     } catch (error: any) {
       console.error('Error adding tracking:', error);
-      alert(error.message || t('common.error'));
+      showAlert(error.message || t('common.error'));
     }
   };
 
@@ -276,11 +282,11 @@ export default function OrderDetails() {
       const { notifyPaid } = await import('@/app/actions/orders');
       const result = await notifyPaid(currentViewOrder.id);
       if (!result.success) throw new Error(result.error);
-      alert(t('order.notify_paid_success'));
+      showAlert(t('order.notify_paid_success'), 'success');
       await loadOrder();
     } catch (error: any) {
       console.error('Error sent notification:', error);
-      alert(error.message || t('common.error'));
+      showAlert(error.message || t('common.error'));
     }
   };
 
@@ -297,10 +303,10 @@ export default function OrderDetails() {
       const result = await batchUpdateTrackingNumbers(updates);
       if (!result.success) throw new Error(result.error);
       await loadOrder();
-      alert('批量出貨成功');
+      showAlert('批量出貨成功', 'success');
     } catch (error: any) {
       console.error('Error batch adding tracking:', error);
-      alert(error.message || t('common.error'));
+      showAlert(error.message || t('common.error'));
     }
   };
 
@@ -326,7 +332,7 @@ export default function OrderDetails() {
       await loadOrder();
     } catch (error: any) {
       console.error('Error uploading purchase photo:', error);
-      alert(error.message || t('error'));
+      showAlert(error.message || t('error'));
     } finally {
       setPurchasePhotoUploading(false);
     }
@@ -341,7 +347,7 @@ export default function OrderDetails() {
       await loadOrder();
     } catch (error: any) {
       console.error('Error updating model number:', error);
-      alert(error.message || t('common.error'));
+      showAlert(error.message || t('common.error'));
     }
   };
 
@@ -349,7 +355,7 @@ export default function OrderDetails() {
     if (!order || processingRef.current) return;
     const city = cityOverride || targetCity;
     if (!city) {
-        alert('請輸入或選擇一個城市');
+        showAlert('請輸入或選擇一個城市', 'info');
         return;
     }
 
@@ -379,7 +385,7 @@ export default function OrderDetails() {
       setTargetCity(''); // Clear input
     } catch (error) {
       console.error('Error refreshing AI search:', error);
-      alert('重新整理地點失敗');
+      showAlert('重新整理地點失敗');
     } finally {
       setIsLocalLoading(false);
       processingRef.current = false;
@@ -397,7 +403,7 @@ export default function OrderDetails() {
       await loadOrder();
     } catch (error: any) {
       console.error('Error completing order:', error);
-      alert(error.message || t('common.error'));
+      showAlert(error.message || t('common.error'));
     }
   };
 
@@ -418,7 +424,7 @@ export default function OrderDetails() {
       await loadOrder();
     } catch (error: any) {
       console.error('Error submitting rating:', error);
-      alert(error.message || t('common.error'));
+      showAlert(error.message || t('common.error'));
     }
   };
 
@@ -438,7 +444,7 @@ export default function OrderDetails() {
       await loadOrder();
     } catch (error: any) {
       console.error('Error delisting order:', error);
-      alert(error.message || t('common.error'));
+      showAlert(error.message || t('common.error'));
     } finally {
       processingRef.current = false;
     }
@@ -454,7 +460,7 @@ export default function OrderDetails() {
       await loadOrder();
     } catch (error: any) {
       console.error('Error relisting order:', error);
-      alert(error.message || t('common.error'));
+      showAlert(error.message || t('common.error'));
     }
   };
 
@@ -478,7 +484,7 @@ export default function OrderDetails() {
       await loadOrder();
     } catch (error: any) {
       console.error('Error raising dispute:', error);
-      alert(error.message || t('common.error'));
+      showAlert(error.message || t('common.error'));
     } finally {
       setIsSubmittingDispute(false);
     }
@@ -494,7 +500,7 @@ export default function OrderDetails() {
       await loadOrder();
     } catch (error: any) {
       console.error('Error canceling dispute:', error);
-      alert(error.message || t('common.error'));
+      showAlert(error.message || t('common.error'));
     }
   };
 
@@ -510,7 +516,7 @@ export default function OrderDetails() {
       await loadOrder();
     } catch (error: any) {
       console.error('Error resolving dispute:', error);
-      alert(error.message || t('common.error'));
+      showAlert(error.message || t('common.error'));
     }
   };
 
@@ -1272,7 +1278,7 @@ export default function OrderDetails() {
                               const { finishPurchase, batchFinishPurchase } = await import('@/app/actions/orders');
                               const ids = syncEvidence ? travelerGroup.filter(o => o.status === 'ESCROWED').map(o => o.id) : [currentViewOrder.id];
                               const res = ids.length > 1 ? await batchFinishPurchase(ids) : await finishPurchase(currentViewOrder.id);
-                              if (res.success) await loadOrder(); else alert(res.error);
+                              if (res.success) await loadOrder(); else showAlert(res.error || t('common.error'));
                             }}
                           >
                             {syncEvidence && travelerGroup.filter(o => o.status === 'ESCROWED').length > 1 ? `一鍵完成全部採買 (${travelerGroup.filter(o => o.status === 'ESCROWED').length})` : t('admin.finish_purchase_btn')}
@@ -1454,29 +1460,58 @@ export default function OrderDetails() {
         )
       }
 
-      {/* Confirm Dialog (replaces native browser confirm()) */}
+      {/* Alert Banner */}
+      {alertMessage && (
+        <div className={`mx-4 lg:mx-0 flex items-start gap-3 rounded-2xl px-4 py-3 text-sm font-medium border ${
+          alertMessage.type === 'success' ? 'bg-green-50 border-green-200 text-green-800'
+          : alertMessage.type === 'info' ? 'bg-blue-50 border-blue-200 text-blue-800'
+          : 'bg-red-50 border-red-200 text-red-800'
+        }`}>
+          {alertMessage.type === 'success' ? <CheckCircle className="w-4 h-4 shrink-0 mt-0.5" />
+           : alertMessage.type === 'info' ? <Info className="w-4 h-4 shrink-0 mt-0.5" />
+           : <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />}
+          <span className="flex-1 leading-relaxed">{alertMessage.text}</span>
+          <button onClick={() => setAlertMessage(null)} className="shrink-0 opacity-50 hover:opacity-100 transition-opacity">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Confirm Dialog */}
       {confirmDialog.open && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
-          <Card className="w-full max-w-sm shadow-2xl border-border/50 bg-background animate-in fade-in fill-mode-both duration-150">
-            <CardContent className="p-6 space-y-4">
-              <p className="text-sm font-medium leading-relaxed">{confirmDialog.message}</p>
-              <div className="flex gap-3 pt-2">
+        <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <Card className="w-full max-w-sm shadow-2xl border-border/60 bg-card animate-in fade-in slide-in-from-bottom-4 sm:zoom-in-95 fill-mode-both duration-200">
+            <CardContent className="p-0">
+              <div className="flex flex-col items-center px-6 pt-6 pb-5 text-center">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 ${
+                  confirmDialog.type === 'danger' ? 'bg-red-100' : 'bg-blue-100'
+                }`}>
+                  {confirmDialog.type === 'danger'
+                    ? <AlertTriangle className="w-6 h-6 text-red-500" />
+                    : <Info className="w-6 h-6 text-blue-500" />}
+                </div>
+                <h3 className="text-base font-bold text-foreground mb-2">{confirmDialog.title}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">{confirmDialog.message}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2 px-4 pb-4">
                 <Button
                   variant="outline"
-                  fullWidth
-                  className="h-10"
+                  className="h-11 rounded-xl font-bold"
                   onClick={() => {
-                    setConfirmDialog({ open: false, message: '' });
+                    setConfirmDialog({ open: false, title: '', message: '' });
                     confirmResolveRef.current?.(false);
                   }}
                 >
                   {t('common.cancel')}
                 </Button>
                 <Button
-                  fullWidth
-                  className="h-10 bg-red-600 hover:bg-red-700 text-white"
+                  className={`h-11 rounded-xl font-bold text-white ${
+                    confirmDialog.type === 'danger'
+                      ? 'bg-red-600 hover:bg-red-700'
+                      : 'bg-primary hover:bg-primary/90'
+                  }`}
                   onClick={() => {
-                    setConfirmDialog({ open: false, message: '' });
+                    setConfirmDialog({ open: false, title: '', message: '' });
                     confirmResolveRef.current?.(true);
                   }}
                 >
@@ -1592,7 +1627,8 @@ export default function OrderDetails() {
                       if (!user) return;
                       setIsFollowing(true);
                       try {
-                        const result = await followOrder(order.id, user.id, {
+                        const { followOrderAction } = await import('@/app/actions/orders');
+                        const result = await followOrderAction(order.id, {
                           shipping_method: followMethod,
                           shipping_address: followMethod === 'HOME' ? followAddress : `${followCvsStore.store_name} - ${followCvsStore.store_address}`,
                           cvs_store_info: followMethod === '711' ? followCvsStore : null,
@@ -1600,11 +1636,12 @@ export default function OrderDetails() {
                           recipient_phone: followPhone,
                           shipping_fee: parseFloat(followFee || '0')
                         });
+                        if (!result.success) throw new Error(result.error);
                         setShowFollowModal(false);
-                        router.push(`/orders/${result.id}`);
-                      } catch (e) {
+                        router.push(`/orders/${result.orderId}`);
+                      } catch (e: any) {
                         console.error(e);
-                        alert('跟單失敗');
+                        showAlert(e.message || '跟單失敗');
                       } finally {
                         setIsFollowing(false);
                       }
