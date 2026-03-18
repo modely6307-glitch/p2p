@@ -311,14 +311,17 @@ export async function acceptOrder(orderIds: string[]) {
 
         const supabaseAdmin = getSupabaseAdmin();
 
-        // Check if the user is trying to accept their own order
         const { data: openOrders } = await supabaseAdmin
             .from('orders')
-            .select('buyer_id')
+            .select('buyer_id, status')
             .in('id', orderIds);
 
         if (openOrders && openOrders.some((o: any) => o.buyer_id === user.id)) {
             throw new Error("不能接自己的訂單");
+        }
+
+        if (openOrders && openOrders.some((o: any) => o.status === 'DELISTED')) {
+            throw new Error("其中包含已下架的訂單，無法接單");
         }
 
         // 1. Assign traveler and change OPEN -> MATCHED
@@ -751,13 +754,16 @@ export async function followOrderAction(
 
         const supabaseAdmin = getSupabaseAdmin();
 
-        // Fetch parent order
         const { data: parentOrder, error: fetchError } = await supabaseAdmin
             .from('orders')
             .select('*')
             .eq('id', parentOrderId)
             .single();
         if (fetchError || !parentOrder) throw new Error("訂單不存在");
+
+        if (parentOrder.status === 'DELISTED') {
+            throw new Error("此願望已下架，無法跟單");
+        }
 
         // Determine root buyer_id (if this is already a follow order, check the root)
         let rootBuyerId = parentOrder.buyer_id;
@@ -779,11 +785,21 @@ export async function followOrderAction(
         const is_partial = typeof parentOrder.is_partial_payment === 'boolean' ? parentOrder.is_partial_payment : false;
         const dep_pct = parentOrder.deposit_percentage || 100;
 
+        // Recalculate totals using follower's shipping fee
+        const followerShippingFee = shippingDetails.shipping_fee || 0;
+        const base_twd = (parentOrder.target_price * parentOrder.exchange_rate) + parentOrder.reward_fee;
+        const follower_total_twd = base_twd + (parentOrder.buyer_platform_fee || 0) + followerShippingFee;
+        const follower_deposit_amount = is_partial
+            ? Math.round(follower_total_twd * (dep_pct / 100))
+            : follower_total_twd;
+
         const newOrder: any = {
             buyer_id: user.id,
             item_name: parentOrder.item_name,
             target_price: parentOrder.target_price,
             reward_fee: parentOrder.reward_fee,
+            total_amount: follower_total_twd,
+            total_amount_twd: follower_total_twd,
             exchange_rate: parentOrder.exchange_rate,
             currency: parentOrder.currency,
             country: parentOrder.country,
@@ -798,7 +814,7 @@ export async function followOrderAction(
             payment_type: parentOrder.payment_type,
             is_partial_payment: is_partial,
             deposit_percentage: dep_pct,
-            deposit_amount: parentOrder.deposit_amount,
+            deposit_amount: follower_deposit_amount,
             parent_order_id: parentOrder.parent_order_id || parentOrderId,
             ...shippingDetails,
             payment_notification_sent: false,

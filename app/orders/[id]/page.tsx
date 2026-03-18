@@ -257,6 +257,12 @@ export default function OrderDetails() {
         }
       }
 
+      // Visitor viewing a non-OPEN order has no permission — redirect to marketplace
+      if (newRole === 'visitor' && data.status !== 'OPEN') {
+        router.replace('/market');
+        return;
+      }
+
       console.log('[loadOrder] setting state: role=', newRole, 'order.id=', data.id);
       // Apply all state updates synchronously — React 18 batches these into one render.
       setOrder(data);
@@ -504,7 +510,7 @@ export default function OrderDetails() {
   const handleDelist = async () => {
     if (!order || processingRef.current) return;
     const isFollowOrder = !!order.parent_order_id;
-    const confirmMsg = isFollowOrder ? '確定要取消跟單嗎？' : t('order.delist_confirm');
+    const confirmMsg = isFollowOrder ? '確定要取消這筆排隊許願嗎？' : t('order.delist_confirm');
 
     const confirmed = await showConfirm(confirmMsg);
     if (!confirmed) return;
@@ -1490,7 +1496,7 @@ export default function OrderDetails() {
                 </div>
 
                 {/* Communication Area Placeholder */}
-                <button
+                {partnerProfile && <button
                   onClick={() => window.dispatchEvent(new CustomEvent('open-order-chat'))}
                   className="w-full p-8 bg-secondary/5 text-center space-y-3 hover:bg-secondary/10 transition-colors cursor-pointer block"
                 >
@@ -1501,7 +1507,7 @@ export default function OrderDetails() {
                     <p className="text-sm font-bold">{t('chat.tip_title')}</p>
                     <p className="text-[10px] text-muted-foreground">{t('chat.tip_desc')}</p>
                   </div>
-                </button>
+                </button>}
               </CardContent>
             </Card>
           )}
@@ -1512,16 +1518,18 @@ export default function OrderDetails() {
                 <span className="w-2 h-2 rounded-full bg-gray-400" />
                 <CardTitle className="text-base text-gray-400">{t('order.delisted_msg')}</CardTitle>
               </div>
-              <div className="text-center py-6 bg-gray-500/5 rounded-2xl border border-gray-500/10">
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-500/10 text-gray-400 mb-3">
-                  <AlertTriangle className="w-6 h-6" />
-                </div>
-                <p className="text-sm text-muted-foreground">{t('order.delisted_hint')}</p>
-              </div>
               {role === 'buyer' && (
-                <Button onClick={handleRelist} fullWidth className="h-12 font-bold rounded-xl bg-primary hover:bg-primary/90">
-                  {t('order.relist_btn')}
-                </Button>
+                <>
+                  <div className="text-center py-6 bg-gray-500/5 rounded-2xl border border-gray-500/10">
+                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-500/10 text-gray-400 mb-3">
+                      <AlertTriangle className="w-6 h-6" />
+                    </div>
+                    <p className="text-sm text-muted-foreground">{t('order.delisted_hint')}</p>
+                  </div>
+                  <Button onClick={handleRelist} fullWidth className="h-12 font-bold rounded-xl bg-primary hover:bg-primary/90">
+                    {t('order.relist_btn')}
+                  </Button>
+                </>
               )}
             </div>
           )}
@@ -1544,7 +1552,7 @@ export default function OrderDetails() {
         currentViewOrder.status === 'OPEN' && (role === 'buyer' || role === 'admin') && (
           <div className="pt-2">
             <Button onClick={handleDelist} variant="outline" fullWidth className="h-10 text-xs font-bold text-red-400 border-red-500/20 hover:bg-red-500/10 rounded-xl">
-              {currentViewOrder.parent_order_id ? '取消跟單' : t('order.delist_btn')}
+              {currentViewOrder.parent_order_id ? '取消排隊許願' : t('order.delist_btn')}
             </Button>
           </div>
         )
@@ -1708,7 +1716,34 @@ export default function OrderDetails() {
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-border/30">
+                <div className="pt-4 border-t border-border/30 space-y-3">
+                  {/* Follower's cost breakdown */}
+                  {(() => {
+                    const base = (order.target_price * order.exchange_rate) + order.reward_fee;
+                    const fee = order.buyer_platform_fee || 0;
+                    const shipping = parseFloat(followFee || '0');
+                    const total = base + fee + shipping;
+                    return (
+                      <div className="bg-primary/5 rounded-xl p-3 space-y-1 text-xs">
+                        <div className="flex justify-between text-muted-foreground">
+                          <span>商品 + 報酬</span>
+                          <span>NT$ {Math.round(base).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-muted-foreground">
+                          <span>平台服務費</span>
+                          <span>NT$ {fee.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-muted-foreground">
+                          <span>運費</span>
+                          <span>NT$ {shipping.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between font-black text-sm text-primary border-t border-primary/10 pt-1 mt-1">
+                          <span>預計總支付</span>
+                          <span>NT$ {Math.round(total).toLocaleString()}</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
                   <Button
                     fullWidth
                     className="h-12 font-bold bg-primary hover:bg-primary/90"
@@ -1825,7 +1860,7 @@ export default function OrderDetails() {
         )
       }
       {/* Floating Chat Button */}
-      {user && role !== 'visitor' && (
+      {user && role !== 'visitor' && partnerProfile && (
         <FloatingChat
           orderId={activeChatTab || currentViewOrder.id}
           currentUserId={user.id}

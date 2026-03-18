@@ -209,6 +209,7 @@ export default function CreateWish() {
       if (!formData.recipient_phone.trim()) missingFields.push('收件人電話');
       if (!parseFloat(formData.target_price)) missingFields.push('物品原價');
       if (!parseFloat(formData.reward_fee) && parseFloat(formData.reward_fee) !== 0) missingFields.push('補貼/報酬');
+      if (!parseFloat(formData.exchange_rate) || parseFloat(formData.exchange_rate) <= 0) missingFields.push('匯率');
       if (formData.shipping_method === 'HOME' && !formData.shipping_address.trim()) missingFields.push('收件地址');
 
       if (missingFields.length > 0) {
@@ -326,7 +327,9 @@ export default function CreateWish() {
         }).catch(e => console.error('Failed to trigger AI Search:', e));
       }
 
-      router.push(`/orders/${result.orderId}`);
+      setLoading(false);
+      processingRef.current = false;
+      router.replace(`/orders/${result.orderId}`);
     } catch (error: any) {
       console.error('Error creating wish:', error);
       showAlert(error?.message || t('create.fail') || '發布失敗，請稍後再試');
