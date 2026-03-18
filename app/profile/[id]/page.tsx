@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { fetchProfile } from '@/utils/api';
+import { fetchProfileAction } from '@/app/actions/profile';
 import { Profile } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, User, Trophy, DollarSign, Star, ShieldCheck } from 'lucide-react';
@@ -27,8 +27,9 @@ export default function PublicProfilePage() {
 
     const loadProfile = async () => {
       try {
-        const data = await fetchProfile(userId);
-        setProfile(data);
+        const res = await fetchProfileAction(userId);
+        if (!res.success || !res.data) throw new Error(res.error);
+        setProfile(res.data);
       } catch (error) {
         console.error('[DEBUG Profile] loadProfile ERROR:', error);
       } finally {

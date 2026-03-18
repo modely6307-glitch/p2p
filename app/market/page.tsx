@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, Suspense } from 'react';
-import { fetchOrders } from '@/utils/api';
+import { fetchMarketOrders } from '@/app/actions/queries';
 import { Order } from '@/types';
 import { WishCard } from '@/components/WishCard';
 import { Search, Calendar } from 'lucide-react';
@@ -53,7 +53,9 @@ function MarketContent() {
     useEffect(() => {
         const loadOrders = async () => {
             try {
-                const data = await fetchOrders(['OPEN', 'ESCROWED']);
+                const result = await fetchMarketOrders(['OPEN', 'ESCROWED']);
+                if (!result.success || !result.data) throw new Error(result.error || 'Failed to fetch');
+                const data = result.data;
                 // Consolidation Logic:
                 // For each group (rootId), decide which one to show to THIS user.
                 const groupMap = new Map<string, Order[]>();

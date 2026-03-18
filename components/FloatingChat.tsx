@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { MessageSquare, X, Minus } from 'lucide-react';
 import { OrderChat } from './OrderChat';
 import { cn } from '@/lib/utils';
-import { fetchUnreadMessagesCount, updateOrderLastReadAt } from '@/utils/api';
+import { fetchUnreadMessagesCountAction, updateOrderLastReadAtAction } from '@/app/actions/chat';
 import { supabase } from '@/utils/supabase/client';
 
 interface FloatingChatProps {
@@ -24,8 +24,10 @@ export function FloatingChat({ orderId, currentUserId, role, partnerName, lastRe
         const getUnreadCount = async () => {
             if (!lastReadAt) return;
             try {
-                const count = await fetchUnreadMessagesCount(orderId, currentUserId, lastReadAt);
-                setUnreadCount(count);
+                const res = await fetchUnreadMessagesCountAction(orderId, lastReadAt);
+                if (res.success && res.count !== undefined) {
+                    setUnreadCount(res.count);
+                }
             } catch (error) {
                 console.error('Error fetching unread count:', error);
             }
@@ -51,7 +53,7 @@ export function FloatingChat({ orderId, currentUserId, role, partnerName, lastRe
                             setUnreadCount((prev) => prev + 1);
                         } else {
                             // If open, update DB immediately so unread count doesn't increase on other devices
-                            updateOrderLastReadAt(orderId, role).catch(e => console.error(e));
+                            updateOrderLastReadAtAction(orderId, role).catch(e => console.error(e));
                         }
                     }
                 }
@@ -81,7 +83,7 @@ export function FloatingChat({ orderId, currentUserId, role, partnerName, lastRe
         if (nextState) {
             setUnreadCount(0);
             try {
-                await updateOrderLastReadAt(orderId, role);
+                await updateOrderLastReadAtAction(orderId, role);
             } catch (error) {
                 console.error('Failed to update last read at:', error);
             }

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { fetchMyWishes, fetchMyTasks } from '@/utils/api';
+import { fetchUserOrders } from '@/app/actions/queries';
 import { Order } from '@/types';
 import { useRouter } from 'next/navigation';
 import { WishCard } from '@/components/WishCard';
@@ -43,10 +43,11 @@ export default function Dashboard() {
     const loadOrders = async () => {
       setLoading(true);
       try {
-        const data = activeTab === 'wishes'
-          ? await fetchMyWishes(userId)
-          : await fetchMyTasks(userId);
-        if (!cancelled) setOrders(data);
+        const result = activeTab === 'wishes'
+          ? await fetchUserOrders(userId, 'buyer')
+          : await fetchUserOrders(userId, 'traveler');
+        if (!result.success || !result.data) throw new Error(result.error);
+        if (!cancelled) setOrders(result.data);
       } catch (error) {
         console.error('Error fetching orders:', error);
       } finally {

@@ -2,8 +2,8 @@
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { fetchAllOrders, fetchAllProfiles, updateProfile, updateOrderStatus, incrementOrderStats, fetchSystemSettings, updateSystemSettings } from '@/utils/api';
 import { Order, Profile, SystemSettings } from '@/types';
+import { fetchAllOrdersAction, fetchAllProfilesAction, updateProfileAction, fetchSystemSettingsAction, updateSystemSettingsAction } from '@/app/actions/admin';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -55,16 +55,17 @@ export default function AdminDashboard() {
         setLoading(true);
 
         try {
-            const [ordData, profData, settsData] = await Promise.all([
-                fetchAllOrders().catch(e => { console.error('Orders fail:', e); return [] as Order[]; }),
-                fetchAllProfiles().catch(e => { console.error('Profiles fail:', e); return [] as Profile[]; }),
-                fetchSystemSettings().catch(e => { console.error('Settings fail:', e); return null; })
+            const bypassKey = localStorage.getItem('admin_bypass');
+            const [ordRes, profRes, settsRes] = await Promise.all([
+                fetchAllOrdersAction(bypassKey).catch(e => { console.error('Orders fail:', e); return { success: false, data: [] as Order[] }; }),
+                fetchAllProfilesAction(bypassKey).catch(e => { console.error('Profiles fail:', e); return { success: false, data: [] as Profile[] }; }),
+                fetchSystemSettingsAction(bypassKey).catch(e => { console.error('Settings fail:', e); return { success: false, data: null }; })
             ]);
 
             if (isMounted.current) {
-                setOrders(ordData);
-                setProfiles(profData);
-                if (settsData) setSettings(settsData);
+                if (ordRes.success && ordRes.data) setOrders(ordRes.data as Order[]);
+                if (profRes.success && profRes.data) setProfiles(profRes.data as Profile[]);
+                if (settsRes.success && settsRes.data) setSettings(settsRes.data as SystemSettings);
                 setDataLoaded(true);
             }
         } catch (error) {
@@ -163,8 +164,10 @@ export default function AdminDashboard() {
     const handleUpdateSettings = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!settings) return;
+        const bypassKey = localStorage.getItem('admin_bypass');
         try {
-            await updateSystemSettings(settings);
+            const res = await updateSystemSettingsAction(settings, bypassKey);
+            if (!res.success) throw new Error(res.error);
             setAlertMessage('設定已更新');
             loadData();
         } catch (error) {
@@ -174,11 +177,13 @@ export default function AdminDashboard() {
 
     const handleToggleVerify = async (profile: Profile) => {
         try {
+            const bypassKey = localStorage.getItem('admin_bypass');
             const newStatus = !profile.is_verified;
-            await updateProfile(profile.id, {
+            const res = await updateProfileAction(profile.id, {
                 is_verified: newStatus,
                 level: newStatus ? 'VERIFIED' : 'STANDARD'
-            });
+            }, bypassKey);
+            if (!res.success) throw new Error(res.error);
             loadData();
         } catch (error) {
             setAlertMessage(t('error'));

@@ -4,18 +4,16 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/utils/supabase/client';
 import {
-  fetchOrderById,
   updateOrderStatus,
   assignTraveler,
   updateOrderDetails,
   uploadFile,
   rateUser,
   incrementOrderStats,
-  fetchWishGroup,
   batchAssignTraveler,
-  followOrder,
-  fetchTravelerGroupOrders
+  followOrder
 } from '@/utils/api';
+import { fetchOrderDetails, fetchWishGroupAction, fetchTravelerGroupOrdersAction } from '@/app/actions/queries';
 import { Order, OrderStatus } from '@/types';
 import { StepProgressBar } from '@/components/StepProgressBar';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -228,11 +226,14 @@ export default function OrderDetails() {
       // Fetch all async data first before any setState calls.
       // This ensures all state updates are batched into a single re-render,
       // preventing dialogs from flickering due to intermediate renders.
-      const data = await fetchOrderById(id);
+      const res = await fetchOrderDetails(id);
+      if (!res.success || !res.data) throw new Error(res.error || 'Failed to fetch order');
+      const data = res.data;
 
       let newWishGroup = wishGroup;
       if (!data.traveler_id && ['OPEN', 'ESCROWED'].includes(data.status)) {
-        newWishGroup = await fetchWishGroup(data.parent_order_id || null, data.id);
+        const wgRes = await fetchWishGroupAction(data.parent_order_id || null, data.id);
+        if (wgRes.success && wgRes.data) newWishGroup = wgRes.data;
       }
 
       let newRole: 'buyer' | 'traveler' | 'admin' | 'visitor' = 'visitor';
@@ -246,7 +247,9 @@ export default function OrderDetails() {
           newRole = 'buyer';
         } else if (data.traveler_id === user.id) {
           newRole = 'traveler';
-          newTravelerGroup = await fetchTravelerGroupOrders(data.parent_order_id || null, data.id, user.id);
+          const tgRes = await fetchTravelerGroupOrdersAction(data.parent_order_id || null, data.id, user.id);
+          if (tgRes.success && tgRes.data) newTravelerGroup = tgRes.data;
+          
           if (newTravelerGroup.length > 0 && !activeChatTab) {
             const currentOrderInGroup = newTravelerGroup.find(o => o.id === id);
             newActiveChatTab = currentOrderInGroup?.id || newTravelerGroup[0].id;

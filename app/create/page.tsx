@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { uploadFile, updateProfile } from '@/utils/api';
+import { uploadFile } from '@/utils/api';
+import { updateMyProfileAction } from '@/app/actions/profile';
 import { Profile } from '@/types';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -216,7 +217,7 @@ export default function CreateWish() {
       }
 
       if (rememberAddress && formData.shipping_address) {
-        await updateProfile(user.id, {
+        await updateMyProfileAction(user.id, {
           address: formData.shipping_address,
           phone: formData.recipient_phone,
           display_name: formData.recipient_name

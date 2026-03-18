@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { fetchAllOrders, resolveDispute, incrementOrderStats } from '@/utils/api';
+import { incrementOrderStats } from '@/utils/api';
+import { fetchAllOrdersAction } from '@/app/actions/admin';
 import { Order, OrderStatus } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -52,7 +53,10 @@ export default function AdminDisputesPage() {
     const loadDisputedOrders = async () => {
         setLoading(true);
         try {
-            const allOrders = await fetchAllOrders();
+            const bypassKey = localStorage.getItem('admin_bypass');
+            const res = await fetchAllOrdersAction(bypassKey);
+            if (!res.success || !res.data) throw new Error(res.error);
+            const allOrders = res.data;
             const disputed = allOrders.filter(o => o.status === 'DISPUTE');
             const pastDisputed = allOrders.filter(o => o.status !== 'DISPUTE' && o.dispute_reason);
             setOrders(disputed);

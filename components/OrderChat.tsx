@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Send, Loader2, MessageSquare, ImagePlus, X } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
-import { uploadFile, fetchOrderMessages, sendOrderMessage } from '@/utils/api';
+import { uploadFile } from '@/utils/api';
+import { fetchOrderMessagesAction, sendOrderMessageAction } from '@/app/actions/chat';
 
 interface OrderChatProps {
     orderId: string;
@@ -64,8 +65,10 @@ export function OrderChat({ orderId, currentUserId, role, partnerName }: OrderCh
 
     const fetchInitialMessages = async () => {
         try {
-            const data = await fetchOrderMessages(orderId);
-            setMessages(data as any);
+            const res = await fetchOrderMessagesAction(orderId);
+            if (res.success && res.data) {
+                setMessages(res.data as any);
+            }
         } catch (e) {
             console.error('Error fetching messages:', e);
         } finally {
@@ -85,7 +88,8 @@ export function OrderChat({ orderId, currentUserId, role, partnerName }: OrderCh
                 imageUrl = await uploadFile(imageFile, 'chat_images', path);
             }
 
-            await sendOrderMessage(orderId, currentUserId, newMessage.trim() || null, imageUrl);
+            const res = await sendOrderMessageAction(orderId, newMessage.trim() || null, imageUrl);
+            if (!res.success) throw new Error(res.error);
 
             setNewMessage('');
             removeImage();

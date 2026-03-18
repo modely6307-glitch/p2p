@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { fetchProfile, updateProfile } from '@/utils/api';
+import { fetchProfileAction, updateMyProfileAction } from '@/app/actions/profile';
 import { Profile } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -78,7 +78,8 @@ export default function ProfilePage() {
 
     const newStores = [...currentStores, store];
     try {
-      await updateProfile(user.id, { favorite_stores: newStores });
+      const res = await updateMyProfileAction(user.id, { favorite_stores: newStores });
+      if (!res.success) throw new Error(res.error);
       setProfile(prev => prev ? { ...prev, favorite_stores: newStores } : null);
     } catch (error) {
       console.error('Error updating favorite stores:', error);
@@ -89,7 +90,8 @@ export default function ProfilePage() {
     if (!user || !profile) return;
     const newStores = (profile.favorite_stores || []).filter(s => s.store_id !== storeId);
     try {
-      await updateProfile(user.id, { favorite_stores: newStores });
+      const res = await updateMyProfileAction(user.id, { favorite_stores: newStores });
+      if (!res.success) throw new Error(res.error);
       setProfile(prev => prev ? { ...prev, favorite_stores: newStores } : null);
     } catch (error) {
       console.error('Error removing favorite store:', error);
@@ -107,7 +109,9 @@ export default function ProfilePage() {
   const loadProfile = async () => {
     if (!user) return;
     try {
-      const data = await fetchProfile(user.id);
+      const res = await fetchProfileAction(user.id);
+      if (!res.success || !res.data) throw new Error(res.error);
+      const data = res.data;
       setProfile(data);
       setNewNickname(data.display_name || '');
       setNewAddress(data.address || '');
@@ -121,7 +125,8 @@ export default function ProfilePage() {
   const handleSaveNickname = async () => {
     if (!user || !newNickname.trim()) return;
     try {
-      await updateProfile(user.id, { display_name: newNickname });
+      const res = await updateMyProfileAction(user.id, { display_name: newNickname });
+      if (!res.success) throw new Error(res.error);
       setProfile(prev => prev ? { ...prev, display_name: newNickname } : null);
       setIsEditing(false);
     } catch (error) {
@@ -132,7 +137,8 @@ export default function ProfilePage() {
   const handleSaveAddress = async () => {
     if (!user) return;
     try {
-      await updateProfile(user.id, { address: newAddress });
+      const res = await updateMyProfileAction(user.id, { address: newAddress });
+      if (!res.success) throw new Error(res.error);
       setProfile(prev => prev ? { ...prev, address: newAddress } : null);
       setIsEditingAddress(false);
     } catch (error) {
