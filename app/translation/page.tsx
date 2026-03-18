@@ -21,6 +21,7 @@ export default function TranslationReviewPage() {
 
   const flattenedZh = flattenJson(zh);
   const categories = Object.keys(zh);
+  const indexedEntries = Object.entries(flattenedZh).map(([key, value], index) => ({ key, value: String(value), globalIndex: index + 1 }));
 
   return (
     <div className="container mx-auto py-12 px-4 space-y-8 bg-gray-50/50 min-h-screen">
@@ -49,12 +50,12 @@ export default function TranslationReviewPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {Object.entries(flattenedZh)
-                      .filter(([key]) => key.startsWith(`${category}.`))
-                      .map(([key, value], idx) => (
+                    {indexedEntries
+                      .filter(({ key }) => key.startsWith(`${category}.`))
+                      .map(({ key, value, globalIndex }) => (
                         <tr key={key} className="hover:bg-primary/5 transition-colors group text-left">
                           <td className="px-6 py-4 text-[11px] font-mono text-muted-foreground/40 text-center">
-                            {idx + 1}
+                            {globalIndex}
                           </td>
                           <td className="px-6 py-4 font-mono text-[11px] text-primary/60 font-medium break-all">
                             {key}
