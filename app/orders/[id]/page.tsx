@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { supabase } from '@/utils/supabase/client';
 import {
   fetchOrderById,
   updateOrderStatus,
@@ -10,8 +11,6 @@ import {
   uploadFile,
   rateUser,
   incrementOrderStats,
-  raiseDispute,
-  resolveDispute,
   fetchWishGroup,
   batchAssignTraveler,
   followOrder,
@@ -26,8 +25,30 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Upload, Truck, CheckCircle, AlertTriangle, ShieldCheck, ThumbsUp, ThumbsDown, Camera, CreditCard, X, PlusSquare, MessageSquare } from 'lucide-react';
+import { Loader2, Upload, Truck, CheckCircle, AlertTriangle, ShieldCheck, ThumbsUp, ThumbsDown, Camera, CreditCard, X, PlusSquare, MessageSquare, AlertCircle, Info, Zap } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { 
+  confirmReceipt, 
+  confirmEscrow, 
+  acceptOrder, 
+  finishPurchase, 
+  batchFinishPurchase, 
+  updateReceipt, 
+  batchUpdateReceipt,
+  updatePurchasePhoto,
+  batchUpdatePurchasePhoto,
+  updateModelNumber,
+  notifyPaid,
+  relistOrder,
+  submitUserRating,
+  delistOrderGroup,
+  cancelDispute,
+  resolveDispute as resolveDisputeAction,
+  updateOrderTracking,
+  batchUpdateTrackingNumbers,
+  followOrderAction,
+  raiseDispute
+} from '@/app/actions/orders';
 
 const getCurrencySymbol = (currency: string) => {
   const symbols: Record<string, string> = {
@@ -109,13 +130,29 @@ export default function OrderDetails() {
   const [isLocalLoading, setIsLocalLoading] = useState(false);
   const processingRef = useRef(false);
   const confirmResolveRef = useRef<((val: boolean) => void) | null>(null);
-  const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; message: string }>({ open: false, message: '' });
+  const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; title: string; message: string; type?: 'danger' | 'info' }>({ open: false, title: '', message: '' });
+  const [alertMessage, setAlertMessage] = useState<{ text: string; type: 'error' | 'success' | 'info' } | null>(null);
+  const [isCompleting, setIsCompleting] = useState(false);
 
-  const showConfirm = (message: string): Promise<boolean> => {
+  // Derived States for the current view (Order Details vs Batch View)
+  const currentViewOrder = (role === 'traveler' && travelerGroup.length > 1 && activeChatTab)
+    ? (travelerGroup.find(o => o.id === activeChatTab) || order)
+    : order;
+
+  const partnerProfile = ['buyer', 'visitor'].includes(role) ? currentViewOrder?.traveler : currentViewOrder?.buyer;
+  const partnerRoleName = ['buyer', 'visitor'].includes(role) ? t('order.traveler') : t('order.buyer');
+  const partnerDisplayName = partnerProfile?.display_name || maskEmail(partnerProfile?.email || undefined);
+
+  const showConfirm = (message: string, title = '確認操作', type: 'danger' | 'info' = 'danger'): Promise<boolean> => {
     return new Promise((resolve) => {
       confirmResolveRef.current = resolve;
-      setConfirmDialog({ open: true, message });
+      setConfirmDialog({ open: true, title, message, type });
     });
+  };
+
+  const showAlert = (text: string, type: 'error' | 'success' | 'info' = 'error') => {
+    setAlertMessage({ text, type });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   useEffect(() => {
@@ -131,6 +168,44 @@ export default function OrderDetails() {
       console.error('Failed to load local AI cache', e);
     }
   }, [id, user?.id, profile?.id]);
+
+  // Always keep a ref to the latest loadOrder to avoid stale closure in realtime callback
+  const loadOrderRef = useRef<() => Promise<void>>(async () => {});
+  useEffect(() => {
+    loadOrderRef.current = loadOrder;
+  });
+
+  // Track current order status to only refresh on actual status changes (not photo/field updates)
+  const orderStatusRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (order) orderStatusRef.current = order.status;
+  }, [order?.status]);
+
+  // Realtime subscription for order status changes
+  useEffect(() => {
+    const channel = supabase
+      .channel(`order_status_${id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+          filter: `id=eq.${id}`,
+        },
+        (payload) => {
+          const newStatus = (payload.new as any)?.status;
+          if (newStatus && newStatus !== orderStatusRef.current && !processingRef.current) {
+            loadOrderRef.current();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [id]);
 
   // Polling for AI search status
   useEffect(() => {
@@ -197,11 +272,10 @@ export default function OrderDetails() {
     if (!order || !user) return;
     if (!currentViewOrder || !user) return;
     if (currentViewOrder.status === 'DELISTED') {
-      alert(t('order.delisted_msg'));
+      showAlert(t('order.delisted_msg'), 'info');
       return;
     }
     try {
-      const { acceptOrder } = await import('@/app/actions/orders');
       let orderIds = [currentViewOrder.id];
       if (wishGroup.length > 0) {
         orderIds = wishGroup.slice(0, batchAcceptCount).map(o => o.id);
@@ -212,20 +286,19 @@ export default function OrderDetails() {
       await loadOrder();
     } catch (error: any) {
       console.error('Error accepting order:', error);
-      alert(error.message || t('common.error'));
+      showAlert(error.message || t('common.error'));
     }
   };
 
   const handleConfirmEscrow = async () => {
     if (!currentViewOrder) return;
     try {
-      const { confirmEscrow } = await import('@/app/actions/orders');
       const result = await confirmEscrow(currentViewOrder.id);
       if (!result.success) throw new Error(result.error);
       await loadOrder();
     } catch (error: any) {
       console.error('Error confirming escrow:', error);
-      alert(error.message || t('common.error'));
+      showAlert(error.message || t('common.error'));
     }
   };
 
@@ -236,9 +309,6 @@ export default function OrderDetails() {
       const file = e.target.files[0];
       const path = `${currentViewOrder.id}/receipt-${Date.now()}`;
       const url = await uploadFile(file, 'receipts', path);
-
-      const { updateReceipt, batchUpdateReceipt } = await import('@/app/actions/orders');
-
       if (syncEvidence && travelerGroup.length > 1) {
         const ids = travelerGroup.filter(o => o.status === 'ESCROWED').map(o => o.id);
         const result = await batchUpdateReceipt(ids, url);
@@ -251,7 +321,7 @@ export default function OrderDetails() {
       await loadOrder();
     } catch (error: any) {
       console.error('Error uploading receipt:', error);
-      alert(error.message || t('error') + ': Firebase Storage');
+      showAlert(error.message || t('error') + ': Firebase Storage');
     } finally {
       setUploading(false);
     }
@@ -260,27 +330,25 @@ export default function OrderDetails() {
   const handleAddTracking = async () => {
     if (!currentViewOrder || !trackingNumber) return;
     try {
-      const { updateOrderTracking } = await import('@/app/actions/orders');
       const result = await updateOrderTracking(currentViewOrder.id, trackingNumber);
       if (!result.success) throw new Error(result.error);
       await loadOrder();
     } catch (error: any) {
       console.error('Error adding tracking:', error);
-      alert(error.message || t('common.error'));
+      showAlert(error.message || t('common.error'));
     }
   };
 
   const handleNotifyPaid = async () => {
     if (!currentViewOrder) return;
     try {
-      const { notifyPaid } = await import('@/app/actions/orders');
       const result = await notifyPaid(currentViewOrder.id);
       if (!result.success) throw new Error(result.error);
-      alert(t('order.notify_paid_success'));
+      showAlert(t('order.notify_paid_success'), 'success');
       await loadOrder();
     } catch (error: any) {
       console.error('Error sent notification:', error);
-      alert(error.message || t('common.error'));
+      showAlert(error.message || t('common.error'));
     }
   };
 
@@ -293,14 +361,13 @@ export default function OrderDetails() {
     if (updates.length === 0) return;
 
     try {
-      const { batchUpdateTrackingNumbers } = await import('@/app/actions/orders');
       const result = await batchUpdateTrackingNumbers(updates);
       if (!result.success) throw new Error(result.error);
       await loadOrder();
-      alert('批量出貨成功');
+      showAlert('批量出貨成功', 'success');
     } catch (error: any) {
       console.error('Error batch adding tracking:', error);
-      alert(error.message || t('common.error'));
+      showAlert(error.message || t('common.error'));
     }
   };
 
@@ -311,9 +378,6 @@ export default function OrderDetails() {
       const file = e.target.files[0];
       const path = `${currentViewOrder.id}/purchase-${Date.now()}`;
       const url = await uploadFile(file, 'purchase_photos', path);
-
-      const { updatePurchasePhoto, batchUpdatePurchasePhoto } = await import('@/app/actions/orders');
-
       if (syncEvidence && travelerGroup.length > 1) {
         const ids = travelerGroup.filter(o => o.status === 'ESCROWED').map(o => o.id);
         const result = await batchUpdatePurchasePhoto(ids, url);
@@ -326,7 +390,7 @@ export default function OrderDetails() {
       await loadOrder();
     } catch (error: any) {
       console.error('Error uploading purchase photo:', error);
-      alert(error.message || t('error'));
+      showAlert(error.message || t('error'));
     } finally {
       setPurchasePhotoUploading(false);
     }
@@ -335,13 +399,12 @@ export default function OrderDetails() {
   const handleUpdateModelNumber = async () => {
     if (!currentViewOrder || !modelNumberInput) return;
     try {
-      const { updateModelNumber } = await import('@/app/actions/orders');
       const result = await updateModelNumber(currentViewOrder.id, modelNumberInput);
       if (!result.success) throw new Error(result.error);
       await loadOrder();
     } catch (error: any) {
       console.error('Error updating model number:', error);
-      alert(error.message || t('common.error'));
+      showAlert(error.message || t('common.error'));
     }
   };
 
@@ -349,7 +412,7 @@ export default function OrderDetails() {
     if (!order || processingRef.current) return;
     const city = cityOverride || targetCity;
     if (!city) {
-        alert('請輸入或選擇一個城市');
+        showAlert('請輸入或選擇一個城市', 'info');
         return;
     }
 
@@ -379,7 +442,7 @@ export default function OrderDetails() {
       setTargetCity(''); // Clear input
     } catch (error) {
       console.error('Error refreshing AI search:', error);
-      alert('重新整理地點失敗');
+      showAlert('重新整理地點失敗');
     } finally {
       setIsLocalLoading(false);
       processingRef.current = false;
@@ -387,9 +450,19 @@ export default function OrderDetails() {
   };
 
   const handleConfirmReceipt = async () => {
-    if (!currentViewOrder || !currentViewOrder.traveler_id) return;
+    if (!currentViewOrder || !currentViewOrder.traveler_id || isCompleting) return;
+
+    setIsCompleting(true);
+    processingRef.current = true;
+
+    // Safety timeout: reset button after 15s in case server action hangs
+    const safetyTimer = setTimeout(() => {
+      setIsCompleting(false);
+      processingRef.current = false;
+      loadOrderRef.current(); // re-fetch to sync UI with actual DB state
+    }, 15000);
+
     try {
-      const { confirmReceipt } = await import('@/app/actions/orders');
       const result = await confirmReceipt(currentViewOrder.id);
       if (!result.success) {
         throw new Error(result.error);
@@ -397,7 +470,11 @@ export default function OrderDetails() {
       await loadOrder();
     } catch (error: any) {
       console.error('Error completing order:', error);
-      alert(error.message || t('common.error'));
+      showAlert(error.message || t('common.error'));
+    } finally {
+      clearTimeout(safetyTimer);
+      setIsCompleting(false);
+      processingRef.current = false;
     }
   };
 
@@ -408,7 +485,6 @@ export default function OrderDetails() {
 
     if (!finalTargetUserId) return;
     try {
-      const { submitUserRating } = await import('@/app/actions/orders');
       const result = await submitUserRating(finalOrderId, finalTargetUserId, isPositive);
       if (!result.success) throw new Error(result.error);
 
@@ -418,7 +494,7 @@ export default function OrderDetails() {
       await loadOrder();
     } catch (error: any) {
       console.error('Error submitting rating:', error);
-      alert(error.message || t('common.error'));
+      showAlert(error.message || t('common.error'));
     }
   };
 
@@ -432,13 +508,12 @@ export default function OrderDetails() {
 
     processingRef.current = true;
     try {
-      const { delistOrderGroup } = await import('@/app/actions/orders');
       const result = await delistOrderGroup(order.id);
       if (!result.success) throw new Error(result.error);
       await loadOrder();
     } catch (error: any) {
       console.error('Error delisting order:', error);
-      alert(error.message || t('common.error'));
+      showAlert(error.message || t('common.error'));
     } finally {
       processingRef.current = false;
     }
@@ -448,13 +523,12 @@ export default function OrderDetails() {
     if (!order) return;
     if (!await showConfirm(t('order.relist_confirm'))) return;
     try {
-      const { relistOrder } = await import('@/app/actions/orders');
       const result = await relistOrder(order.id);
       if (!result.success) throw new Error(result.error);
       await loadOrder();
     } catch (error: any) {
       console.error('Error relisting order:', error);
-      alert(error.message || t('common.error'));
+      showAlert(error.message || t('common.error'));
     }
   };
 
@@ -467,7 +541,6 @@ export default function OrderDetails() {
         const path = `${currentViewOrder.id}/dispute-${Date.now()}`;
         evidenceUrl = await uploadFile(disputeEvidence, 'disputes', path);
       }
-      const { raiseDispute } = await import('@/app/actions/orders');
       const result = await raiseDispute(currentViewOrder.id, disputeReason, evidenceUrl);
       if (!result.success) throw new Error(result.error);
 
@@ -478,7 +551,7 @@ export default function OrderDetails() {
       await loadOrder();
     } catch (error: any) {
       console.error('Error raising dispute:', error);
-      alert(error.message || t('common.error'));
+      showAlert(error.message || t('common.error'));
     } finally {
       setIsSubmittingDispute(false);
     }
@@ -488,13 +561,12 @@ export default function OrderDetails() {
     if (!currentViewOrder) return;
     if (!await showConfirm('確定要取消申訴嗎？訂單將回到先前的狀態。')) return;
     try {
-      const { cancelDispute } = await import('@/app/actions/orders');
       const result = await cancelDispute(currentViewOrder.id);
       if (!result.success) throw new Error(result.error);
       await loadOrder();
     } catch (error: any) {
       console.error('Error canceling dispute:', error);
-      alert(error.message || t('common.error'));
+      showAlert(error.message || t('common.error'));
     }
   };
 
@@ -503,14 +575,13 @@ export default function OrderDetails() {
     const actionName = status === 'DELISTED' ? '取消訂單退款' : (status === 'COMPLETED' ? '完成訂單撥款' : `退回：${t(`status.${status}`)}`);
     if (!await showConfirm(`確定要將此訂單裁決為：「${actionName}」嗎？`)) return;
     try {
-      const { resolveDispute } = await import('@/app/actions/orders');
-      const result = await resolveDispute(currentViewOrder.id, status, adminResolutionNotes);
+      const result = await resolveDisputeAction(currentViewOrder.id, status, adminResolutionNotes);
       if (!result.success) throw new Error(result.error);
 
       await loadOrder();
     } catch (error: any) {
       console.error('Error resolving dispute:', error);
-      alert(error.message || t('common.error'));
+      showAlert(error.message || t('common.error'));
     }
   };
 
@@ -526,21 +597,13 @@ export default function OrderDetails() {
     return <div className="p-4 text-center">{t('common.no_data')}</div>;
   }
 
+  if (!order || !currentViewOrder) return null;
+
   const currencySymbol = getCurrencySymbol(order.currency);
   const countryConfig = getCountryFlag(order.country);
-
-  const currentViewOrder = (role === 'traveler' && travelerGroup.length > 1 && activeChatTab)
-    ? (travelerGroup.find(o => o.id === activeChatTab) || order)
-    : order;
-
-  const partnerProfile = ['buyer', 'visitor'].includes(role) ? currentViewOrder?.traveler : currentViewOrder?.buyer;
-  const partnerRoleName = ['buyer', 'visitor'].includes(role) ? t('order.traveler') : t('order.buyer');
-  const partnerDisplayName = partnerProfile?.display_name || maskEmail(partnerProfile?.email || undefined);
   const partnerRating = partnerProfile?.total_rating_count && partnerProfile.total_rating_count > 0
     ? Math.round((partnerProfile.positive_rating_count / partnerProfile.total_rating_count) * 100)
     : null;
-
-  if (!currentViewOrder) return null;
 
   return (
     <div className="p-4 lg:p-8 space-y-6 pb-24 max-w-3xl lg:mx-auto">
@@ -614,7 +677,7 @@ export default function OrderDetails() {
         )}
       </header>
 
-      <StepProgressBar currentStatus={currentViewOrder.status} />
+      <StepProgressBar currentStatus={currentViewOrder.status} paymentType={currentViewOrder.payment_type} travelerId={currentViewOrder.traveler_id} />
 
       {currentViewOrder.status === 'DISPUTE' && (
         <Card className="border-red-500/50 bg-red-500/5 mb-6 shadow-xl shadow-red-500/10">
@@ -935,11 +998,11 @@ export default function OrderDetails() {
                       style={{ border: 0 }} 
                       loading="lazy" 
                       allowFullScreen 
-                      src={`https://maps.google.com/maps?q=${encodeURIComponent((localSearchData?.results?.[0] || currentViewOrder.ai_search_results[0]).name)}&t=&z=14&ie=UTF8&iwloc=&output=embed`}
+                      src={`https://maps.google.com/maps?q=${encodeURIComponent((localSearchData?.results?.[0] || currentViewOrder.ai_search_results?.[0])?.name ?? '')}&t=&z=14&ie=UTF8&iwloc=&output=embed`}
                    ></iframe>
                  </div>
                  <div className="grid grid-cols-1 gap-2">
-                    {(localSearchData?.results || currentViewOrder.ai_search_results).map((res: any, idx: number) => (
+                    {(localSearchData?.results || currentViewOrder.ai_search_results || []).map((res: any, idx: number) => (
                       <a key={idx} href={res.mapUrl} target="_blank" rel="noreferrer" className="p-3 bg-white hover:bg-indigo-50/50 rounded-xl border border-indigo-500/20 text-left transition-all group flex items-center gap-3 justify-between shadow-sm">
                         <div className="min-w-0">
                           <p className="text-sm font-bold text-indigo-900 group-hover:text-indigo-600 transition-colors truncate">{res.name}</p>
@@ -994,7 +1057,9 @@ export default function OrderDetails() {
                     <p className="text-sm font-medium leading-relaxed bg-primary/5 p-4 rounded-xl border border-primary/20 text-center shadow-sm text-primary">
                       {currentViewOrder.buyer_id === user.id ? (
                         currentViewOrder.payment_type === 'PRE_ESCROW'
-                          ? '您選擇了立即託管，請根據下方資訊完成匯款，後續由管理長確認後，代購接單將立刻生效。'
+                          ? (currentViewOrder.status === 'OPEN' && !currentViewOrder.payment_notification_sent 
+                              ? '您選擇了立即託管，請根據下方資訊完成匯款，後續由管理長確認後，代購接單將立刻生效。' 
+                              : '這是您的預付許願單，請靜候旅人接單。')
                           : '這是您的許願單，請靜候旅人接單。'
                       ) : (
                         <>
@@ -1266,16 +1331,34 @@ export default function OrderDetails() {
                             )}
                           </div>
 
+                          <div className="bg-primary/5 p-4 rounded-2xl border border-primary/10 space-y-2">
+                            <p className="text-[10px] font-black uppercase text-primary tracking-widest">{t('order.shipping_info')} <span className="text-muted-foreground font-medium normal-case tracking-normal">（選填，填入後直接進入已出貨）</span></p>
+                            <Input
+                              placeholder={t('order.tracking_placeholder')}
+                              value={trackingNumber}
+                              onChange={(e) => setTrackingNumber(e.target.value)}
+                              className="bg-background border-primary/20"
+                            />
+                          </div>
+
                           <Button fullWidth size="lg" className="h-14 rounded-2xl font-black shadow-xl"
                             disabled={!currentViewOrder.purchase_photo_url || (currentViewOrder.require_receipt && !currentViewOrder.receipt_url)}
                             onClick={async () => {
-                              const { finishPurchase, batchFinishPurchase } = await import('@/app/actions/orders');
                               const ids = syncEvidence ? travelerGroup.filter(o => o.status === 'ESCROWED').map(o => o.id) : [currentViewOrder.id];
                               const res = ids.length > 1 ? await batchFinishPurchase(ids) : await finishPurchase(currentViewOrder.id);
-                              if (res.success) await loadOrder(); else alert(res.error);
+                              if (!res.success) { showAlert(res.error || t('common.error')); return; }
+                              // If tracking number provided, immediately ship (single order only)
+                              if (trackingNumber.trim() && ids.length === 1) {
+                                await updateOrderTracking(currentViewOrder.id, trackingNumber.trim());
+                              }
+                              await loadOrder();
                             }}
                           >
-                            {syncEvidence && travelerGroup.filter(o => o.status === 'ESCROWED').length > 1 ? `一鍵完成全部採買 (${travelerGroup.filter(o => o.status === 'ESCROWED').length})` : t('admin.finish_purchase_btn')}
+                            {trackingNumber.trim()
+                              ? '確認採購並出貨'
+                              : syncEvidence && travelerGroup.filter(o => o.status === 'ESCROWED').length > 1
+                                ? `一鍵完成全部採買 (${travelerGroup.filter(o => o.status === 'ESCROWED').length})`
+                                : t('admin.finish_purchase_btn')}
                           </Button>
                         </div>
                       ) : (
@@ -1342,8 +1425,18 @@ export default function OrderDetails() {
                           <CardTitle className="text-base text-blue-600">{t('status.SHIPPED')}</CardTitle>
                         </div>
                         {role === 'buyer' && (
-                          <Button onClick={handleConfirmReceipt} variant="primary" className="h-10 px-6 font-black rounded-xl animate-in fade-in zoom-in duration-500">
-                            {t('order.received_btn')}
+                          <Button 
+                            onClick={handleConfirmReceipt} 
+                            disabled={isCompleting}
+                            variant="primary" 
+                            className="h-10 px-6 font-black rounded-xl animate-in fade-in zoom-in duration-500 shadow-lg shadow-blue-500/20"
+                          >
+                            {isCompleting ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                處理中...
+                              </>
+                            ) : t('order.received_btn')}
                           </Button>
                         )}
                       </div>
@@ -1454,29 +1547,58 @@ export default function OrderDetails() {
         )
       }
 
-      {/* Confirm Dialog (replaces native browser confirm()) */}
+      {/* Alert Banner */}
+      {alertMessage && (
+        <div className={`mx-4 lg:mx-0 flex items-start gap-3 rounded-2xl px-4 py-3 text-sm font-medium border ${
+          alertMessage.type === 'success' ? 'bg-green-50 border-green-200 text-green-800'
+          : alertMessage.type === 'info' ? 'bg-blue-50 border-blue-200 text-blue-800'
+          : 'bg-red-50 border-red-200 text-red-800'
+        }`}>
+          {alertMessage.type === 'success' ? <CheckCircle className="w-4 h-4 shrink-0 mt-0.5" />
+           : alertMessage.type === 'info' ? <Info className="w-4 h-4 shrink-0 mt-0.5" />
+           : <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />}
+          <span className="flex-1 leading-relaxed">{alertMessage.text}</span>
+          <button onClick={() => setAlertMessage(null)} className="shrink-0 opacity-50 hover:opacity-100 transition-opacity">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Confirm Dialog */}
       {confirmDialog.open && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
-          <Card className="w-full max-w-sm shadow-2xl border-border/50 bg-background animate-in fade-in fill-mode-both duration-150">
-            <CardContent className="p-6 space-y-4">
-              <p className="text-sm font-medium leading-relaxed">{confirmDialog.message}</p>
-              <div className="flex gap-3 pt-2">
+        <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <Card className="w-full max-w-sm shadow-2xl border-border/60 bg-card animate-in fade-in slide-in-from-bottom-4 sm:zoom-in-95 fill-mode-both duration-200">
+            <CardContent className="p-0">
+              <div className="flex flex-col items-center px-6 pt-6 pb-5 text-center">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 ${
+                  confirmDialog.type === 'danger' ? 'bg-red-100' : 'bg-blue-100'
+                }`}>
+                  {confirmDialog.type === 'danger'
+                    ? <AlertTriangle className="w-6 h-6 text-red-500" />
+                    : <Info className="w-6 h-6 text-blue-500" />}
+                </div>
+                <h3 className="text-base font-bold text-foreground mb-2">{confirmDialog.title}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">{confirmDialog.message}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2 px-4 pb-4">
                 <Button
                   variant="outline"
-                  fullWidth
-                  className="h-10"
+                  className="h-11 rounded-xl font-bold"
                   onClick={() => {
-                    setConfirmDialog({ open: false, message: '' });
+                    setConfirmDialog({ open: false, title: '', message: '' });
                     confirmResolveRef.current?.(false);
                   }}
                 >
                   {t('common.cancel')}
                 </Button>
                 <Button
-                  fullWidth
-                  className="h-10 bg-red-600 hover:bg-red-700 text-white"
+                  className={`h-11 rounded-xl font-bold text-white ${
+                    confirmDialog.type === 'danger'
+                      ? 'bg-red-600 hover:bg-red-700'
+                      : 'bg-primary hover:bg-primary/90'
+                  }`}
                   onClick={() => {
-                    setConfirmDialog({ open: false, message: '' });
+                    setConfirmDialog({ open: false, title: '', message: '' });
                     confirmResolveRef.current?.(true);
                   }}
                 >
@@ -1592,7 +1714,8 @@ export default function OrderDetails() {
                       if (!user) return;
                       setIsFollowing(true);
                       try {
-                        const result = await followOrder(order.id, user.id, {
+                        const { followOrderAction } = await import('@/app/actions/orders');
+                        const result = await followOrderAction(order.id, {
                           shipping_method: followMethod,
                           shipping_address: followMethod === 'HOME' ? followAddress : `${followCvsStore.store_name} - ${followCvsStore.store_address}`,
                           cvs_store_info: followMethod === '711' ? followCvsStore : null,
@@ -1600,11 +1723,12 @@ export default function OrderDetails() {
                           recipient_phone: followPhone,
                           shipping_fee: parseFloat(followFee || '0')
                         });
+                        if (!result.success) throw new Error(result.error);
                         setShowFollowModal(false);
-                        router.push(`/orders/${result.id}`);
-                      } catch (e) {
+                        router.push(`/orders/${result.orderId}`);
+                      } catch (e: any) {
                         console.error(e);
-                        alert('跟單失敗');
+                        showAlert(e.message || '跟單失敗');
                       } finally {
                         setIsFollowing(false);
                       }

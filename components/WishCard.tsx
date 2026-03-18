@@ -2,38 +2,33 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Order } from '@/types';
 import { cn } from '@/lib/utils';
-import { Gift, ShieldCheck } from 'lucide-react';
+import { Gift, ShieldCheck, Star, User, Truck, CalendarDays, ArrowRight } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { useRouter } from 'next/navigation';
+import { getCountryFlag } from '@/utils/countries';
 
 interface WishCardProps {
   order: Order;
+  currentUserId?: string;
 }
 
 const getCurrencySymbol = (currency: string) => {
   const symbols: Record<string, string> = {
-    'USD': '$',
-    'TWD': 'NT$',
-    'JPY': '¥',
-    'KRW': '₩',
-    'EUR': '€',
+    'USD': '$', 'TWD': 'NT$', 'JPY': '¥', 'KRW': '₩', 'EUR': '€',
   };
   return symbols[currency] || '$';
 };
 
-import { getCountryFlag } from '@/utils/countries';
-
 const maskEmail = (email: string | undefined) => {
   if (!email) return 'User';
   const prefix = email.split('@')[0];
-  const displayPrefix = prefix.slice(0, 3);
-  return (displayPrefix + '***').slice(0, 6).padEnd(6, '*');
+  return (prefix.slice(0, 3) + '***').slice(0, 6).padEnd(6, '*');
 };
 
-export const WishCard = ({ order }: WishCardProps) => {
+export const WishCard = ({ order, currentUserId }: WishCardProps) => {
   const { t } = useLanguage();
   const router = useRouter();
   const currencySymbol = getCurrencySymbol(order.currency);
@@ -44,99 +39,150 @@ export const WishCard = ({ order }: WishCardProps) => {
     ? Math.round((order.buyer.positive_rating_count / order.buyer.total_rating_count) * 100)
     : null;
 
+  const totalBudget = order.total_amount_twd ||
+    Math.round(order.target_price * (order.exchange_rate || 1) + order.reward_fee + (order.shipping_fee || 0));
+
+  const isOwnOrder = currentUserId && currentUserId === order.buyer_id;
+  const isAcceptable = (order.status === 'OPEN' || (order.status === 'ESCROWED' && !order.traveler_id)) && !isOwnOrder;
+
   return (
-    <Card className="overflow-hidden bg-white/95 backdrop-blur-xl border-border/60 hover:border-primary/20 shadow-sm hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition-all duration-300 group h-full flex flex-col">
-      <Link href={`/orders/${order.id}`}>
-        {/* badges container */}
-        <div className="absolute top-3 left-3 z-10 flex flex-wrap gap-2">
-          {order.payment_type === 'PRE_ESCROW' && (
-            <div className={cn(
-              "px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider backdrop-blur-xl border bg-white/90 text-green-600 border-green-200 shadow-sm"
-            )}>
-              {t('order.tag_pre_escrow')}
+    <Card className="overflow-hidden bg-card border-border/70 hover:border-primary/30 shadow-sm hover:shadow-md transition-all duration-200 group">
+      <Link href={`/orders/${order.id}`} className="block">
+        <div className="p-4">
+          {/* Top row: photo + core info */}
+          <div className="flex gap-3">
+            {/* Photo */}
+            <div className="shrink-0">
+              {order.photo_url ? (
+                <div className="w-[72px] h-[72px] rounded-xl overflow-hidden border border-border/50">
+                  <img
+                    src={order.photo_url}
+                    alt={order.item_name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                </div>
+              ) : (
+                <div className="w-[72px] h-[72px] rounded-xl bg-secondary flex items-center justify-center border border-border/50">
+                  <Gift className="w-7 h-7 text-muted-foreground/40" />
+                </div>
+              )}
             </div>
-          )}
-          {order.parent_order_id && (
-            <div className={cn(
-              "px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wider backdrop-blur-xl border bg-primary text-primary-foreground shadow-sm flex items-center gap-1"
-            )}>
-              ⭐ 我的跟單
-            </div>
-          )}
-        </div>
 
-        <CardHeader className="p-4 pb-2">
-          <div className="flex gap-4">
-            {order.photo_url ? (
-              <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 border border-border/50">
-                <img src={order.photo_url} alt={order.item_name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-              </div>
-            ) : (
-              <div className="w-20 h-20 rounded-lg bg-secondary/30 flex items-center justify-center flex-shrink-0 border border-border/50">
-                <Gift className="w-8 h-8 text-muted-foreground/50" />
-              </div>
-            )}
-            <div className="flex-1 min-w-0 flex flex-col justify-center">
-              <div className="flex justify-between items-start mb-1">
-                <h3 className="text-base font-bold truncate leading-tight">{order.item_name}</h3>
+            {/* Info */}
+            <div className="flex-1 min-w-0">
+              {/* Badges */}
+              <div className="flex flex-wrap gap-1.5 mb-1.5">
+                {order.payment_type === 'PRE_ESCROW' && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-accent text-accent-foreground border border-border/50">
+                    {t('order.tag_pre_escrow')}
+                  </span>
+                )}
+                {order.parent_order_id && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-primary text-primary-foreground">
+                    <Star className="w-2.5 h-2.5 fill-current" /> 我的跟單
+                  </span>
+                )}
               </div>
 
-              <div 
-                className="flex items-center gap-1.5 mb-2.5 text-gray-600 cursor-pointer hover:bg-gray-100/50 p-1 -ml-1 rounded-md transition-colors"
+              {/* Product name */}
+              <h3 className="text-[15px] font-bold leading-snug truncate text-foreground mb-1.5">
+                {order.item_name}
+              </h3>
+
+              {/* Buyer row */}
+              <button
+                className="flex items-center gap-1.5 group/buyer"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
                   router.push(`/profile/${order.buyer_id}`);
                 }}
               >
-                <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200 shrink-0">
-                  <span className="text-[10px] font-bold">👤</span>
+                <div className="w-5 h-5 rounded-full bg-muted flex items-center justify-center border border-border shrink-0">
+                  <User className="w-3 h-3 text-muted-foreground" />
                 </div>
-                <span className="text-xs font-semibold truncate max-w-[80px]">{displayName}</span>
+                <span className="text-xs font-semibold text-muted-foreground group-hover/buyer:text-foreground transition-colors truncate max-w-[72px]">
+                  {displayName}
+                </span>
                 {successRate !== null && (
-                  <span className="text-[10px] bg-yellow-50 text-yellow-700 px-1.5 py-0.5 rounded-md font-medium flex items-center gap-1 border border-yellow-100 shrink-0">
-                    ⭐ {successRate}%
+                  <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-amber-600 shrink-0">
+                    <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+                    {successRate}%
                   </span>
                 )}
                 {order.buyer?.is_verified && (
-                  <ShieldCheck className="w-3.5 h-3.5 text-blue-500 fill-blue-500/10 shrink-0" />
+                  <ShieldCheck className="w-3.5 h-3.5 text-primary shrink-0" />
                 )}
+              </button>
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="mt-3 pt-3 border-t border-border/60 space-y-1.5">
+            {/* Country row */}
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="text-base leading-none">{countryConfig.flag}</span>
+              <span className="font-medium">{t(`countries.${order.country}`)}</span>
+            </div>
+
+            {/* Return date row */}
+            {order.expected_shipping_date && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <CalendarDays className="w-3.5 h-3.5 shrink-0" />
+                <span className="font-medium">{t('create.return_date_short')} {order.expected_shipping_date}</span>
+              </div>
+            )}
+
+            {/* Shipping fee row */}
+            {order.shipping_fee > 0 && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Truck className="w-3.5 h-3.5 shrink-0" />
+                <span className="font-medium">{t('order.shipping_fee')} NT$ {order.shipping_fee}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Reward highlight + price info */}
+          <div className="mt-3 pt-3 border-t border-border/60">
+            <div className="flex items-end justify-between gap-2">
+              <div className="space-y-0.5">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  {t('order.reward_fee')}
+                </p>
+                <p className="text-base font-black text-primary leading-none">
+                  +NT$ {order.reward_fee.toLocaleString()}
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  {t('order.target_price')}：{currencySymbol}{order.target_price.toLocaleString()}
+                  {order.exchange_rate && order.currency !== 'TWD' && (
+                    <span className="ml-1 opacity-70">
+                      (~NT$ {Math.round(order.target_price * order.exchange_rate).toLocaleString()})
+                    </span>
+                  )}
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  {t('order.total_budget')}：NT$ {totalBudget.toLocaleString()}
+                </p>
               </div>
 
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[10px] font-bold px-2 py-1 rounded-md bg-gray-50 text-gray-700 border border-gray-100 flex items-center gap-1 shadow-sm">
-                  {countryConfig.flag} {t(`countries.${order.country}`)}
+              {isOwnOrder ? (
+                <span className="shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold text-muted-foreground bg-muted border border-border/60">
+                  我的願望
                 </span>
-                <span className="text-xs font-bold px-2.5 py-1 rounded-md bg-green-50 text-green-700 border border-green-100 shadow-sm">
-                  +NT$ {order.reward_fee.toLocaleString()} {t('order.reward_fee')}
-                </span>
-                {order.shipping_fee > 0 && (
-                  <span className="text-[10px] font-bold px-2 py-1 rounded-md bg-blue-50 text-blue-700 border border-blue-100 flex items-center gap-1 shadow-sm">
-                    🚚 {t('order.shipping_fee')} NT$ {order.shipping_fee}
-                  </span>
-                )}
-                {order.expected_shipping_date && (
-                  <span className="text-[10px] font-bold px-2 py-1 rounded-md bg-blue-50 text-blue-700 border border-blue-100 flex items-center gap-1 shadow-sm">
-                    📅 {t('create.return_date_short')} {order.expected_shipping_date}
-                  </span>
-                )}
-              </div>
+              ) : isAcceptable ? (
+                <div className={cn(
+                  "shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all duration-200",
+                  "bg-primary text-primary-foreground shadow-sm",
+                  "group-hover:shadow-md group-hover:brightness-105 active:scale-95"
+                )}>
+                  接單
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </div>
+              ) : null}
             </div>
           </div>
-        </CardHeader>
-        <CardContent className="p-5 pt-0">
-          <div className="flex items-center justify-between mt-3 py-3 border-t border-gray-100">
-            <div className="flex flex-col">
-              <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-0.5">{t('order.target_price')}</span>
-              <span className="text-sm font-bold text-gray-900">{currencySymbol}{order.target_price.toLocaleString()}</span>
-            </div>
-            <div className="flex flex-col text-right">
-              <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-0.5">{t('order.total_budget')}</span>
-              <span className="text-base font-black text-primary">NT${(order.total_amount_twd || Math.round(order.target_price * (order.exchange_rate || 1) + order.reward_fee + (order.shipping_fee || 0))).toLocaleString()}</span>
-            </div>
-          </div>
-        </CardContent>
+        </div>
       </Link>
-    </Card >
+    </Card>
   );
 };

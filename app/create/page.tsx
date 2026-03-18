@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { createOrder, uploadFile, updateProfile } from '@/utils/api';
+import { uploadFile, updateProfile } from '@/utils/api';
 import { Profile } from '@/types';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -200,9 +200,6 @@ export default function CreateWish() {
       if (!user) { showAlert('請先登入'); return; }
       if (!userProfile) { showAlert('個人資料載入中，請稍後再試'); return; }
 
-      console.log('[Debug] User Verification Status:', userProfile.is_verified);
-      console.log('[Debug] Current Total Amount:', (calculateSubtotal() + calculateFee(calculateSubtotal())));
-
       // Explicit field validation with visible feedback
       const missingFields: string[] = [];
       if (!formData.item_name.trim()) missingFields.push('物品名稱');
@@ -281,8 +278,8 @@ export default function CreateWish() {
       const isHighValue = (subtotal + fee) > 10000;
       const isEligibleForAi = userProfile.is_verified && (isUrgent || isHighValue);
 
-      const result = await createOrder({
-        buyer_id: user.id,
+      const { createOrderAction } = await import('@/app/actions/orders');
+      const result = await createOrderAction({
         item_name: formData.item_name,
         target_price: parseFloat(formData.target_price),
         reward_fee: parseFloat(formData.reward_fee),
@@ -313,12 +310,14 @@ export default function CreateWish() {
         ai_search_status: isEligibleForAi ? 'PENDING' : null,
       });
 
+      if (!result.success) throw new Error(result.error);
+
       if (isEligibleForAi) {
         fetch('/api/ai-search', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            orderId: result.id,
+            orderId: result.orderId,
             itemName: formData.item_name,
             country: formData.country
           }),
@@ -326,10 +325,10 @@ export default function CreateWish() {
         }).catch(e => console.error('Failed to trigger AI Search:', e));
       }
 
-      router.push(`/orders/${result.id}`);
-    } catch (error) {
+      router.push(`/orders/${result.orderId}`);
+    } catch (error: any) {
       console.error('Error creating wish:', error);
-      showAlert(t('create.fail'));
+      showAlert(error?.message || t('create.fail') || '發布失敗，請稍後再試');
     } finally {
       setLoading(false);
       processingRef.current = false;

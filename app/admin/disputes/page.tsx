@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { fetchAllOrders, resolveDispute, incrementOrderStats } from '@/utils/api';
 import { Order, OrderStatus } from '@/types';
@@ -20,6 +20,19 @@ export default function AdminDisputesPage() {
     const [pastOrders, setPastOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
     const [resolutionNotes, setResolutionNotes] = useState<Record<string, string>>({});
+
+    // Custom confirm dialog
+    const confirmResolveRef = useRef<((val: boolean) => void) | null>(null);
+    const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; message: string }>({ open: false, message: '' });
+
+    const showConfirm = useCallback((message: string): Promise<boolean> => {
+        return new Promise((resolve) => {
+            confirmResolveRef.current = resolve;
+            setConfirmDialog({ open: true, message });
+        });
+    }, []);
+
+    const [alertMessage, setAlertMessage] = useState<string | null>(null);
 
     useEffect(() => {
         if (authLoading) return;
@@ -55,7 +68,7 @@ export default function AdminDisputesPage() {
         const notes = resolutionNotes[order.id] || '';
         const actionName = status === 'DELISTED' ? '取消訂單退款' : '完成訂單撥款';
 
-        if (!confirm(`確定要將此訂單裁決為：「${actionName}」嗎？此操作不可逆。`)) return;
+        if (!await showConfirm(`確定要將此訂單裁決為：「${actionName}」嗎？此操作不可逆。`)) return;
 
         try {
             const { resolveDispute } = await import('@/app/actions/orders');
@@ -70,7 +83,7 @@ export default function AdminDisputesPage() {
             await loadDisputedOrders();
         } catch (error: any) {
             console.error('Error resolving dispute:', error);
-            alert(error.message || '裁決失敗，請稍後再試');
+            setAlertMessage(error.message || '裁決失敗，請稍後再試');
         }
     };
 
@@ -103,6 +116,42 @@ export default function AdminDisputesPage() {
 
     return (
         <div className="p-4 space-y-6 max-w-5xl mx-auto pb-20">
+            {/* Confirm Dialog */}
+            {confirmDialog.open && (
+                <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                    <Card className="w-full max-w-sm shadow-2xl border-border/60 bg-card animate-in fade-in slide-in-from-bottom-4 sm:zoom-in-95 fill-mode-both duration-200">
+                        <CardContent className="p-0">
+                            <div className="flex flex-col items-center px-6 pt-6 pb-5 text-center">
+                                <div className="w-12 h-12 rounded-2xl bg-red-100 flex items-center justify-center mb-4">
+                                    <AlertTriangle className="w-6 h-6 text-red-500" />
+                                </div>
+                                <h3 className="text-base font-bold text-foreground mb-2">確認裁決</h3>
+                                <p className="text-sm text-muted-foreground leading-relaxed">{confirmDialog.message}</p>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 px-4 pb-4">
+                                <Button variant="outline" className="h-11 rounded-xl font-bold"
+                                    onClick={() => { setConfirmDialog({ open: false, message: '' }); confirmResolveRef.current?.(false); }}>
+                                    取消
+                                </Button>
+                                <Button className="h-11 rounded-xl font-bold bg-red-600 hover:bg-red-700 text-white"
+                                    onClick={() => { setConfirmDialog({ open: false, message: '' }); confirmResolveRef.current?.(true); }}>
+                                    確認裁決
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
+
+            {/* Alert Banner */}
+            {alertMessage && (
+                <div className="flex items-start gap-3 bg-red-50 border border-red-200 text-red-800 rounded-2xl px-4 py-3 text-sm font-medium">
+                    <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
+                    <span className="flex-1 leading-relaxed">{alertMessage}</span>
+                    <button onClick={() => setAlertMessage(null)} className="shrink-0 opacity-50 hover:opacity-100 transition-opacity">✕</button>
+                </div>
+            )}
+
             <header className="flex items-center gap-4">
                 <Button variant="ghost" size="icon" onClick={() => router.push('/admin')} className="rounded-full">
                     <ArrowLeft className="w-5 h-5" />

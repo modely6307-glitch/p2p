@@ -28,7 +28,20 @@
         "SHIPPED": "Shipped",
         "COMPLETED": "Completed",
         "DISPUTE": "Disputed",
-        "DELISTED": "Delisted"
+        "DELISTED": "Delisted",
+        "help_title": "Order Progress Levels",
+        "OPEN_desc": "Wish posted. Waiting for traveler to accept.",
+        "MATCHED_desc": "Traveler accepted. Wisher to fund escrow account.",
+        "ESCROWED_desc": "Funds received. Traveler cleared to purchase item.",
+        "BOUGHT_desc": "Item purchased. Proof of purchase uploaded.",
+        "SHIPPED_desc": "Item shipped back from return trip.",
+        "COMPLETED_desc": "Wisher confirmed receipt. Funds released to traveler.",
+        "PE_CREATED": "Order Created",
+        "PE_CREATED_desc": "Wisher posted and paid upfront. Funds held in escrow.",
+        "PE_ESCROWED": "Funds Escrowed",
+        "PE_ESCROWED_desc": "Funds secured. Waiting for a traveler to accept.",
+        "PE_MATCHED": "Traveler Accepted",
+        "PE_MATCHED_desc": "A traveler accepted this order and will begin purchasing."
     },
     "home": {
         "title": "Wish Plaza",
@@ -162,6 +175,7 @@
     },
     "order": {
         "details_title": "Order Details",
+        "steps_title": "Order Timeline",
         "order_no": "Order #",
         "wish_notes": "Wish Notes",
         "budget_info": "Budget Info",
@@ -210,6 +224,7 @@
         "positive": "Positive",
         "negative": "Negative",
         "rate_thanks": "Thanks for your rating!",
+        "rating_submitted": "Rating submitted",
         "traveler_net": "Net Earnings (Est.)",
         "traveler_fee_hint": "* Platform fee NT${fee} deducted",
         "address_locked": "Address revealed after payment confirmation",

@@ -37,6 +37,7 @@ export function AiRecommendation({ country, onProceed, onSelectRecommendation }:
     const { t } = useLanguage();
     const [expandedItems, setExpandedItems] = useState<Record<number, boolean>>({});
     const [attempt, setAttempt] = useState(1);
+    const [cachedObject, setCachedObject] = useState<z.infer<typeof schema> | null>(null);
 
     const toggleExpand = (index: number, e: React.MouseEvent) => {
         e.stopPropagation();
@@ -49,23 +50,52 @@ export function AiRecommendation({ country, onProceed, onSelectRecommendation }:
     threeMonthsAgo.setMonth(now.getMonth() - 3);
     const startDate = threeMonthsAgo.toISOString().split('T')[0];
 
-    const { object, submit, isLoading, error, stop } = useObject({
+    const cacheKey = `ai_rec_${country}_${endDate}`;
+
+    const { object: streamObject, submit, isLoading, error, stop } = useObject({
         api: '/api/recommend',
         schema,
     });
 
+    // Use cached object if available, otherwise fall back to stream
+    const object = cachedObject || streamObject;
     const isInitialLoading = !object && isLoading;
     const isStreaming = object && isLoading;
 
     useEffect(() => {
-        // Initial load: try to get daily cached version
+        // Check sessionStorage cache first (same-day, same-country)
+        try {
+            const cached = sessionStorage.getItem(cacheKey);
+            if (cached) {
+                setCachedObject(JSON.parse(cached));
+                return; // Skip AI call
+            }
+        } catch (e) {
+            // Ignore parse errors
+        }
+        // Cache miss: fetch fresh recommendations
         submit({ country, startDate, endDate, attempt: 1, isRefresh: false });
         return () => stop();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [country]);
 
+    // Save completed stream results to sessionStorage
+    useEffect(() => {
+        if (streamObject && !isLoading && !cachedObject) {
+            try {
+                sessionStorage.setItem(cacheKey, JSON.stringify(streamObject));
+            } catch (e) {
+                // Ignore storage errors
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [streamObject, isLoading]);
+
     const handleRefresh = (e: React.MouseEvent) => {
         e.preventDefault();
+        // Clear cache so user gets a fresh set
+        try { sessionStorage.removeItem(cacheKey); } catch (e) { }
+        setCachedObject(null);
         const nextAttempt = attempt + 1;
         setAttempt(nextAttempt);
         submit({ country, startDate, endDate, attempt: nextAttempt, isRefresh: true });

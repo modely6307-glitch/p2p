@@ -5,7 +5,7 @@ import { fetchProfile, updateProfile } from '@/utils/api';
 import { Profile } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, User, Trophy, DollarSign, Star, LogOut, ShieldCheck, MapPin } from 'lucide-react';
+import { User, Trophy, DollarSign, Star, LogOut, ShieldCheck, MapPin } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
@@ -36,24 +36,16 @@ export default function ProfilePage() {
 
   // Use cached profile immediately, then fetch fresh data in the background.
   useEffect(() => {
-    console.log('[DEBUG Profile] useEffect fired, user:', user?.id ?? 'null', 'authLoading:', authLoading, 'authProfile:', authProfile ? 'ok' : 'null', 'localProfile:', profile ? 'ok' : 'null');
-
     // If no user yet, wait for auth to finish before deciding
     if (!user) {
       if (!authLoading) {
-        console.log('[DEBUG Profile] no user & auth done, setting loading=false');
         setLoading(false);
-      } else {
-        console.log('[DEBUG Profile] no user, authLoading=true, waiting...');
       }
       return;
     }
-    // user is set — proceed regardless of authLoading
-    console.log('[DEBUG Profile] user is set, proceeding');
 
     // Show cached data instantly to avoid spinner on navigation
     if (authProfile) {
-      console.log('[DEBUG Profile] using cached authProfile, setting loading=false');
       setProfile(authProfile);
       setNewNickname(prev => prev || authProfile.display_name || '');
       setNewAddress(prev => prev || authProfile.address || '');
@@ -61,7 +53,6 @@ export default function ProfilePage() {
     }
 
     // Always fetch fresh data in the background
-    console.log('[DEBUG Profile] calling loadProfile()');
     loadProfile();
   }, [user, authLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -90,7 +81,7 @@ export default function ProfilePage() {
       await updateProfile(user.id, { favorite_stores: newStores });
       setProfile(prev => prev ? { ...prev, favorite_stores: newStores } : null);
     } catch (error) {
-      alert(t('common.error'));
+      console.error('Error updating favorite stores:', error);
     }
   };
 
@@ -101,7 +92,7 @@ export default function ProfilePage() {
       await updateProfile(user.id, { favorite_stores: newStores });
       setProfile(prev => prev ? { ...prev, favorite_stores: newStores } : null);
     } catch (error) {
-      alert(t('common.error'));
+      console.error('Error removing favorite store:', error);
     }
   };
 
@@ -114,18 +105,15 @@ export default function ProfilePage() {
   };
 
   const loadProfile = async () => {
-    if (!user) { console.log('[DEBUG Profile] loadProfile: no user, skip'); return; }
-    console.log('[DEBUG Profile] loadProfile START');
+    if (!user) return;
     try {
       const data = await fetchProfile(user.id);
-      console.log('[DEBUG Profile] loadProfile fetched:', data ? 'ok' : 'null');
       setProfile(data);
       setNewNickname(data.display_name || '');
       setNewAddress(data.address || '');
     } catch (error) {
-      console.error('[DEBUG Profile] loadProfile ERROR:', error);
+      console.error('Error loading profile:', error);
     } finally {
-      console.log('[DEBUG Profile] loadProfile FINALLY, setting loading=false');
       setLoading(false);
     }
   };
@@ -137,7 +125,7 @@ export default function ProfilePage() {
       setProfile(prev => prev ? { ...prev, display_name: newNickname } : null);
       setIsEditing(false);
     } catch (error) {
-      alert(t('common.error'));
+      console.error('Error saving nickname:', error);
     }
   };
 
@@ -148,7 +136,7 @@ export default function ProfilePage() {
       setProfile(prev => prev ? { ...prev, address: newAddress } : null);
       setIsEditingAddress(false);
     } catch (error) {
-      alert(t('common.error'));
+      console.error('Error saving address:', error);
     }
   };
 
@@ -159,8 +147,16 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="p-4 pt-8 lg:p-8 space-y-6 max-w-2xl lg:mx-auto">
+        <div className="flex items-center gap-4">
+          <div className="w-20 h-20 rounded-3xl skeleton shrink-0" />
+          <div className="space-y-2 flex-1">
+            <div className="h-6 skeleton rounded-lg w-40" />
+            <div className="h-4 skeleton rounded-lg w-28" />
+          </div>
+        </div>
+        <div className="h-32 skeleton rounded-2xl" />
+        <div className="h-48 skeleton rounded-2xl" />
       </div>
     );
   }

@@ -8,6 +8,8 @@ import { OrderStatus } from '@/types';
 // Helper to create a Supabase client for the current requesting user
 const createClient = async () => {
     const cookieStore = await cookies();
+    const hasSession = cookieStore.getAll().some(c => c.name.includes('supabase-auth-token') || c.name.includes('sb-'));
+    console.log(`[createClient] hasSession cookies: ${hasSession}`);
 
     return createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -16,6 +18,24 @@ const createClient = async () => {
             cookies: {
                 get(name: string) {
                     return cookieStore.get(name)?.value;
+                },
+                set(name: string, value: string, options: any) {
+                    try {
+                        cookieStore.set({ name, value, ...options });
+                    } catch (error) {
+                        // The `set` method was called from a Server Component.
+                        // This can be ignored if you have middleware refreshing
+                        // user sessions.
+                    }
+                },
+                remove(name: string, options: any) {
+                    try {
+                        cookieStore.delete({ name, ...options });
+                    } catch (error) {
+                        // The `delete` method was called from a Server Component.
+                        // This can be ignored if you have middleware refreshing
+                        // user sessions.
+                    }
                 },
             },
         }
@@ -50,21 +70,22 @@ export async function confirmReceipt(orderId: string) {
 
         if (updateError) throw updateError;
 
-        // 2. Increment stats securely via Server Action
+        // 2. Increment stats non-blocking — do NOT await, so the button
+        //    doesn't hang if the RPC is slow. Stats update in the background.
         if (order.traveler_id) {
-            const { error: statsError } = await supabaseAdmin.rpc('increment_order_stats', {
+            supabaseAdmin.rpc('increment_order_stats', {
                 user_id: order.traveler_id,
                 order_amount: amountTwd
+            }).then(({ error }) => {
+                if (error) console.error("Error incrementing traveler stats:", error);
             });
-            if (statsError) console.error("Error incrementing traveler stats:", statsError);
         }
-
-        // Increment buyer stats as well
-        const { error: buyerStatsError } = await supabaseAdmin.rpc('increment_order_stats', {
+        supabaseAdmin.rpc('increment_order_stats', {
             user_id: order.buyer_id,
             order_amount: amountTwd
+        }).then(({ error }) => {
+            if (error) console.error("Error incrementing buyer stats:", error);
         });
-        if (buyerStatsError) console.error("Error incrementing buyer stats:", buyerStatsError);
 
         return { success: true };
     } catch (error: any) {
@@ -706,5 +727,148 @@ export async function adminReleaseFunds(orderId: string) {
     } catch (error: any) {
         console.error("Server Action adminReleaseFunds Error:", error);
         return { success: false, error: error.message };
+    }
+}
+
+export async function followOrderAction(
+    parentOrderId: string,
+    shippingDetails: {
+        shipping_method: 'HOME' | '711';
+        shipping_address?: string | null;
+        cvs_store_info?: any;
+        recipient_name: string;
+        recipient_phone: string;
+        shipping_fee: number;
+    }
+) {
+    try {
+        const supabaseClient = await createClient();
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user) throw new Error("您尚未登入");
+
+        const supabaseAdmin = getSupabaseAdmin();
+
+        // Fetch parent order
+        const { data: parentOrder, error: fetchError } = await supabaseAdmin
+            .from('orders')
+            .select('*')
+            .eq('id', parentOrderId)
+            .single();
+        if (fetchError || !parentOrder) throw new Error("訂單不存在");
+
+        // Determine root buyer_id (if this is already a follow order, check the root)
+        let rootBuyerId = parentOrder.buyer_id;
+        if (parentOrder.parent_order_id) {
+            const { data: rootOrder } = await supabaseAdmin
+                .from('orders')
+                .select('buyer_id')
+                .eq('id', parentOrder.parent_order_id)
+                .single();
+            if (rootOrder) rootBuyerId = rootOrder.buyer_id;
+        }
+
+        // Self-order guard: cannot follow own order
+        if (user.id === parentOrder.buyer_id || user.id === rootBuyerId) {
+            throw new Error("不能跟單自己的訂單");
+        }
+
+        // Build new order mirroring the parent
+        const is_partial = typeof parentOrder.is_partial_payment === 'boolean' ? parentOrder.is_partial_payment : false;
+        const dep_pct = parentOrder.deposit_percentage || 100;
+
+        const newOrder: any = {
+            buyer_id: user.id,
+            item_name: parentOrder.item_name,
+            target_price: parentOrder.target_price,
+            reward_fee: parentOrder.reward_fee,
+            exchange_rate: parentOrder.exchange_rate,
+            currency: parentOrder.currency,
+            country: parentOrder.country,
+            description: parentOrder.description,
+            require_receipt: parentOrder.require_receipt,
+            require_model_number: parentOrder.require_model_number,
+            photo_url: parentOrder.photo_url,
+            buyer_platform_fee: parentOrder.buyer_platform_fee,
+            traveler_platform_fee: parentOrder.traveler_platform_fee,
+            expected_shipping_date: parentOrder.expected_shipping_date,
+            auto_extend: parentOrder.auto_extend,
+            payment_type: parentOrder.payment_type,
+            is_partial_payment: is_partial,
+            deposit_percentage: dep_pct,
+            deposit_amount: parentOrder.deposit_amount,
+            parent_order_id: parentOrder.parent_order_id || parentOrderId,
+            ...shippingDetails,
+            payment_notification_sent: false,
+        };
+
+        const { data: created, error: insertError } = await supabaseAdmin
+            .from('orders')
+            .insert(newOrder)
+            .select()
+            .single();
+        if (insertError) throw insertError;
+
+        return { success: true, orderId: created.id };
+    } catch (error: any) {
+        console.error('followOrderAction error:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+export async function createOrderAction(orderData: {
+    item_name: string;
+    target_price: number;
+    reward_fee: number;
+    exchange_rate: number;
+    currency: string;
+    country: string;
+    description: string;
+    shipping_address?: string | null;
+    require_receipt: boolean;
+    require_model_number: boolean;
+    photo_url?: string | null;
+    buyer_platform_fee: number;
+    traveler_platform_fee: number;
+    expected_shipping_date: string;
+    auto_extend: boolean;
+    payment_type: 'PRE_ESCROW' | 'MATCH_ESCROW';
+    shipping_method?: 'HOME' | '711';
+    cvs_store_info?: any;
+    recipient_name?: string | null;
+    recipient_phone?: string | null;
+    shipping_fee: number;
+    is_partial_payment: boolean;
+    deposit_percentage: number;
+    deposit_amount: number;
+    payment_notification_sent: boolean;
+    ai_search_status?: string | null;
+}) {
+    try {
+        const supabaseClient = await createClient();
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user) throw new Error('您尚未登入');
+
+        const supabaseAdmin = getSupabaseAdmin();
+
+        const base_amount_twd = (orderData.target_price * orderData.exchange_rate) + orderData.reward_fee;
+        const total_amount_twd = base_amount_twd + (orderData.buyer_platform_fee || 0) + (orderData.shipping_fee || 0);
+
+        const { data, error } = await supabaseAdmin
+            .from('orders')
+            .insert({
+                ...orderData,
+                buyer_id: user.id,
+                status: 'OPEN',
+                total_amount: total_amount_twd,
+                total_amount_twd,
+            })
+            .select()
+            .single();
+
+        if (error) throw error;
+        return { success: true as const, orderId: data.id };
+    } catch (error: any) {
+        console.error('createOrderAction error:', error);
+        return { success: false as const, error: error.message || '建立訂單失敗' };
     }
 }

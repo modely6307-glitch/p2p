@@ -357,9 +357,9 @@ export default function LandingPage() {
                   
                   if (activeLandingFilter === 'Global') {
                     displayItems = [
-                      ...(japanData?.items?.slice(0, 2).filter(Boolean).map(i => ({ ...i, flag: i.flag || '🇯🇵' })) || []),
-                      ...(koreaData?.items?.slice(0, 2).filter(Boolean).map(i => ({ ...i, flag: i.flag || '🇰🇷' })) || []),
-                      ...(thailandData?.items?.slice(0, 2).filter(Boolean).map(i => ({ ...i, flag: i.flag || '🇹🇭' })) || [])
+                      ...(japanData?.items?.slice(0, 2).filter(Boolean).map((i: any) => ({ ...i, flag: i.flag || '🇯🇵' })) || []),
+                      ...(koreaData?.items?.slice(0, 2).filter(Boolean).map((i: any) => ({ ...i, flag: i.flag || '🇰🇷' })) || []),
+                      ...(thailandData?.items?.slice(0, 2).filter(Boolean).map((i: any) => ({ ...i, flag: i.flag || '🇹🇭' })) || [])
                     ];
                   } else {
                     const data: any = activeLandingFilter === 'Japan' ? japanData 

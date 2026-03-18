@@ -28,7 +28,20 @@
         "SHIPPED": "已發貨",
         "COMPLETED": "已完成",
         "DISPUTE": "爭議中",
-        "DELISTED": "已下架"
+        "DELISTED": "已下架",
+        "help_title": "訂單進度說明",
+        "OPEN_desc": "買家發布願望，等待旅人接單。",
+        "MATCHED_desc": "旅人已接單，請買家完成匯款（代管資金）。",
+        "ESCROWED_desc": "資金已入帳，旅人可以安心開始採買物品。",
+        "BOUGHT_desc": "旅人已採買完成，並上傳購買證明供比對。",
+        "SHIPPED_desc": "旅人已歸國並交寄物品，請留意物流訊息。",
+        "COMPLETED_desc": "買家確認收貨，系統撥付資金給旅人。",
+        "PE_CREATED": "開單",
+        "PE_CREATED_desc": "買家發布願望並完成付款，資金由平台代管。",
+        "PE_ESCROWED": "付款託管",
+        "PE_ESCROWED_desc": "資金已入帳，等待旅人接單。",
+        "PE_MATCHED": "旅人接單",
+        "PE_MATCHED_desc": "旅人已接單，即將開始採買。"
     },
     "home": {
         "title": "願望廣場",
@@ -162,6 +175,7 @@
     },
     "order": {
         "details_title": "訂單詳情",
+        "steps_title": "訂單進度",
         "order_no": "訂單編號",
         "wish_notes": "願望備註",
         "budget_info": "預算資訊",
@@ -211,6 +225,7 @@
         "positive": "正評",
         "negative": "負評",
         "rate_thanks": "感謝您的評價！",
+        "rating_submitted": "已送出評價",
         "traveler_net": "實際入帳金額 (預估)",
         "traveler_fee_hint": "* 已扣除平台服務費 NT${fee}",
         "address_locked": "寄件地址將在系統確認收到資金後揭露",

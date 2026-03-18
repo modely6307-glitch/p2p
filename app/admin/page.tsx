@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { fetchAllOrders, fetchAllProfiles, updateProfile, updateOrderStatus, incrementOrderStats, fetchSystemSettings, updateSystemSettings } from '@/utils/api';
 import { Order, Profile, SystemSettings } from '@/types';
@@ -31,6 +31,20 @@ export default function AdminDashboard() {
     // Safety & Initialization
     const isMounted = useRef(true);
     const [dataLoaded, setDataLoaded] = useState(false);
+
+    // Custom confirm dialog (replaces native confirm() to prevent flickering)
+    const confirmResolveRef = useRef<((val: boolean) => void) | null>(null);
+    const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; message: string }>({ open: false, message: '' });
+
+    const showConfirm = useCallback((message: string): Promise<boolean> => {
+        return new Promise((resolve) => {
+            confirmResolveRef.current = resolve;
+            setConfirmDialog({ open: true, message });
+        });
+    }, []);
+
+    // Inline alert banner (replaces native alert())
+    const [alertMessage, setAlertMessage] = useState<string | null>(null);
 
     useEffect(() => {
         return () => { isMounted.current = false; };
@@ -123,26 +137,26 @@ export default function AdminDashboard() {
 
     // HANDLERS
     const handleConfirmPayment = async (orderId: string) => {
-        if (!confirm('確認收到款項？')) return;
+        if (!await showConfirm('確認收到款項？')) return;
         try {
             const { confirmEscrow } = await import('@/app/actions/orders');
             const result = await confirmEscrow(orderId);
             if (!result.success) throw new Error(result.error);
             loadData();
         } catch (error: any) {
-            alert(error.message || t('error'));
+            setAlertMessage(error.message || t('error'));
         }
     };
 
     const handleReleaseFunds = async (order: Order) => {
-        if (!confirm('確認撥款給旅人？')) return;
+        if (!await showConfirm('確認撥款給旅人？')) return;
         try {
             const { adminReleaseFunds } = await import('@/app/actions/orders');
             const result = await adminReleaseFunds(order.id);
             if (!result.success) throw new Error(result.error);
             loadData();
         } catch (error: any) {
-            alert(error.message || t('error'));
+            setAlertMessage(error.message || t('error'));
         }
     };
 
@@ -151,10 +165,10 @@ export default function AdminDashboard() {
         if (!settings) return;
         try {
             await updateSystemSettings(settings);
-            alert('設定已更新');
+            setAlertMessage('設定已更新');
             loadData();
         } catch (error) {
-            alert('更新失敗');
+            setAlertMessage('更新失敗');
         }
     };
 
@@ -167,7 +181,7 @@ export default function AdminDashboard() {
             });
             loadData();
         } catch (error) {
-            alert(t('error'));
+            setAlertMessage(t('error'));
         }
     };
 
@@ -187,6 +201,42 @@ export default function AdminDashboard() {
 
     return (
         <div className="p-4 space-y-6 max-w-5xl mx-auto pb-20">
+            {/* Confirm Dialog */}
+            {confirmDialog.open && (
+                <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                    <Card className="w-full max-w-sm shadow-2xl border-border/60 bg-card animate-in fade-in slide-in-from-bottom-4 sm:zoom-in-95 fill-mode-both duration-200">
+                        <CardContent className="p-0">
+                            <div className="flex flex-col items-center px-6 pt-6 pb-5 text-center">
+                                <div className="w-12 h-12 rounded-2xl bg-orange-100 flex items-center justify-center mb-4">
+                                    <AlertTriangle className="w-6 h-6 text-orange-500" />
+                                </div>
+                                <h3 className="text-base font-bold text-foreground mb-2">確認操作</h3>
+                                <p className="text-sm text-muted-foreground leading-relaxed">{confirmDialog.message}</p>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 px-4 pb-4">
+                                <Button variant="outline" className="h-11 rounded-xl font-bold"
+                                    onClick={() => { setConfirmDialog({ open: false, message: '' }); confirmResolveRef.current?.(false); }}>
+                                    取消
+                                </Button>
+                                <Button className="h-11 rounded-xl font-bold bg-red-600 hover:bg-red-700 text-white"
+                                    onClick={() => { setConfirmDialog({ open: false, message: '' }); confirmResolveRef.current?.(true); }}>
+                                    確認
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
+
+            {/* Alert Banner */}
+            {alertMessage && (
+                <div className="flex items-start gap-3 bg-red-50 border border-red-200 text-red-800 rounded-2xl px-4 py-3 text-sm font-medium">
+                    <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
+                    <span className="flex-1 leading-relaxed">{alertMessage}</span>
+                    <button onClick={() => setAlertMessage(null)} className="shrink-0 opacity-50 hover:opacity-100 transition-opacity">✕</button>
+                </div>
+            )}
+
             <header className="flex justify-between items-center">
                 <div>
                     <h1 className="text-2xl font-black tracking-tight">{t('admin.title')}</h1>
