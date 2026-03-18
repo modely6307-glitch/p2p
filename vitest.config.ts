@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+// @ts-ignore - vitest-tsconfig-paths may have resolution issues in some environments
 import tsconfigPaths from 'vitest-tsconfig-paths';
 
 export default defineConfig({
