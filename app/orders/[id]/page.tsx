@@ -193,7 +193,7 @@ export default function OrderDetails() {
           table: 'orders',
           filter: `id=eq.${id}`,
         },
-        (payload) => {
+        (payload: import('@supabase/supabase-js').RealtimePostgresChangesPayload<{ status: string }>) => {
           const newStatus = (payload.new as any)?.status;
           if (newStatus && newStatus !== orderStatusRef.current && !processingRef.current) {
             loadOrderRef.current();
