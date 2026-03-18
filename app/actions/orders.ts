@@ -4,6 +4,7 @@ import { getSupabaseAdmin } from '@/utils/supabase/admin';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { OrderStatus } from '@/types';
+import { canConfirmReceipt } from '@/utils/order-logic';
 
 // Helper to create a Supabase client for the current requesting user
 const createClient = async () => {
@@ -57,8 +58,10 @@ export async function confirmReceipt(orderId: string) {
             .single();
 
         if (fetchError || !order) throw new Error("找不到訂單");
-        if (order.buyer_id !== user.id) throw new Error("您不是這筆訂單的買家，無權收貨");
-        if (order.status !== 'SHIPPED') throw new Error("訂單必須在『已出貨』狀態才能確認收貨");
+        
+        // Use the new logic utility
+        const validation = canConfirmReceipt(order as any, user.id);
+        if (!validation.can) throw new Error(validation.reason);
 
         const amountTwd = Math.round((order.target_price * (order.exchange_rate || 1)) + order.reward_fee);
 
