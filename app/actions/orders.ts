@@ -603,8 +603,9 @@ export async function notifyPaid(orderId: string) {
         if (!user) throw new Error("您尚未登入");
 
         const supabaseAdmin = getSupabaseAdmin();
-        const { data: order } = await supabaseAdmin.from('orders').select('buyer_id').eq('id', orderId).single();
+        const { data: order } = await supabaseAdmin.from('orders').select('buyer_id, status').eq('id', orderId).single();
         if (!order || order.buyer_id !== user.id) throw new Error("無權操作");
+        if (!['OPEN', 'MATCHED'].includes(order.status)) throw new Error("訂單狀態已變更，請重新整理頁面後再操作");
 
         const { error } = await supabaseAdmin.from('orders').update({ payment_notification_sent: true }).eq('id', orderId);
         if (error) throw error;

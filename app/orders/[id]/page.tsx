@@ -286,8 +286,8 @@ export default function OrderDetails() {
         }
       }
 
-      // Visitor viewing a non-OPEN order has no permission — redirect to marketplace
-      if (newRole === 'visitor' && data.status !== 'OPEN') {
+      // Visitor can only view orders that are still open for following (no traveler assigned, not delisted)
+      if (newRole === 'visitor' && (data.traveler_id || data.status === 'DELISTED')) {
         router.replace('/market');
         return;
       }
@@ -387,6 +387,10 @@ export default function OrderDetails() {
     } catch (error: any) {
       console.error('Error sent notification:', error);
       showAlert(error.message || t('common.error'));
+      // Server rejected due to stale status — force reload so UI reflects latest state
+      if (error.message?.includes('狀態已變更')) {
+        await loadOrder();
+      }
     }
   };
 
