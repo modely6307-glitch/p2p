@@ -205,6 +205,35 @@ export default function OrderDetails() {
     };
   }, [id]);
 
+  // Realtime subscription for traveler group sibling orders
+  // When any sibling order status changes, reload so all tabs stay in sync
+  useEffect(() => {
+    const siblingIds = travelerGroup.map(o => o.id).filter(oid => oid !== id);
+    if (siblingIds.length === 0) return;
+
+    const channel = supabase
+      .channel(`traveler_group_${id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+          filter: `id=in.(${siblingIds.join(',')})`,
+        },
+        (payload: import('@supabase/supabase-js').RealtimePostgresChangesPayload<{ status: string }>) => {
+          if (!processingRef.current) {
+            loadOrderRef.current();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [travelerGroup.map(o => o.id).join(',')]);
+
   // Polling for AI search status
   useEffect(() => {
     if (!order || order.ai_search_status !== 'PENDING') return;
