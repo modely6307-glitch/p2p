@@ -342,9 +342,10 @@ export default function OrderDetails() {
 
   const handleUploadReceipt = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!currentViewOrder || !user || !e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    e.target.value = ''; // reset so same file can be re-selected on retry
     setUploading(true);
     try {
-      const file = e.target.files[0];
       const path = `${currentViewOrder.id}/receipt-${Date.now()}`;
       const url = await uploadFile(file, 'receipts', path);
       if (syncEvidence && travelerGroup.length > 1) {
@@ -415,9 +416,10 @@ export default function OrderDetails() {
 
   const handleUploadPurchasePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!currentViewOrder || !user || !e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    e.target.value = ''; // reset so same file can be re-selected on retry
     setPurchasePhotoUploading(true);
     try {
-      const file = e.target.files[0];
       const path = `${currentViewOrder.id}/purchase-${Date.now()}`;
       const url = await uploadFile(file, 'purchase_photos', path);
       if (syncEvidence && travelerGroup.length > 1) {
@@ -1334,16 +1336,16 @@ export default function OrderDetails() {
                                 <div className="relative rounded-2xl overflow-hidden border border-border aspect-[4/3] group">
                                   <img src={currentViewOrder.purchase_photo_url} className="w-full h-full object-cover" />
                                   <label className="absolute inset-0 bg-primary/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer text-white text-xs font-bold uppercase tracking-wider">
-                                    <input type="file" onChange={handleUploadPurchasePhoto} className="hidden" />
+                                    <input type="file" accept="image/*" onChange={handleUploadPurchasePhoto} className="hidden" />
                                     {t('order.receipt_update')}
                                   </label>
                                 </div>
                               ) : (
                                 <div className="relative group aspect-[4/3]">
-                                  <input type="file" onChange={handleUploadPurchasePhoto} disabled={purchasePhotoUploading} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                                  <input type="file" accept="image/*" onChange={handleUploadPurchasePhoto} disabled={purchasePhotoUploading} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
                                   <div className="w-full h-full border-2 border-dashed border-primary/20 rounded-2xl flex flex-col items-center justify-center bg-primary/5 hover:bg-primary/10 transition-all">
                                     <Camera className={cn("w-8 h-8 text-primary mb-2", purchasePhotoUploading && "animate-bounce")} />
-                                    <span className="text-[10px] font-black text-primary uppercase">{t('order.upload_purchase_photo')}</span>
+                                    <span className="text-[10px] font-black text-primary uppercase">{purchasePhotoUploading ? '上傳中...' : t('order.upload_purchase_photo')}</span>
                                   </div>
                                 </div>
                               )}
@@ -1356,16 +1358,16 @@ export default function OrderDetails() {
                                   <div className="relative rounded-2xl overflow-hidden border border-border aspect-[4/3] group">
                                     <img src={currentViewOrder.receipt_url} className="w-full h-full object-cover" />
                                     <label className="absolute inset-0 bg-primary/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer text-white text-xs font-bold uppercase tracking-wider">
-                                      <input type="file" onChange={handleUploadReceipt} className="hidden" />
+                                      <input type="file" accept="image/*" onChange={handleUploadReceipt} className="hidden" />
                                       {t('order.receipt_update')}
                                     </label>
                                   </div>
                                 ) : (
                                   <div className="relative group aspect-[4/3]">
-                                    <input type="file" onChange={handleUploadReceipt} disabled={uploading} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                                    <input type="file" accept="image/*" onChange={handleUploadReceipt} disabled={uploading} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
                                     <div className="w-full h-full border-2 border-dashed border-secondary/30 rounded-2xl flex flex-col items-center justify-center bg-secondary/5 hover:bg-secondary/10 transition-all">
                                       <Upload className={cn("w-8 h-8 text-muted-foreground mb-2", uploading && "animate-bounce")} />
-                                      <span className="text-[10px] font-black text-muted-foreground uppercase">{t('order.receipt_update')}</span>
+                                      <span className="text-[10px] font-black text-muted-foreground uppercase">{uploading ? '上傳中...' : t('order.receipt_update')}</span>
                                     </div>
                                   </div>
                                 )}
