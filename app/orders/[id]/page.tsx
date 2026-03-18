@@ -1799,7 +1799,13 @@ export default function OrderDetails() {
                         router.push(`/orders/${result.orderId}`);
                       } catch (e: any) {
                         console.error(e);
-                        showAlert(e.message || '跟單失敗');
+                        if (e.message === 'ORDER_ALREADY_MATCHED') {
+                          setShowFollowModal(false);
+                          showAlert('此訂單剛剛已被旅人接走，正在返回許願池...', 'info');
+                          setTimeout(() => router.replace('/market'), 1500);
+                        } else {
+                          showAlert(e.message || '跟單失敗');
+                        }
                       } finally {
                         setIsFollowing(false);
                       }

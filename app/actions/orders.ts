@@ -762,6 +762,10 @@ export async function followOrderAction(
             .single();
         if (fetchError || !parentOrder) throw new Error("訂單不存在");
 
+        if (parentOrder.traveler_id) {
+            throw new Error("ORDER_ALREADY_MATCHED");
+        }
+
         if (parentOrder.status === 'DELISTED') {
             throw new Error("此願望已下架，無法跟單");
         }
