@@ -30,28 +30,34 @@ export default function Dashboard() {
   const { activeTaskCount } = useNotifications();
 
   useEffect(() => {
+    if (authLoading) return; // wait for auth to settle
+
+    if (!user) {
+      setLoading(false); // auth done, no user — will redirect
+      return;
+    }
+
+    const userId = user.id;
+    let cancelled = false;
+
     const loadOrders = async () => {
-      if (!user) return;
       setLoading(true);
       try {
-        let data;
-        if (activeTab === 'wishes') {
-          data = await fetchMyWishes(user.id);
-        } else {
-          data = await fetchMyTasks(user.id);
-        }
-        setOrders(data);
+        const data = activeTab === 'wishes'
+          ? await fetchMyWishes(userId)
+          : await fetchMyTasks(userId);
+        if (!cancelled) setOrders(data);
       } catch (error) {
         console.error('Error fetching orders:', error);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
-    if (!authLoading && user) {
-      loadOrders();
-    }
-  }, [activeTab, user, authLoading]);
+    loadOrders();
+
+    return () => { cancelled = true; };
+  }, [activeTab, user?.id, authLoading]);
 
   const filteredOrders = orders.filter(order => {
     if (statusFilter === 'completed') return order.status === 'COMPLETED' || order.status === 'DELISTED';

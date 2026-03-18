@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { supabase } from '@/utils/supabase/client';
 import {
   fetchOrderById,
   updateOrderStatus,
@@ -10,8 +11,6 @@ import {
   uploadFile,
   rateUser,
   incrementOrderStats,
-  raiseDispute,
-  resolveDispute,
   fetchWishGroup,
   batchAssignTraveler,
   followOrder,
@@ -26,8 +25,30 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Upload, Truck, CheckCircle, AlertTriangle, ShieldCheck, ThumbsUp, ThumbsDown, Camera, CreditCard, X, PlusSquare, MessageSquare, AlertCircle, Info } from 'lucide-react';
+import { Loader2, Upload, Truck, CheckCircle, AlertTriangle, ShieldCheck, ThumbsUp, ThumbsDown, Camera, CreditCard, X, PlusSquare, MessageSquare, AlertCircle, Info, Zap } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { 
+  confirmReceipt, 
+  confirmEscrow, 
+  acceptOrder, 
+  finishPurchase, 
+  batchFinishPurchase, 
+  updateReceipt, 
+  batchUpdateReceipt,
+  updatePurchasePhoto,
+  batchUpdatePurchasePhoto,
+  updateModelNumber,
+  notifyPaid,
+  relistOrder,
+  submitUserRating,
+  delistOrderGroup,
+  cancelDispute,
+  resolveDispute as resolveDisputeAction,
+  updateOrderTracking,
+  batchUpdateTrackingNumbers,
+  followOrderAction,
+  raiseDispute
+} from '@/app/actions/orders';
 
 const getCurrencySymbol = (currency: string) => {
   const symbols: Record<string, string> = {
@@ -111,6 +132,16 @@ export default function OrderDetails() {
   const confirmResolveRef = useRef<((val: boolean) => void) | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; title: string; message: string; type?: 'danger' | 'info' }>({ open: false, title: '', message: '' });
   const [alertMessage, setAlertMessage] = useState<{ text: string; type: 'error' | 'success' | 'info' } | null>(null);
+  const [isCompleting, setIsCompleting] = useState(false);
+
+  // Derived States for the current view (Order Details vs Batch View)
+  const currentViewOrder = (role === 'traveler' && travelerGroup.length > 1 && activeChatTab)
+    ? (travelerGroup.find(o => o.id === activeChatTab) || order)
+    : order;
+
+  const partnerProfile = ['buyer', 'visitor'].includes(role) ? currentViewOrder?.traveler : currentViewOrder?.buyer;
+  const partnerRoleName = ['buyer', 'visitor'].includes(role) ? t('order.traveler') : t('order.buyer');
+  const partnerDisplayName = partnerProfile?.display_name || maskEmail(partnerProfile?.email || undefined);
 
   const showConfirm = (message: string, title = '確認操作', type: 'danger' | 'info' = 'danger'): Promise<boolean> => {
     return new Promise((resolve) => {
@@ -137,6 +168,44 @@ export default function OrderDetails() {
       console.error('Failed to load local AI cache', e);
     }
   }, [id, user?.id, profile?.id]);
+
+  // Always keep a ref to the latest loadOrder to avoid stale closure in realtime callback
+  const loadOrderRef = useRef<() => Promise<void>>(async () => {});
+  useEffect(() => {
+    loadOrderRef.current = loadOrder;
+  });
+
+  // Track current order status to only refresh on actual status changes (not photo/field updates)
+  const orderStatusRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (order) orderStatusRef.current = order.status;
+  }, [order?.status]);
+
+  // Realtime subscription for order status changes
+  useEffect(() => {
+    const channel = supabase
+      .channel(`order_status_${id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+          filter: `id=eq.${id}`,
+        },
+        (payload) => {
+          const newStatus = (payload.new as any)?.status;
+          if (newStatus && newStatus !== orderStatusRef.current && !processingRef.current) {
+            loadOrderRef.current();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [id]);
 
   // Polling for AI search status
   useEffect(() => {
@@ -207,7 +276,6 @@ export default function OrderDetails() {
       return;
     }
     try {
-      const { acceptOrder } = await import('@/app/actions/orders');
       let orderIds = [currentViewOrder.id];
       if (wishGroup.length > 0) {
         orderIds = wishGroup.slice(0, batchAcceptCount).map(o => o.id);
@@ -225,7 +293,6 @@ export default function OrderDetails() {
   const handleConfirmEscrow = async () => {
     if (!currentViewOrder) return;
     try {
-      const { confirmEscrow } = await import('@/app/actions/orders');
       const result = await confirmEscrow(currentViewOrder.id);
       if (!result.success) throw new Error(result.error);
       await loadOrder();
@@ -242,9 +309,6 @@ export default function OrderDetails() {
       const file = e.target.files[0];
       const path = `${currentViewOrder.id}/receipt-${Date.now()}`;
       const url = await uploadFile(file, 'receipts', path);
-
-      const { updateReceipt, batchUpdateReceipt } = await import('@/app/actions/orders');
-
       if (syncEvidence && travelerGroup.length > 1) {
         const ids = travelerGroup.filter(o => o.status === 'ESCROWED').map(o => o.id);
         const result = await batchUpdateReceipt(ids, url);
@@ -266,7 +330,6 @@ export default function OrderDetails() {
   const handleAddTracking = async () => {
     if (!currentViewOrder || !trackingNumber) return;
     try {
-      const { updateOrderTracking } = await import('@/app/actions/orders');
       const result = await updateOrderTracking(currentViewOrder.id, trackingNumber);
       if (!result.success) throw new Error(result.error);
       await loadOrder();
@@ -279,7 +342,6 @@ export default function OrderDetails() {
   const handleNotifyPaid = async () => {
     if (!currentViewOrder) return;
     try {
-      const { notifyPaid } = await import('@/app/actions/orders');
       const result = await notifyPaid(currentViewOrder.id);
       if (!result.success) throw new Error(result.error);
       showAlert(t('order.notify_paid_success'), 'success');
@@ -299,7 +361,6 @@ export default function OrderDetails() {
     if (updates.length === 0) return;
 
     try {
-      const { batchUpdateTrackingNumbers } = await import('@/app/actions/orders');
       const result = await batchUpdateTrackingNumbers(updates);
       if (!result.success) throw new Error(result.error);
       await loadOrder();
@@ -317,9 +378,6 @@ export default function OrderDetails() {
       const file = e.target.files[0];
       const path = `${currentViewOrder.id}/purchase-${Date.now()}`;
       const url = await uploadFile(file, 'purchase_photos', path);
-
-      const { updatePurchasePhoto, batchUpdatePurchasePhoto } = await import('@/app/actions/orders');
-
       if (syncEvidence && travelerGroup.length > 1) {
         const ids = travelerGroup.filter(o => o.status === 'ESCROWED').map(o => o.id);
         const result = await batchUpdatePurchasePhoto(ids, url);
@@ -341,7 +399,6 @@ export default function OrderDetails() {
   const handleUpdateModelNumber = async () => {
     if (!currentViewOrder || !modelNumberInput) return;
     try {
-      const { updateModelNumber } = await import('@/app/actions/orders');
       const result = await updateModelNumber(currentViewOrder.id, modelNumberInput);
       if (!result.success) throw new Error(result.error);
       await loadOrder();
@@ -393,9 +450,19 @@ export default function OrderDetails() {
   };
 
   const handleConfirmReceipt = async () => {
-    if (!currentViewOrder || !currentViewOrder.traveler_id) return;
+    if (!currentViewOrder || !currentViewOrder.traveler_id || isCompleting) return;
+
+    setIsCompleting(true);
+    processingRef.current = true;
+
+    // Safety timeout: reset button after 15s in case server action hangs
+    const safetyTimer = setTimeout(() => {
+      setIsCompleting(false);
+      processingRef.current = false;
+      loadOrderRef.current(); // re-fetch to sync UI with actual DB state
+    }, 15000);
+
     try {
-      const { confirmReceipt } = await import('@/app/actions/orders');
       const result = await confirmReceipt(currentViewOrder.id);
       if (!result.success) {
         throw new Error(result.error);
@@ -404,6 +471,10 @@ export default function OrderDetails() {
     } catch (error: any) {
       console.error('Error completing order:', error);
       showAlert(error.message || t('common.error'));
+    } finally {
+      clearTimeout(safetyTimer);
+      setIsCompleting(false);
+      processingRef.current = false;
     }
   };
 
@@ -414,7 +485,6 @@ export default function OrderDetails() {
 
     if (!finalTargetUserId) return;
     try {
-      const { submitUserRating } = await import('@/app/actions/orders');
       const result = await submitUserRating(finalOrderId, finalTargetUserId, isPositive);
       if (!result.success) throw new Error(result.error);
 
@@ -438,7 +508,6 @@ export default function OrderDetails() {
 
     processingRef.current = true;
     try {
-      const { delistOrderGroup } = await import('@/app/actions/orders');
       const result = await delistOrderGroup(order.id);
       if (!result.success) throw new Error(result.error);
       await loadOrder();
@@ -454,7 +523,6 @@ export default function OrderDetails() {
     if (!order) return;
     if (!await showConfirm(t('order.relist_confirm'))) return;
     try {
-      const { relistOrder } = await import('@/app/actions/orders');
       const result = await relistOrder(order.id);
       if (!result.success) throw new Error(result.error);
       await loadOrder();
@@ -473,7 +541,6 @@ export default function OrderDetails() {
         const path = `${currentViewOrder.id}/dispute-${Date.now()}`;
         evidenceUrl = await uploadFile(disputeEvidence, 'disputes', path);
       }
-      const { raiseDispute } = await import('@/app/actions/orders');
       const result = await raiseDispute(currentViewOrder.id, disputeReason, evidenceUrl);
       if (!result.success) throw new Error(result.error);
 
@@ -494,7 +561,6 @@ export default function OrderDetails() {
     if (!currentViewOrder) return;
     if (!await showConfirm('確定要取消申訴嗎？訂單將回到先前的狀態。')) return;
     try {
-      const { cancelDispute } = await import('@/app/actions/orders');
       const result = await cancelDispute(currentViewOrder.id);
       if (!result.success) throw new Error(result.error);
       await loadOrder();
@@ -509,8 +575,7 @@ export default function OrderDetails() {
     const actionName = status === 'DELISTED' ? '取消訂單退款' : (status === 'COMPLETED' ? '完成訂單撥款' : `退回：${t(`status.${status}`)}`);
     if (!await showConfirm(`確定要將此訂單裁決為：「${actionName}」嗎？`)) return;
     try {
-      const { resolveDispute } = await import('@/app/actions/orders');
-      const result = await resolveDispute(currentViewOrder.id, status, adminResolutionNotes);
+      const result = await resolveDisputeAction(currentViewOrder.id, status, adminResolutionNotes);
       if (!result.success) throw new Error(result.error);
 
       await loadOrder();
@@ -532,21 +597,13 @@ export default function OrderDetails() {
     return <div className="p-4 text-center">{t('common.no_data')}</div>;
   }
 
+  if (!order || !currentViewOrder) return null;
+
   const currencySymbol = getCurrencySymbol(order.currency);
   const countryConfig = getCountryFlag(order.country);
-
-  const currentViewOrder = (role === 'traveler' && travelerGroup.length > 1 && activeChatTab)
-    ? (travelerGroup.find(o => o.id === activeChatTab) || order)
-    : order;
-
-  const partnerProfile = ['buyer', 'visitor'].includes(role) ? currentViewOrder?.traveler : currentViewOrder?.buyer;
-  const partnerRoleName = ['buyer', 'visitor'].includes(role) ? t('order.traveler') : t('order.buyer');
-  const partnerDisplayName = partnerProfile?.display_name || maskEmail(partnerProfile?.email || undefined);
   const partnerRating = partnerProfile?.total_rating_count && partnerProfile.total_rating_count > 0
     ? Math.round((partnerProfile.positive_rating_count / partnerProfile.total_rating_count) * 100)
     : null;
-
-  if (!currentViewOrder) return null;
 
   return (
     <div className="p-4 lg:p-8 space-y-6 pb-24 max-w-3xl lg:mx-auto">
@@ -620,7 +677,7 @@ export default function OrderDetails() {
         )}
       </header>
 
-      <StepProgressBar currentStatus={currentViewOrder.status} />
+      <StepProgressBar currentStatus={currentViewOrder.status} paymentType={currentViewOrder.payment_type} travelerId={currentViewOrder.traveler_id} />
 
       {currentViewOrder.status === 'DISPUTE' && (
         <Card className="border-red-500/50 bg-red-500/5 mb-6 shadow-xl shadow-red-500/10">
@@ -1000,7 +1057,9 @@ export default function OrderDetails() {
                     <p className="text-sm font-medium leading-relaxed bg-primary/5 p-4 rounded-xl border border-primary/20 text-center shadow-sm text-primary">
                       {currentViewOrder.buyer_id === user.id ? (
                         currentViewOrder.payment_type === 'PRE_ESCROW'
-                          ? '您選擇了立即託管，請根據下方資訊完成匯款，後續由管理長確認後，代購接單將立刻生效。'
+                          ? (currentViewOrder.status === 'OPEN' && !currentViewOrder.payment_notification_sent 
+                              ? '您選擇了立即託管，請根據下方資訊完成匯款，後續由管理長確認後，代購接單將立刻生效。' 
+                              : '這是您的預付許願單，請靜候旅人接單。')
                           : '這是您的許願單，請靜候旅人接單。'
                       ) : (
                         <>
@@ -1272,16 +1331,34 @@ export default function OrderDetails() {
                             )}
                           </div>
 
+                          <div className="bg-primary/5 p-4 rounded-2xl border border-primary/10 space-y-2">
+                            <p className="text-[10px] font-black uppercase text-primary tracking-widest">{t('order.shipping_info')} <span className="text-muted-foreground font-medium normal-case tracking-normal">（選填，填入後直接進入已出貨）</span></p>
+                            <Input
+                              placeholder={t('order.tracking_placeholder')}
+                              value={trackingNumber}
+                              onChange={(e) => setTrackingNumber(e.target.value)}
+                              className="bg-background border-primary/20"
+                            />
+                          </div>
+
                           <Button fullWidth size="lg" className="h-14 rounded-2xl font-black shadow-xl"
                             disabled={!currentViewOrder.purchase_photo_url || (currentViewOrder.require_receipt && !currentViewOrder.receipt_url)}
                             onClick={async () => {
-                              const { finishPurchase, batchFinishPurchase } = await import('@/app/actions/orders');
                               const ids = syncEvidence ? travelerGroup.filter(o => o.status === 'ESCROWED').map(o => o.id) : [currentViewOrder.id];
                               const res = ids.length > 1 ? await batchFinishPurchase(ids) : await finishPurchase(currentViewOrder.id);
-                              if (res.success) await loadOrder(); else showAlert(res.error || t('common.error'));
+                              if (!res.success) { showAlert(res.error || t('common.error')); return; }
+                              // If tracking number provided, immediately ship (single order only)
+                              if (trackingNumber.trim() && ids.length === 1) {
+                                await updateOrderTracking(currentViewOrder.id, trackingNumber.trim());
+                              }
+                              await loadOrder();
                             }}
                           >
-                            {syncEvidence && travelerGroup.filter(o => o.status === 'ESCROWED').length > 1 ? `一鍵完成全部採買 (${travelerGroup.filter(o => o.status === 'ESCROWED').length})` : t('admin.finish_purchase_btn')}
+                            {trackingNumber.trim()
+                              ? '確認採購並出貨'
+                              : syncEvidence && travelerGroup.filter(o => o.status === 'ESCROWED').length > 1
+                                ? `一鍵完成全部採買 (${travelerGroup.filter(o => o.status === 'ESCROWED').length})`
+                                : t('admin.finish_purchase_btn')}
                           </Button>
                         </div>
                       ) : (
@@ -1348,8 +1425,18 @@ export default function OrderDetails() {
                           <CardTitle className="text-base text-blue-600">{t('status.SHIPPED')}</CardTitle>
                         </div>
                         {role === 'buyer' && (
-                          <Button onClick={handleConfirmReceipt} variant="primary" className="h-10 px-6 font-black rounded-xl animate-in fade-in zoom-in duration-500">
-                            {t('order.received_btn')}
+                          <Button 
+                            onClick={handleConfirmReceipt} 
+                            disabled={isCompleting}
+                            variant="primary" 
+                            className="h-10 px-6 font-black rounded-xl animate-in fade-in zoom-in duration-500 shadow-lg shadow-blue-500/20"
+                          >
+                            {isCompleting ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                處理中...
+                              </>
+                            ) : t('order.received_btn')}
                           </Button>
                         )}
                       </div>

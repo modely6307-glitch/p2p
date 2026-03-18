@@ -8,6 +8,8 @@ import { OrderStatus } from '@/types';
 // Helper to create a Supabase client for the current requesting user
 const createClient = async () => {
     const cookieStore = await cookies();
+    const hasSession = cookieStore.getAll().some(c => c.name.includes('supabase-auth-token') || c.name.includes('sb-'));
+    console.log(`[createClient] hasSession cookies: ${hasSession}`);
 
     return createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -16,6 +18,24 @@ const createClient = async () => {
             cookies: {
                 get(name: string) {
                     return cookieStore.get(name)?.value;
+                },
+                set(name: string, value: string, options: any) {
+                    try {
+                        cookieStore.set({ name, value, ...options });
+                    } catch (error) {
+                        // The `set` method was called from a Server Component.
+                        // This can be ignored if you have middleware refreshing
+                        // user sessions.
+                    }
+                },
+                remove(name: string, options: any) {
+                    try {
+                        cookieStore.delete({ name, ...options });
+                    } catch (error) {
+                        // The `delete` method was called from a Server Component.
+                        // This can be ignored if you have middleware refreshing
+                        // user sessions.
+                    }
                 },
             },
         }
@@ -50,21 +70,22 @@ export async function confirmReceipt(orderId: string) {
 
         if (updateError) throw updateError;
 
-        // 2. Increment stats securely via Server Action
+        // 2. Increment stats non-blocking — do NOT await, so the button
+        //    doesn't hang if the RPC is slow. Stats update in the background.
         if (order.traveler_id) {
-            const { error: statsError } = await supabaseAdmin.rpc('increment_order_stats', {
+            supabaseAdmin.rpc('increment_order_stats', {
                 user_id: order.traveler_id,
                 order_amount: amountTwd
+            }).then(({ error }) => {
+                if (error) console.error("Error incrementing traveler stats:", error);
             });
-            if (statsError) console.error("Error incrementing traveler stats:", statsError);
         }
-
-        // Increment buyer stats as well
-        const { error: buyerStatsError } = await supabaseAdmin.rpc('increment_order_stats', {
+        supabaseAdmin.rpc('increment_order_stats', {
             user_id: order.buyer_id,
             order_amount: amountTwd
+        }).then(({ error }) => {
+            if (error) console.error("Error incrementing buyer stats:", error);
         });
-        if (buyerStatsError) console.error("Error incrementing buyer stats:", buyerStatsError);
 
         return { success: true };
     } catch (error: any) {
