@@ -1068,7 +1068,7 @@ export default function OrderDetails() {
 
       <Card className="bg-secondary/20 border-primary/20">
         <CardContent className="pt-6">
-          {!currentViewOrder.traveler_id && (
+          {!currentViewOrder.traveler_id && currentViewOrder.status !== 'DELISTED' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between gap-2 mb-2">
                 <div className="flex items-center gap-2">
@@ -1551,19 +1551,44 @@ export default function OrderDetails() {
             <div className="space-y-4">
               <div className="flex items-center gap-2 mb-2">
                 <span className="w-2 h-2 rounded-full bg-gray-400" />
-                <CardTitle className="text-base text-gray-400">{t('order.delisted_msg')}</CardTitle>
+                <CardTitle className="text-base text-gray-400">
+                  {currentViewOrder.parent_order_id ? '跟單已關閉' : t('order.delisted_msg')}
+                </CardTitle>
               </div>
-              {role === 'buyer' && (
+              {role === 'buyer' && currentViewOrder.parent_order_id && (
                 <>
                   <div className="text-center py-6 bg-gray-500/5 rounded-2xl border border-gray-500/10">
                     <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-500/10 text-gray-400 mb-3">
                       <AlertTriangle className="w-6 h-6" />
                     </div>
-                    <p className="text-sm text-muted-foreground">{t('order.delisted_hint')}</p>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">主揪已關閉許願</p>
+                    <p className="text-xs text-muted-foreground">此跟單已失效，您可以自行發起許願</p>
                   </div>
-                  <Button onClick={handleRelist} fullWidth className="h-12 font-bold rounded-xl bg-primary hover:bg-primary/90">
-                    {t('order.relist_btn')}
+                  <Button onClick={() => router.push('/create')} fullWidth className="h-12 font-bold rounded-xl bg-primary hover:bg-primary/90">
+                    自行許願
                   </Button>
+                </>
+              )}
+              {role === 'buyer' && !currentViewOrder.parent_order_id && (
+                <>
+                  <div className="text-center py-6 bg-gray-500/5 rounded-2xl border border-gray-500/10">
+                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-500/10 text-gray-400 mb-3">
+                      <AlertTriangle className="w-6 h-6" />
+                    </div>
+                    {currentViewOrder.payment_type === 'PRE_ESCROW' && currentViewOrder.payment_notification_sent ? (
+                      <>
+                        <p className="text-sm font-medium text-muted-foreground mb-1">代購金已自動退款</p>
+                        <p className="text-xs text-muted-foreground">款項將退回您的原支付方式，請稍待 1-3 個工作天。</p>
+                      </>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">{t('order.delisted_hint')}</p>
+                    )}
+                  </div>
+                  {!(currentViewOrder.payment_type === 'PRE_ESCROW' && currentViewOrder.payment_notification_sent) && (
+                    <Button onClick={handleRelist} fullWidth className="h-12 font-bold rounded-xl bg-primary hover:bg-primary/90">
+                      {t('order.relist_btn')}
+                    </Button>
+                  )}
                 </>
               )}
             </div>
