@@ -27,7 +27,9 @@
         - 拒絕後：訂單回到 `OPEN` 狀態，代購方配對解除，買家可靜待新代購方接單。
         - 接受後：訂單金額以 `actual_price × exchange_rate + reward_fee + shipping_fee + platform_fee` 重新計算，狀態恢復 `MATCHED` 進入付款流程。
     - **訂單金額即時重計**：無論自動核准或買家手動接受，均會依照 `actual_price` 重新計算 `total_amount_twd`，確保買家實際付款金額精準反映現場售價。
-    - **資料庫新增欄位**：`max_price`, `actual_price`, `actual_price_note`, `price_confirmed_at`。
+    - **資料庫新增欄位**：`max_price`, `actual_price`, `actual_price_note`, `price_confirmed_at`, `price_savings_twd`, `traveler_price_bonus`。
+    - **差價分分樂 (Smart Split Savings)**：若代購方回報的實際價格低於目標價，差額五五分帳，買家省一半、旅人得一半作為比價獎勵。旅人端在輸入低於目標價的金額時，介面即時預覽可獲得的獎勵金，創造主動比價誘因。
+    - **MATCH_ESCROW 限定**：PRE_ESCROW 買家接受時金額已鎖定，代購方接單即代表同意目標價，不進行二次議價（避免補款摩擦）。PRE_ESCROW 實際採購價低於已付款金額的退款分紅機制列為下一期 Roadmap。
 
 ## [1.3.9] - 2026-03-10
 ### Added
@@ -143,6 +145,14 @@ Gull 是一個去中心化的全球購物代理平台，媒合「想要購買海
     - `actual_price > max_price`（或未設上限）：進入 `PRICE_CONFIRM` 狀態，買家審核後決定接受或拒絕。
 *   **即時金額重計**：一旦實際價格確認，系統以 `actual_price × exchange_rate + reward_fee + shipping_fee + platform_fee` 重算 `total_amount_twd`，確保付款金額精確。
 *   **拒絕即重新上架**：買家拒絕新價格後，訂單回到 `OPEN` 狀態，代購方配對解除，買家可靜候下一位代購方。
+*   **差價分分樂 Smart Split Savings**（僅 MATCH_ESCROW 且 actual_price < target_price）：
+    - 旅人若在現場找到比目標價更低的售價，平台不全數退回給買家，而是採「五五分帳」激勵機制：
+    - 差價 (savings_twd) = (target_price − actual_price) × exchange_rate
+    - 買家省 savings_twd × 50%（買家仍付少於原本目標價）
+    - 旅人得 savings_twd × 50% 作為比價獎勵 (`traveler_price_bonus`)，由管理員在放款時一併計入
+    - 旅人端回報時即時預覽獎勵金額，創造主動幫買家比價的誘因
+    - DB 新增欄位：`price_savings_twd`、`traveler_price_bonus`
+*   **PRE_ESCROW 變便宜（Roadmap）**：買家先付款後，若旅人回報實際採購金額較低（透過收據核對），平台需發起退款流程（綠界退款 API）並計算分紅，此功能列為下一期金流串接里程碑。
 
 ### 3.7 部分支付機制 (Partial Payment & Deposit)
 *   **動態門檻判定**：如果訂單的「預期寄出日」減去「今日」的天數，大於後台系統設定的 `deposit_threshold_days` (預設 30 天)，系統將同意並展示部分付款選項。

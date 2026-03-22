@@ -1381,12 +1381,41 @@ export default function OrderDetails() {
                               value={actualPriceNote}
                               onChange={(e) => setActualPriceNote(e.target.value)}
                             />
-                            {currentViewOrder.max_price && (
-                              <p className="text-[10px] text-muted-foreground italic">
-                                💡 許願方容忍上限：{currentViewOrder.max_price} {currentViewOrder.currency}
-                                （目標價 {currentViewOrder.target_price} {currentViewOrder.currency}）
-                              </p>
-                            )}
+                            {/* 差價分分樂預覽：當輸入的實際價格低於目標價時顯示 */}
+                            {(() => {
+                              const inputVal = parseFloat(actualPriceInput);
+                              if (!isNaN(inputVal) && inputVal > 0 && inputVal < currentViewOrder.target_price) {
+                                const savings = (currentViewOrder.target_price - inputVal) * currentViewOrder.exchange_rate;
+                                const bonus = Math.round(savings * 0.5);
+                                return (
+                                  <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 p-3 rounded-xl space-y-1.5">
+                                    <p className="text-[10px] font-black text-green-700 dark:text-green-400 uppercase tracking-widest">差價分分樂</p>
+                                    <p className="text-[11px] text-muted-foreground">
+                                      你幫買家找到更便宜的價格！差價 NT$ {Math.round(savings).toLocaleString()} 將平分：
+                                    </p>
+                                    <div className="flex gap-2">
+                                      <div className="flex-1 bg-background/60 p-2 rounded-lg text-center">
+                                        <p className="text-[9px] text-muted-foreground uppercase">買家省</p>
+                                        <p className="text-sm font-black text-green-600">NT$ {bonus.toLocaleString()}</p>
+                                      </div>
+                                      <div className="flex-1 bg-green-100 dark:bg-green-900/40 p-2 rounded-lg text-center border border-green-200 dark:border-green-700">
+                                        <p className="text-[9px] text-green-700 dark:text-green-400 uppercase">你的比價獎勵</p>
+                                        <p className="text-sm font-black text-green-700 dark:text-green-400">+NT$ {bonus.toLocaleString()}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              }
+                              if (currentViewOrder.max_price) {
+                                return (
+                                  <p className="text-[10px] text-muted-foreground italic">
+                                    💡 許願方容忍上限：{currentViewOrder.max_price} {currentViewOrder.currency}
+                                    （目標價 {currentViewOrder.target_price} {currentViewOrder.currency}）
+                                  </p>
+                                );
+                              }
+                              return null;
+                            })()}
                             <Button
                               fullWidth
                               onClick={handleReportActualPrice}
@@ -1408,7 +1437,30 @@ export default function OrderDetails() {
                       )}
                       {role === 'buyer' ? (
                         <div className="space-y-4">
-                          {currentViewOrder.actual_price && (
+                          {currentViewOrder.actual_price && currentViewOrder.price_savings_twd ? (
+                            // 差價分分樂：實際價低於目標價
+                            <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 p-3 rounded-xl space-y-2">
+                              <p className="text-[10px] font-black uppercase text-green-700 dark:text-green-400 tracking-widest">代購方幫你找到更低價</p>
+                              <div className="flex items-baseline gap-2">
+                                <span className="text-lg font-black text-green-700 dark:text-green-400">{currentViewOrder.actual_price} {currentViewOrder.currency}</span>
+                                <span className="text-xs text-muted-foreground line-through">{currentViewOrder.target_price}</span>
+                              </div>
+                              {currentViewOrder.actual_price_note && (
+                                <p className="text-xs text-muted-foreground italic">{currentViewOrder.actual_price_note}</p>
+                              )}
+                              <div className="flex gap-2 pt-1">
+                                <div className="flex-1 bg-background/60 p-2 rounded-lg text-center">
+                                  <p className="text-[9px] text-muted-foreground uppercase">你省了</p>
+                                  <p className="text-sm font-black text-green-600">NT$ {Math.round(currentViewOrder.price_savings_twd / 2).toLocaleString()}</p>
+                                </div>
+                                <div className="flex-1 bg-background/60 p-2 rounded-lg text-center">
+                                  <p className="text-[9px] text-muted-foreground uppercase">旅人獎勵</p>
+                                  <p className="text-sm font-black text-muted-foreground">+NT$ {(currentViewOrder.traveler_price_bonus ?? 0).toLocaleString()}</p>
+                                </div>
+                              </div>
+                            </div>
+                          ) : currentViewOrder.actual_price ? (
+                            // 實際價格高於或等於目標價
                             <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3 rounded-xl space-y-1">
                               <p className="text-[10px] font-black uppercase text-blue-700 dark:text-blue-400 tracking-widest">代購方已回報實際價格</p>
                               <div className="flex items-baseline gap-2">
@@ -1421,7 +1473,7 @@ export default function OrderDetails() {
                                 <p className="text-xs text-muted-foreground italic">{currentViewOrder.actual_price_note}</p>
                               )}
                             </div>
-                          )}
+                          ) : null}
                           <div className="bg-primary/5 p-4 rounded-2xl border border-primary/10 space-y-3">
                             <div className="flex items-center gap-2 text-primary">
                               <CreditCard className="w-5 h-5" />

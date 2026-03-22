@@ -936,14 +936,31 @@ export async function reportActualPrice(
             order.max_price
         );
 
-        // Recalculate amounts based on actual price
-        const newSubtotal = (actualPrice * order.exchange_rate) + order.reward_fee + order.shipping_fee;
-        const newBuyerFee = order.buyer_platform_fee; // Keep original fee structure
-        const newTotalTwd = Math.round(newSubtotal + newBuyerFee);
+        // 差價分分樂 (Smart Split Savings):
+        // If actual < target, the savings are split 50/50.
+        // Buyer pays actual + traveler_bonus (still saves 50% of difference).
+        // Traveler earns reward_fee + traveler_bonus (incentive to find better prices).
+        let priceSavingsTwd: number | null = null;
+        let travelerPriceBonus: number | null = null;
+        let effectivePrice = actualPrice;
+
+        if (actualPrice < order.target_price) {
+            const rawSavings = (order.target_price - actualPrice) * order.exchange_rate;
+            priceSavingsTwd = Math.round(rawSavings);
+            travelerPriceBonus = Math.round(rawSavings * 0.5);
+            // Buyer's total reflects actual cost + traveler's bonus share
+            // effectively buyer saves 50% of the difference vs original target
+        }
+
+        // Recalculate total: base on actual price, add traveler bonus if applicable
+        const baseSubtotal = (actualPrice * order.exchange_rate) + order.reward_fee + order.shipping_fee;
+        const newTotalTwd = Math.round(baseSubtotal + order.buyer_platform_fee + (travelerPriceBonus ?? 0));
 
         const updates: Record<string, any> = {
             actual_price: actualPrice,
             actual_price_note: note || null,
+            price_savings_twd: priceSavingsTwd,
+            traveler_price_bonus: travelerPriceBonus,
         };
 
         if (autoApprove) {
@@ -995,7 +1012,8 @@ export async function approvePriceReport(orderId: string) {
 
         if (!order.actual_price) throw new Error('代購方尚未回報實際價格');
 
-        // Recalculate with actual price
+        // In PRICE_CONFIRM, actual_price > target_price (no savings split applies here).
+        // price_savings_twd / traveler_price_bonus remain null for this path.
         const newSubtotal = (order.actual_price * order.exchange_rate) + order.reward_fee + order.shipping_fee;
         const newTotalTwd = Math.round(newSubtotal + order.buyer_platform_fee);
 
