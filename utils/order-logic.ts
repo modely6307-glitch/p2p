@@ -104,10 +104,13 @@ export function canConfirmEscrow(order: Order, userLevel: 'USER' | 'ADMIN'): { c
 
 /**
  * Validates if a traveler can report the actual price (in MATCHED state).
+ * Only applies to MATCH_ESCROW orders — PRE_ESCROW buyers already paid before
+ * the traveler accepted, so the traveler self-selects at the listed price.
  */
 export function canReportActualPrice(order: Order, userId: string): { can: boolean; reason?: string } {
   if (order.traveler_id !== userId) return { can: false, reason: "只有接單旅人可以回報實際價格" };
   if (order.status !== 'MATCHED') return { can: false, reason: "只能在『已媒合』狀態下回報價格" };
+  if (order.payment_type !== 'MATCH_ESCROW') return { can: false, reason: "託管廣告（先付款）不需要議價確認，旅人接單即代表同意目標價格" };
   return { can: true };
 }
 

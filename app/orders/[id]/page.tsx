@@ -1354,7 +1354,7 @@ export default function OrderDetails() {
                         <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
                         <CardTitle className="text-base">{role === 'buyer' ? t('order.action_pay_title') : t('order.wait_payment_traveler')}</CardTitle>
                       </div>
-                      {role === 'traveler' && !currentViewOrder.actual_price && (
+                      {role === 'traveler' && currentViewOrder.payment_type === 'MATCH_ESCROW' && !currentViewOrder.actual_price && (
                         <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-4 rounded-2xl space-y-3">
                           <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
                             <AlertCircle className="w-4 h-4" />
@@ -1398,7 +1398,7 @@ export default function OrderDetails() {
                           </div>
                         </div>
                       )}
-                      {role === 'traveler' && currentViewOrder.actual_price && (
+                      {role === 'traveler' && currentViewOrder.payment_type === 'MATCH_ESCROW' && currentViewOrder.actual_price && (
                         <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 p-3 rounded-xl">
                           <p className="text-xs text-green-700 dark:text-green-400 font-bold">
                             已回報實際價格：{currentViewOrder.actual_price} {currentViewOrder.currency}
