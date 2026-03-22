@@ -23,6 +23,7 @@
     "status": {
         "OPEN": "Awaiting Pickup",
         "MATCHED": "Pending Payment",
+        "PRICE_CONFIRM": "Price Confirmation",
         "ESCROWED": "Funds in Escrow",
         "BOUGHT": "Purchased",
         "SHIPPED": "Shipped",

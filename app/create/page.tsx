@@ -45,6 +45,7 @@ export default function CreateWish() {
   const [formData, setFormData] = useState({
     item_name: '',
     target_price: '',
+    max_price: '',
     reward_fee: '',
     description: '',
     shipping_address: '',
@@ -284,6 +285,7 @@ export default function CreateWish() {
       const result = await createOrderAction({
         item_name: formData.item_name,
         target_price: parseFloat(formData.target_price),
+        max_price: formData.max_price ? parseFloat(formData.max_price) : null,
         reward_fee: parseFloat(formData.reward_fee),
         exchange_rate: parseFloat(formData.exchange_rate),
         description: formData.description,
@@ -955,6 +957,21 @@ export default function CreateWish() {
                     disabled={formData.currency === 'TWD'}
                     required
                   />
+                </div>
+                <div className="space-y-1.5">
+                  <Input
+                    label={`最高可接受價格（選填）(${currentCurrencySymbol})`}
+                    name="max_price"
+                    type="number"
+                    placeholder={formData.target_price ? `留空 = 嚴格限定 ${formData.target_price}` : '例如：比目標價多 10%'}
+                    value={formData.max_price}
+                    onChange={handleChange}
+                    min={formData.target_price || '0'}
+                    step="0.01"
+                  />
+                  <p className="text-[10px] text-muted-foreground italic px-1">
+                    💡 代購方到現場若發現實際價格高於目標價，系統將依此上限自動決定是否需要您再次確認。留空表示超出目標價即需您審核。
+                  </p>
                 </div>
                 <div className="space-y-1.5">
                   <Input
