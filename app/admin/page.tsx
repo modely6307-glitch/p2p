@@ -150,7 +150,11 @@ export default function AdminDashboard() {
     };
 
     const handleReleaseFunds = async (order: Order) => {
-        if (!await showConfirm('確認撥款給旅人？')) return;
+        const hasSavings = order.traveler_price_bonus && order.traveler_price_bonus > 0;
+        const confirmMsg = hasSavings
+            ? `差價分分樂提醒：\n• 退還買家：NT$ ${Math.round(order.traveler_price_bonus!).toLocaleString()}\n• 旅人加給：+NT$ ${Math.round(order.traveler_price_bonus!).toLocaleString()}\n\n確認撥款給旅人（含比價獎勵）並安排買家退款？`
+            : '確認撥款給旅人？';
+        if (!await showConfirm(confirmMsg)) return;
         try {
             const { adminReleaseFunds } = await import('@/app/actions/orders');
             const result = await adminReleaseFunds(order.id);
@@ -338,8 +342,11 @@ export default function AdminDashboard() {
                                             </Button>
                                         )}
                                         {order.status === 'SHIPPED' && (
-                                            <Button size="sm" onClick={() => handleReleaseFunds(order)} className="bg-green-600 hover:bg-green-700 font-bold">
+                                            <Button size="sm" onClick={() => handleReleaseFunds(order)} className="bg-green-600 hover:bg-green-700 font-bold relative">
                                                 確認撥款
+                                                {order.traveler_price_bonus && order.traveler_price_bonus > 0 && (
+                                                    <span className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400 rounded-full border-2 border-white" title="差價分分樂待處理" />
+                                                )}
                                             </Button>
                                         )}
                                         <Button variant="outline" size="sm" onClick={() => router.push(`/orders/${order.id}`)} className="font-bold">

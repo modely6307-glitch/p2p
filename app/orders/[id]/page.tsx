@@ -1586,6 +1586,79 @@ export default function OrderDetails() {
                             )}
                           </div>
 
+                          {/* PRE_ESCROW：回報實際採購價（差價分分樂） */}
+                          {currentViewOrder.payment_type === 'PRE_ESCROW' && !currentViewOrder.actual_price && (
+                            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-4 rounded-2xl space-y-3">
+                              <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                                <AlertCircle className="w-4 h-4" />
+                                <p className="text-xs font-black uppercase tracking-widest">回報收據上的實際採購價</p>
+                              </div>
+                              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                若現場售價低於許願方目標價，差額將五五分帳：一半退回買家，一半作為你的比價獎勵。
+                              </p>
+                              <div className="space-y-2">
+                                <div className="flex gap-2">
+                                  <Input
+                                    placeholder={`實際採購價 (${currentViewOrder.currency})`}
+                                    type="number"
+                                    value={actualPriceInput}
+                                    onChange={(e) => setActualPriceInput(e.target.value)}
+                                    min="0"
+                                    step="0.01"
+                                    className="flex-1"
+                                  />
+                                  <span className="flex items-center text-sm font-bold text-muted-foreground px-1">{currentViewOrder.currency}</span>
+                                </div>
+                                <Input
+                                  placeholder="備註（選填）"
+                                  value={actualPriceNote}
+                                  onChange={(e) => setActualPriceNote(e.target.value)}
+                                />
+                                {(() => {
+                                  const inputVal = parseFloat(actualPriceInput);
+                                  if (!isNaN(inputVal) && inputVal > 0 && inputVal < currentViewOrder.target_price) {
+                                    const savings = (currentViewOrder.target_price - inputVal) * currentViewOrder.exchange_rate;
+                                    const bonus = Math.round(savings * 0.5);
+                                    return (
+                                      <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 p-3 rounded-xl space-y-1.5">
+                                        <p className="text-[10px] font-black text-green-700 dark:text-green-400 uppercase tracking-widest">差價分分樂</p>
+                                        <div className="flex gap-2">
+                                          <div className="flex-1 bg-background/60 p-2 rounded-lg text-center">
+                                            <p className="text-[9px] text-muted-foreground uppercase">買家退款</p>
+                                            <p className="text-sm font-black text-green-600">NT$ {bonus.toLocaleString()}</p>
+                                          </div>
+                                          <div className="flex-1 bg-green-100 dark:bg-green-900/40 p-2 rounded-lg text-center border border-green-200 dark:border-green-700">
+                                            <p className="text-[9px] text-green-700 dark:text-green-400 uppercase">你的獎勵</p>
+                                            <p className="text-sm font-black text-green-700 dark:text-green-400">+NT$ {bonus.toLocaleString()}</p>
+                                          </div>
+                                        </div>
+                                        <p className="text-[9px] text-muted-foreground text-center">管理員於放款時統一處理</p>
+                                      </div>
+                                    );
+                                  }
+                                  return null;
+                                })()}
+                                <Button
+                                  fullWidth
+                                  onClick={handleReportActualPrice}
+                                  disabled={isReportingPrice || !actualPriceInput}
+                                  className="h-10 font-bold rounded-xl"
+                                >
+                                  {isReportingPrice ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />回報中...</> : '回報實際採購價'}
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                          {currentViewOrder.payment_type === 'PRE_ESCROW' && currentViewOrder.actual_price && currentViewOrder.price_savings_twd && (
+                            <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 p-3 rounded-xl space-y-1">
+                              <p className="text-[10px] font-black text-green-700 dark:text-green-400 uppercase tracking-widest">差價分分樂已記錄</p>
+                              <p className="text-xs text-muted-foreground">
+                                實際採購價 {currentViewOrder.actual_price} {currentViewOrder.currency}，
+                                你將獲得比價獎勵 NT$ {(currentViewOrder.traveler_price_bonus ?? 0).toLocaleString()}（管理員放款時計入）
+                              </p>
+                            </div>
+                          )}
+
                           {/* Product Photo Upload */}
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">

@@ -930,31 +930,14 @@ export async function reportActualPrice(
 
         if (actualPrice <= 0) throw new Error('實際價格必須大於 0');
 
-        const autoApprove = shouldAutoApprovePriceReport(
-            actualPrice,
-            order.target_price,
-            order.max_price
-        );
-
-        // 差價分分樂 (Smart Split Savings):
-        // If actual < target, the savings are split 50/50.
-        // Buyer pays actual + traveler_bonus (still saves 50% of difference).
-        // Traveler earns reward_fee + traveler_bonus (incentive to find better prices).
+        // Calculate savings split whenever actual < target (applies to both payment types)
         let priceSavingsTwd: number | null = null;
         let travelerPriceBonus: number | null = null;
-        let effectivePrice = actualPrice;
-
         if (actualPrice < order.target_price) {
             const rawSavings = (order.target_price - actualPrice) * order.exchange_rate;
             priceSavingsTwd = Math.round(rawSavings);
             travelerPriceBonus = Math.round(rawSavings * 0.5);
-            // Buyer's total reflects actual cost + traveler's bonus share
-            // effectively buyer saves 50% of the difference vs original target
         }
-
-        // Recalculate total: base on actual price, add traveler bonus if applicable
-        const baseSubtotal = (actualPrice * order.exchange_rate) + order.reward_fee + order.shipping_fee;
-        const newTotalTwd = Math.round(baseSubtotal + order.buyer_platform_fee + (travelerPriceBonus ?? 0));
 
         const updates: Record<string, any> = {
             actual_price: actualPrice,
@@ -963,25 +946,45 @@ export async function reportActualPrice(
             traveler_price_bonus: travelerPriceBonus,
         };
 
+        if (order.payment_type === 'PRE_ESCROW') {
+            // PRE_ESCROW: buyer already paid — don't touch total_amount_twd.
+            // Record savings so admin can refund buyer 50% and top-up traveler 50% at fund-release.
+            // Status stays ESCROWED; traveler continues with proof upload flow.
+            updates.price_confirmed_at = new Date().toISOString();
+
+            const { error: updateError } = await supabaseAdmin
+                .from('orders').update(updates).eq('id', orderId);
+            if (updateError) throw updateError;
+
+            return {
+                success: true,
+                autoApproved: true,
+                paymentType: 'PRE_ESCROW',
+                buyerRefund: travelerPriceBonus, // same as traveler bonus (50% each)
+                travelerBonus: travelerPriceBonus,
+            };
+        }
+
+        // MATCH_ESCROW: buyer hasn't paid yet — adjust total and route through negotiation
+        const autoApprove = shouldAutoApprovePriceReport(actualPrice, order.target_price, order.max_price);
+
+        // Recalculate total: actual price + traveler bonus (buyer saves 50% of diff)
+        const baseSubtotal = (actualPrice * order.exchange_rate) + order.reward_fee + order.shipping_fee;
+        const newTotalTwd = Math.round(baseSubtotal + order.buyer_platform_fee + (travelerPriceBonus ?? 0));
+
         if (autoApprove) {
-            // Within tolerance — update amounts and stay MATCHED (buyer still needs to pay)
             updates.total_amount_twd = newTotalTwd;
             updates.total_amount = newTotalTwd;
             updates.price_confirmed_at = new Date().toISOString();
-            // Status stays MATCHED; buyer proceeds to pay via existing notifyPaid flow
         } else {
-            // Exceeds tolerance — request explicit buyer approval
             updates.status = 'PRICE_CONFIRM';
         }
 
         const { error: updateError } = await supabaseAdmin
-            .from('orders')
-            .update(updates)
-            .eq('id', orderId);
-
+            .from('orders').update(updates).eq('id', orderId);
         if (updateError) throw updateError;
 
-        return { success: true, autoApproved: autoApprove, newTotalTwd: autoApprove ? newTotalTwd : null };
+        return { success: true, autoApproved: autoApprove, paymentType: 'MATCH_ESCROW', newTotalTwd: autoApprove ? newTotalTwd : null };
     } catch (error: any) {
         console.error('reportActualPrice error:', error);
         return { success: false, error: error.message };

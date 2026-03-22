@@ -103,14 +103,24 @@ export function canConfirmEscrow(order: Order, userLevel: 'USER' | 'ADMIN'): { c
 }
 
 /**
- * Validates if a traveler can report the actual price (in MATCHED state).
- * Only applies to MATCH_ESCROW orders — PRE_ESCROW buyers already paid before
- * the traveler accepted, so the traveler self-selects at the listed price.
+ * Validates if a traveler can report the actual price.
+ *
+ * MATCH_ESCROW: report in MATCHED state (before buyer pays).
+ *   Triggers price negotiation flow; buyer confirms new amount before paying.
+ *
+ * PRE_ESCROW: report in ESCROWED state (after buyer paid, while uploading proofs).
+ *   No renegotiation — amount is already locked. Savings are recorded and
+ *   split 50/50 at admin fund-release time (traveler bonus + buyer refund).
  */
 export function canReportActualPrice(order: Order, userId: string): { can: boolean; reason?: string } {
   if (order.traveler_id !== userId) return { can: false, reason: "只有接單旅人可以回報實際價格" };
-  if (order.status !== 'MATCHED') return { can: false, reason: "只能在『已媒合』狀態下回報價格" };
-  if (order.payment_type !== 'MATCH_ESCROW') return { can: false, reason: "託管廣告（先付款）不需要議價確認，旅人接單即代表同意目標價格" };
+  if (order.payment_type === 'MATCH_ESCROW') {
+    if (order.status !== 'MATCHED') return { can: false, reason: "只能在『已媒合』狀態下回報價格" };
+  } else {
+    // PRE_ESCROW: report alongside proof upload, only if savings not yet recorded
+    if (order.status !== 'ESCROWED') return { can: false, reason: "只能在『買方已付款』狀態下回報實際採購價" };
+    if (order.actual_price != null) return { can: false, reason: "實際價格已回報，無法重複修改" };
+  }
   return { can: true };
 }
 
