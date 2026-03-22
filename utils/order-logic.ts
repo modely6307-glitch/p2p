@@ -13,6 +13,8 @@ export interface Order {
   previous_status: OrderStatus | null;
   dispute_by_user_id: string | null;
   payment_type: 'PRE_ESCROW' | 'MATCH_ESCROW';
+  max_price?: number | null;
+  actual_price?: number | null;
 }
 
 /**
@@ -87,15 +89,64 @@ export function canAcceptOrder(order: Order, userId: string): { can: boolean; re
  */
 export function canConfirmEscrow(order: Order, userLevel: 'USER' | 'ADMIN'): { can: boolean; reason?: string } {
   if (userLevel !== 'ADMIN') return { can: false, reason: "只有管理員可以確認託管款項" };
-  
+
   // OPEN → ESCROWED is only valid for PRE_ESCROW orders
   if (order.status === 'OPEN' && order.payment_type !== 'PRE_ESCROW') {
     return { can: false, reason: "此訂單須先由旅人接單（進入 MATCHED 狀態）才能確認款項" };
   }
-  
-  if (!['MATCHED', 'OPEN'].includes(order.status)) {
+
+  if (!['MATCHED', 'OPEN', 'PRICE_CONFIRM'].includes(order.status)) {
     return { can: false, reason: "訂單狀態不符合確認託管條件" };
   }
-  
+
   return { can: true };
+}
+
+/**
+ * Validates if a traveler can report the actual price.
+ *
+ * MATCH_ESCROW: report in MATCHED state (before buyer pays).
+ *   Triggers price negotiation flow; buyer confirms new amount before paying.
+ *
+ * PRE_ESCROW: report in ESCROWED state (after buyer paid, while uploading proofs).
+ *   No renegotiation — amount is already locked. Savings are recorded and
+ *   split 50/50 at admin fund-release time (traveler bonus + buyer refund).
+ */
+export function canReportActualPrice(order: Order, userId: string): { can: boolean; reason?: string } {
+  if (order.traveler_id !== userId) return { can: false, reason: "只有接單旅人可以回報實際價格" };
+  if (order.payment_type === 'MATCH_ESCROW') {
+    if (order.status !== 'MATCHED') return { can: false, reason: "只能在『已媒合』狀態下回報價格" };
+  } else {
+    // PRE_ESCROW: report alongside proof upload, only if savings not yet recorded
+    if (order.status !== 'ESCROWED') return { can: false, reason: "只能在『買方已付款』狀態下回報實際採購價" };
+    if (order.actual_price != null) return { can: false, reason: "實際價格已回報，無法重複修改" };
+  }
+  return { can: true };
+}
+
+/**
+ * Validates if a buyer can confirm or reject the actual price (in PRICE_CONFIRM state).
+ */
+export function canRespondToPriceConfirm(order: Order, userId: string): { can: boolean; reason?: string } {
+  if (order.buyer_id !== userId) return { can: false, reason: "只有許願方可以決定是否接受新價格" };
+  if (order.status !== 'PRICE_CONFIRM') return { can: false, reason: "訂單不在價格確認狀態" };
+  return { can: true };
+}
+
+/**
+ * Given a reported actual_price, determine if it needs buyer's explicit confirmation.
+ * Returns true if auto-approve (proceed directly to ESCROWED),
+ * false if needs explicit buyer approval (enter PRICE_CONFIRM).
+ */
+export function shouldAutoApprovePriceReport(
+  actualPrice: number,
+  targetPrice: number,
+  maxPrice: number | null | undefined
+): boolean {
+  // Actual <= target: always auto-approve (buyer gets a discount or exact price)
+  if (actualPrice <= targetPrice) return true;
+  // Actual > target but within max_price tolerance: auto-approve
+  if (maxPrice != null && actualPrice <= maxPrice) return true;
+  // Actual exceeds tolerance: require explicit buyer approval
+  return false;
 }

@@ -57,7 +57,7 @@ function getPreEscrowStepIndex(status: OrderStatus, hasTraveler: boolean): numbe
 export const StepProgressBar = ({ currentStatus, paymentType, travelerId }: StepProgressBarProps) => {
   const { t } = useLanguage();
 
-  if (currentStatus === 'DELISTED' || currentStatus === 'DISPUTE') {
+  if (currentStatus === 'DELISTED' || currentStatus === 'DISPUTE' || currentStatus === 'PRICE_CONFIRM') {
     return (
       <div className="w-full py-4">
         <div className="flex items-center justify-center gap-2 py-2 px-4 rounded-xl bg-gray-500/10 border border-gray-500/20">

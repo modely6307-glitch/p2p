@@ -1,6 +1,7 @@
 export type OrderStatus =
   | 'OPEN'
   | 'MATCHED'
+  | 'PRICE_CONFIRM'
   | 'ESCROWED'
   | 'BOUGHT'
   | 'SHIPPED'
@@ -67,6 +68,14 @@ export interface Order {
   admin_last_read_at?: string;
   ai_search_status?: 'PENDING' | 'COMPLETED' | 'FAILED' | null;
   ai_search_results?: { name: string; address: string; mapUrl?: string; }[] | null;
+  // Price negotiation fields
+  max_price?: number | null;
+  actual_price?: number | null;
+  actual_price_note?: string | null;
+  price_confirmed_at?: string | null;
+  // 差價分分樂 (Smart Split Savings)
+  price_savings_twd?: number | null;
+  traveler_price_bonus?: number | null;
 }
 
 export interface SystemSettings {

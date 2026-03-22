@@ -4,7 +4,7 @@ import { getSupabaseAdmin } from '@/utils/supabase/admin';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { OrderStatus } from '@/types';
-import { canConfirmReceipt } from '@/utils/order-logic';
+import { canConfirmReceipt, canReportActualPrice, canRespondToPriceConfirm, shouldAutoApprovePriceReport } from '@/utils/order-logic';
 
 // Helper to create a Supabase client for the current requesting user
 const createClient = async () => {
@@ -380,7 +380,7 @@ export async function confirmEscrow(orderId: string) {
             .from('orders')
             .update({ status: 'ESCROWED' })
             .eq('id', orderId)
-            .in('status', ['MATCHED', 'OPEN']);
+            .in('status', ['MATCHED', 'OPEN', 'PRICE_CONFIRM']);
 
         if (updateError) throw updateError;
         return { success: true };
@@ -842,6 +842,7 @@ export async function followOrderAction(
 export async function createOrderAction(orderData: {
     item_name: string;
     target_price: number;
+    max_price?: number | null;
     reward_fee: number;
     exchange_rate: number;
     currency: string;
@@ -894,5 +895,185 @@ export async function createOrderAction(orderData: {
     } catch (error: any) {
         console.error('createOrderAction error:', error);
         return { success: false as const, error: error.message || '建立訂單失敗' };
+    }
+}
+
+// ─── Price Negotiation Actions ────────────────────────────────────────────────
+
+/**
+ * Traveler reports the actual price found at the store (called in MATCHED state).
+ * If the actual price is within the buyer's tolerance (target_price or max_price),
+ * the order auto-advances to ESCROWED-ready flow (buyer pays).
+ * If it exceeds the tolerance, the order enters PRICE_CONFIRM for buyer decision.
+ */
+export async function reportActualPrice(
+    orderId: string,
+    actualPrice: number,
+    note?: string
+) {
+    try {
+        const supabaseClient = await createClient();
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user) throw new Error('您尚未登入');
+
+        const supabaseAdmin = getSupabaseAdmin();
+        const { data: order, error: fetchError } = await supabaseAdmin
+            .from('orders')
+            .select('*')
+            .eq('id', orderId)
+            .single();
+
+        if (fetchError || !order) throw new Error('找不到訂單');
+
+        const validation = canReportActualPrice(order as any, user.id);
+        if (!validation.can) throw new Error(validation.reason);
+
+        if (actualPrice <= 0) throw new Error('實際價格必須大於 0');
+
+        // Calculate savings split whenever actual < target (applies to both payment types)
+        let priceSavingsTwd: number | null = null;
+        let travelerPriceBonus: number | null = null;
+        if (actualPrice < order.target_price) {
+            const rawSavings = (order.target_price - actualPrice) * order.exchange_rate;
+            priceSavingsTwd = Math.round(rawSavings);
+            travelerPriceBonus = Math.round(rawSavings * 0.5);
+        }
+
+        const updates: Record<string, any> = {
+            actual_price: actualPrice,
+            actual_price_note: note || null,
+            price_savings_twd: priceSavingsTwd,
+            traveler_price_bonus: travelerPriceBonus,
+        };
+
+        if (order.payment_type === 'PRE_ESCROW') {
+            // PRE_ESCROW: buyer already paid — don't touch total_amount_twd.
+            // Record savings so admin can refund buyer 50% and top-up traveler 50% at fund-release.
+            // Status stays ESCROWED; traveler continues with proof upload flow.
+            updates.price_confirmed_at = new Date().toISOString();
+
+            const { error: updateError } = await supabaseAdmin
+                .from('orders').update(updates).eq('id', orderId);
+            if (updateError) throw updateError;
+
+            return {
+                success: true,
+                autoApproved: true,
+                paymentType: 'PRE_ESCROW',
+                buyerRefund: travelerPriceBonus, // same as traveler bonus (50% each)
+                travelerBonus: travelerPriceBonus,
+            };
+        }
+
+        // MATCH_ESCROW: buyer hasn't paid yet — adjust total and route through negotiation
+        const autoApprove = shouldAutoApprovePriceReport(actualPrice, order.target_price, order.max_price);
+
+        // Recalculate total: actual price + traveler bonus (buyer saves 50% of diff)
+        const baseSubtotal = (actualPrice * order.exchange_rate) + order.reward_fee + order.shipping_fee;
+        const newTotalTwd = Math.round(baseSubtotal + order.buyer_platform_fee + (travelerPriceBonus ?? 0));
+
+        if (autoApprove) {
+            updates.total_amount_twd = newTotalTwd;
+            updates.total_amount = newTotalTwd;
+            updates.price_confirmed_at = new Date().toISOString();
+        } else {
+            updates.status = 'PRICE_CONFIRM';
+        }
+
+        const { error: updateError } = await supabaseAdmin
+            .from('orders').update(updates).eq('id', orderId);
+        if (updateError) throw updateError;
+
+        return { success: true, autoApproved: autoApprove, paymentType: 'MATCH_ESCROW', newTotalTwd: autoApprove ? newTotalTwd : null };
+    } catch (error: any) {
+        console.error('reportActualPrice error:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Buyer approves the actual price reported by the traveler (PRICE_CONFIRM → MATCHED).
+ * Updates the order total and reverts to MATCHED so the buyer can proceed to pay.
+ */
+export async function approvePriceReport(orderId: string) {
+    try {
+        const supabaseClient = await createClient();
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user) throw new Error('您尚未登入');
+
+        const supabaseAdmin = getSupabaseAdmin();
+        const { data: order, error: fetchError } = await supabaseAdmin
+            .from('orders')
+            .select('*')
+            .eq('id', orderId)
+            .single();
+
+        if (fetchError || !order) throw new Error('找不到訂單');
+
+        const validation = canRespondToPriceConfirm(order as any, user.id);
+        if (!validation.can) throw new Error(validation.reason);
+
+        if (!order.actual_price) throw new Error('代購方尚未回報實際價格');
+
+        // In PRICE_CONFIRM, actual_price > target_price (no savings split applies here).
+        // price_savings_twd / traveler_price_bonus remain null for this path.
+        const newSubtotal = (order.actual_price * order.exchange_rate) + order.reward_fee + order.shipping_fee;
+        const newTotalTwd = Math.round(newSubtotal + order.buyer_platform_fee);
+
+        const { error: updateError } = await supabaseAdmin
+            .from('orders')
+            .update({
+                status: 'MATCHED',
+                total_amount_twd: newTotalTwd,
+                total_amount: newTotalTwd,
+                price_confirmed_at: new Date().toISOString(),
+            })
+            .eq('id', orderId);
+
+        if (updateError) throw updateError;
+        return { success: true, newTotalTwd };
+    } catch (error: any) {
+        console.error('approvePriceReport error:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Buyer rejects the actual price — order reverts to OPEN, traveler is unmatched.
+ */
+export async function rejectPriceReport(orderId: string) {
+    try {
+        const supabaseClient = await createClient();
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user) throw new Error('您尚未登入');
+
+        const supabaseAdmin = getSupabaseAdmin();
+        const { data: order, error: fetchError } = await supabaseAdmin
+            .from('orders')
+            .select('*')
+            .eq('id', orderId)
+            .single();
+
+        if (fetchError || !order) throw new Error('找不到訂單');
+
+        const validation = canRespondToPriceConfirm(order as any, user.id);
+        if (!validation.can) throw new Error(validation.reason);
+
+        // Unassign traveler and revert to OPEN for re-listing
+        const { error: updateError } = await supabaseAdmin
+            .from('orders')
+            .update({
+                status: 'OPEN',
+                traveler_id: null,
+                actual_price: null,
+                actual_price_note: null,
+            })
+            .eq('id', orderId);
+
+        if (updateError) throw updateError;
+        return { success: true };
+    } catch (error: any) {
+        console.error('rejectPriceReport error:', error);
+        return { success: false, error: error.message };
     }
 }

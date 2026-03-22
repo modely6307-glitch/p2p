@@ -23,6 +23,7 @@
   "status": {
     "OPEN": "待接單",
     "MATCHED": "待付款",
+    "PRICE_CONFIRM": "待確認價格",
     "ESCROWED": "買方已付款",
     "BOUGHT": "已採買",
     "SHIPPED": "已發貨",
